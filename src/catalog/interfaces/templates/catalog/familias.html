@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Familias{% endblock %}
+{% block contenido %}
+<h1>Familias</h1>
+<p class="subtitulo">Agrupaciones libres para buscar y filtrar (p. ej. "Maltas", "Snacks"). No tienen efecto tributario.</p>
+<div class="tarjeta tabla"><table><tbody>
+{% for f in familias %}<tr><td>{{ f }}</td></tr>{% empty %}<tr><td>No hay familias.</td></tr>{% endfor %}
+</tbody></table></div>
+<section class="tarjeta">
+  <form method="post" class="filtros">{% csrf_token %}
+    <label>Nueva familia<input name="nombre" required></label>
+    <button type="submit">Crear</button>
+  </form>
+</section>
+{% endblock %}

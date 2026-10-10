@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titulo %}Nuevo producto{% endblock %}
+{% block contenido %}
+<h1>Nuevo producto</h1>
+<p class="subtitulo">Tipo:
+{% for t in tipos %}{% if t == tipo %}<span class="chip">{{ t }}</span>{% else %}<a href="?tipo={{ t }}">{{ t }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+<section class="tarjeta">
+<form method="post">{% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Crear {{ tipo|lower }}</button>
+</form>
+</section>
+{% endblock %}

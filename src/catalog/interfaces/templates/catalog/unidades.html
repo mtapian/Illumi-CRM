@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block titulo %}Unidades{% endblock %}
+{% block contenido %}
+<h1>Unidades de medida</h1>
+<p class="subtitulo">Con su código SUNAT (catálogo 03).</p>
+<div class="tarjeta tabla">
+<table><thead><tr><th>Abreviatura</th><th>Nombre</th><th>Código SUNAT</th><th>Estado</th><th></th></tr></thead><tbody>
+{% for u in unidades %}<tr><td><code>{{ u.abreviatura }}</code></td><td>{{ u.nombre }}</td><td>{{ u.codigo_sunat }}</td>
+  <td><span class="chip {% if u.activo %}ok{% else %}error{% endif %}">{% if u.activo %}Activa{% else %}Inactiva{% endif %}</span></td>
+  <td><form method="post" class="filtros">{% csrf_token %}<input type="hidden" name="unidad" value="{{ u.id }}">
+    {% if u.activo %}<button type="submit" name="accion" value="desactivar">Desactivar</button>{% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
+    <button type="submit" name="accion" value="eliminar" class="peligro">Eliminar</button></form></td></tr>
+{% endfor %}
+</tbody></table>
+</div>
+<section class="tarjeta">
+  <h2>Nueva unidad</h2>
+  <form method="post" class="filtros">{% csrf_token %}<input type="hidden" name="accion" value="crear">
+    <label>Nombre<input name="nombre" required></label>
+    <label>Abreviatura<input name="abreviatura" required maxlength="10"></label>
+    <label>Código SUNAT<input name="codigo_sunat" required maxlength="3" placeholder="NIU"></label>
+    <button type="submit">Crear</button>
+  </form>
+</section>
+{% endblock %}

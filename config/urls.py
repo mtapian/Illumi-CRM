@@ -4,6 +4,7 @@ from django.views.static import serve
 
 urlpatterns = [
     path("", include("tenancy.interfaces.urls")),
+    path("", include("catalog.interfaces.urls")),
 ]
 
 if settings.SERVIR_MEDIA:

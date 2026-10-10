@@ -1,6 +1,6 @@
 # Spec 0002a — Catálogo: unidades y productos
 
-Estado: aprobada (PO, 2026-10-10)
+Estado: implementada (2026-10-10)
 
 Épica E02 (Catálogo), parte 1 de 3. Depende de: 0001a, 0001c. La usan: 0002b, 0002c y 0003–0008.
 

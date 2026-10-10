@@ -9,9 +9,10 @@ import pytest
 from django.apps import apps
 from django.urls import URLPattern, URLResolver, get_resolver
 
+from shared.domain.accesos import CATALOGO
 from shared.domain.tenant import TenantNoDefinido, tenant_context
 from shared.infrastructure.tenant_models import TenantModel
-from tenancy.infrastructure.models import Rol, Usuario
+from tenancy.infrastructure.models import PlanFuncionalidad, Rol, Usuario
 from tests.conftest import asignar_rol
 
 BACKEND = "tenancy.infrastructure.auth_backend.EmailBackend"
@@ -26,10 +27,22 @@ def _ajeno_rol(otra):
     return Rol.all_tenants.create(empresa=otra, nombre="Ajeno").id
 
 
+def _ajeno_producto(otra):
+    from catalog.infrastructure.models import Producto, Unidad
+
+    unidad = Unidad.all_tenants.create(
+        empresa=otra, nombre="U", abreviatura="UND", codigo_sunat="NIU"
+    )
+    return Producto.all_tenants.create(
+        empresa=otra, sku="AJENO", nombre="Ajeno", tipo="INSUMO", unidad=unidad
+    ).id
+
+
 # ruta → función que crea un registro de la otra empresa y devuelve su id
 RUTAS = {
     "usuarios/<int:usuario_id>/": _ajeno_usuario,
     "roles/<int:rol_id>/": _ajeno_rol,
+    "catalogo/productos/<int:producto_id>/": _ajeno_producto,
 }
 
 
@@ -61,6 +74,8 @@ def test_toda_ruta_con_id_esta_cubierta():
 @pytest.mark.parametrize("ruta", sorted(RUTAS))
 def test_un_id_de_otra_empresa_da_404(client, crear_empresa, ruta):
     propia, otra = crear_empresa(), crear_empresa(ruc="20100047218")
+    for f in CATALOGO:  # todo habilitado: el 404 no debe confundirse con un 403
+        PlanFuncionalidad.objects.create(plan=propia.plan, funcionalidad_id=f)
     lucia = asignar_rol(Usuario.objects.create_user("l@a.pe", "x", empresa=propia))
     client.force_login(lucia, BACKEND)
     ajeno = RUTAS[ruta](otra)

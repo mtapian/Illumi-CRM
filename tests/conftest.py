@@ -1,7 +1,9 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
+from catalog.application.puertos import puertos
 from tenancy.infrastructure.contenedor import sembrador_roles
 from tenancy.infrastructure.models import Empresa, Plan, Rol, UsuarioRol
 
@@ -25,3 +27,23 @@ def asignar_rol(usuario, nombre="Administrador"):
     rol = Rol.all_tenants.get(empresa_id=usuario.empresa_id, nombre=nombre)
     UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol)
     return usuario
+
+
+class InventarioFalso:
+    """Reemplaza al inventario (épica 0003) en los tests."""
+
+    def __init__(self):
+        self.stocks, self.con_movimientos = {}, set()
+
+    def stock(self, producto_id):
+        return self.stocks.get(producto_id, Decimal("0"))
+
+    def tiene_movimientos(self, producto_id):
+        return producto_id in self.con_movimientos or self.stock(producto_id) > 0
+
+
+@pytest.fixture
+def inventario(monkeypatch):
+    falso = InventarioFalso()
+    monkeypatch.setattr(puertos, "inventario", falso)
+    return falso

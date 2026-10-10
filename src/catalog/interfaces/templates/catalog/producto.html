@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block titulo %}{{ producto.sku }}{% endblock %}
+{% block contenido %}
+<h1>{{ producto.nombre }}</h1>
+<p class="subtitulo"><code>{{ producto.sku }}</code> · {{ producto.tipo }} · stock {{ stock }} {{ producto.unidad }}
+ · <span class="chip {% if producto.activo %}ok{% else %}error{% endif %}">{% if producto.activo %}Activo{% else %}Inactivo{% endif %}</span>
+ {% if producto.controla_lote %}· <span class="chip">con lote</span>{% endif %}
+ · <a href="{% url 'productos' %}">Volver a productos</a></p>
+{% if movimientos %}<p class="aviso">Tiene movimientos de inventario: el SKU, el tipo, la unidad y el control de lote ya no se pueden cambiar.</p>{% endif %}
+<div class="tarjetas">
+<section class="tarjeta">
+  <h2>Datos</h2>
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    {{ form.as_p }}
+    {% if "catalogo.producto.gestionar" in permisos %}<button type="submit">Guardar</button>{% endif %}
+  </form>
+</section>
+{% if "catalogo.producto.gestionar" in permisos %}
+<section class="tarjeta">
+  <h2>Estado</h2>
+  <p class="subtitulo">Desactivado, deja de ofrecerse en compras, recetas, envasados y ventas, pero sigue en el historial.</p>
+  <form method="post" class="filtros">{% csrf_token %}
+    {% if producto.activo %}<button type="submit" name="accion" value="desactivar" class="peligro">Desactivar</button>
+    {% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
+    <button type="submit" name="accion" value="eliminar" class="peligro">Eliminar</button>
+  </form>
+</section>
+{% endif %}
+</div>
+{% endblock %}

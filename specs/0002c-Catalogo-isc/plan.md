@@ -1,6 +1,6 @@
 # Plan 0002c — Catálogo: categorías y tarifas de ISC
 
-Estado: aprobada (PO, 2026-10-10)
+Estado: implementada (2026-10-10)
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 

@@ -6,6 +6,7 @@ import pytest
 from django.utils import timezone
 from pytest_bdd import given, parsers, then, when
 
+from catalog.infrastructure.models import Unidad
 from tenancy.application.sembradores import RegistroSembradores
 from tenancy.infrastructure.models import Empresa, Plan, Usuario, UsuarioRol
 from tests.acceptance.conftest import contenido, no_hay_empresas_ni_usuarios_de_empresa
@@ -103,7 +104,10 @@ def tiene_almacen(ctx, nombre):
 
 @then(parsers.parse('la empresa tiene las unidades de medida iniciales "{unidades}"'))
 def tiene_unidades(ctx, unidades):
-    ctx["pendientes"].append("unidades de medida (las siembra 0002a)")
+    filas = Unidad.all_tenants.filter(empresa=ctx["empresa"])
+    assert {u.strip() for u in unidades.split(",")} <= set(
+        filas.values_list("abreviatura", flat=True)
+    )
 
 
 @then("la empresa tiene las categorías de gasto iniciales")

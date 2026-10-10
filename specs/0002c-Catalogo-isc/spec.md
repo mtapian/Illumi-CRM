@@ -1,6 +1,6 @@
 # Spec 0002c — Catálogo: categorías y tarifas de ISC
 
-Estado: aprobada (PO, 2026-10-10)
+Estado: implementada (2026-10-10)
 
 Épica E02 (Catálogo), parte 3 de 3. Depende de: 0002a. La usan: 0006, 0007.
 

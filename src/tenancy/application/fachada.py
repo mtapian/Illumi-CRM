@@ -39,3 +39,7 @@ class TenancyService:
             self._habilitaciones.ajustes(empresa_id),
             hoy,
         )
+
+    def limite_productos(self, empresa_id: int) -> int | None:
+        """Productos activos que permite el plan; None es ilimitado (RF-CAT-10)."""
+        return self._empresas.limite_productos(empresa_id)

@@ -49,6 +49,9 @@ class EmpresasOrm:
     def actualizar(self, empresa_id: int, datos: dict) -> None:
         Empresa.objects.filter(pk=empresa_id).update(**datos)
 
+    def limite_productos(self, empresa_id: int) -> int | None:
+        return Plan.objects.get(empresas_plan__id=empresa_id).limite_productos
+
 
 class RegistroOrm:
     """Crea empresa y administrador; traduce las carreras de unicidad a errores de dominio."""

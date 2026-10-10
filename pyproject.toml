@@ -43,19 +43,19 @@ select = ["E", "F", "I", "B", "UP", "DJ"]
 where = ["src"]
 
 [tool.importlinter]
-root_packages = ["shared", "tenancy"]
+root_packages = ["shared", "tenancy", "catalog"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Capas de cada contexto (plan 0000 §2)"
 type = "layers"
 layers = ["interfaces", "infrastructure", "application", "domain"]
-containers = ["shared", "tenancy"]
+containers = ["shared", "tenancy", "catalog"]
 
 [[tool.importlinter.contracts]]
 name = "El dominio es Python puro: no importa Django"
 type = "forbidden"
-source_modules = ["shared.domain", "tenancy.domain"]
+source_modules = ["shared.domain", "tenancy.domain", "catalog.domain"]
 forbidden_modules = ["django"]
 
 [[tool.importlinter.contracts]]
@@ -63,3 +63,15 @@ name = "El shared kernel no depende de ningún contexto"
 type = "forbidden"
 source_modules = ["shared"]
 forbidden_modules = ["tenancy"]
+
+[[tool.importlinter.contracts]]
+name = "Tenancy no depende del catálogo (los contextos de abajo no conocen a los de arriba)"
+type = "forbidden"
+source_modules = ["tenancy"]
+forbidden_modules = ["catalog"]
+
+[[tool.importlinter.contracts]]
+name = "El catálogo usa tenancy solo por su fachada, sus registros y su capa web"
+type = "forbidden"
+source_modules = ["catalog.domain", "catalog.application"]
+forbidden_modules = ["tenancy.infrastructure", "tenancy.interfaces", "tenancy.domain"]

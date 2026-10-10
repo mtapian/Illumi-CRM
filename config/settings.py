@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "tenancy.infrastructure.apps.TenancyConfig",
+    "catalog.infrastructure.apps.CatalogConfig",
     "shared.infrastructure.apps.SharedConfig",
 ]
 
