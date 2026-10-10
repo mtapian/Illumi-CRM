@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titulo %}Datos de la empresa{% endblock %}
+{% block contenido %}
+<h1>Datos de la empresa</h1>
+<p class="subtitulo">RUC: <strong>{{ empresa.ruc }}</strong> <span class="chip">no se puede modificar</span></p>
+<div class="tarjetas">
+<section class="tarjeta">
+<h2>Datos generales</h2>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="accion" value="datos">
+  {{ form.as_p }}
+  <button type="submit">Guardar</button>
+</form>
+</section>
+<section class="tarjeta">
+<h2>IGV</h2>
+<p class="subtitulo">Cada cambio se registra con su fecha de vigencia; los documentos ya emitidos no cambian.</p>
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="accion" value="igv">
+  {{ form_igv.as_p }}
+  <button type="submit">Registrar IGV</button>
+</form>
+</section>
+</div>
+{% endblock %}

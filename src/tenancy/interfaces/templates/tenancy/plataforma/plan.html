@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block titulo %}Plan {{ plan }}{% endblock %}
+{% block contenido %}
+<h1>Plan {{ plan }}</h1>
+<p class="subtitulo">{% if plan.es_plan_prueba %}Plan de prueba: incluye todas las funcionalidades sin importar lo que se marque aquí.{% else %}CORE siempre está incluido.{% endif %}</p>
+<form method="post">{% csrf_token %}
+  {% if confirmar is not None %}
+  <div class="aviso" role="alert">Este cambio afecta a {{ confirmar }} empresa{{ confirmar|pluralize }}.
+    <input type="hidden" name="confirmado" value="1"> <button type="submit">Confirmar</button></div>
+  {% endif %}
+  <div class="tarjetas">
+    <section class="tarjeta">
+      <h2>Límites</h2>
+      <p><label>Usuarios activos (vacío = ilimitado)<input type="number" min="1" name="limite_usuarios" value="{% if limites %}{{ limites.limite_usuarios|default_if_none:'' }}{% else %}{{ plan.limite_usuarios|default_if_none:'' }}{% endif %}"></label></p>
+      <p><label>Productos activos (vacío = ilimitado)<input type="number" min="1" name="limite_productos" value="{% if limites %}{{ limites.limite_productos|default_if_none:'' }}{% else %}{{ plan.limite_productos|default_if_none:'' }}{% endif %}"></label></p>
+    </section>
+    {% for m in modulos %}
+    <section class="tarjeta">
+      <h2>{{ m.nombre }}</h2>
+      {% for f in m.opciones %}
+      <label class="check"><input type="checkbox" name="funcionalidades" value="{{ f.codigo }}" {% if f.codigo in elegidas %}checked{% endif %}> {{ f.nombre }}</label>
+      {% endfor %}
+    </section>
+    {% endfor %}
+  </div>
+  {% if confirmar is None %}<button type="submit">Guardar</button>{% endif %}
+</form>
+{% endblock %}

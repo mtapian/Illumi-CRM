@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Illumi{% endblock %} · Illumi</title>
+  {# Guía visual: Referencia:html (dashboard SaaS: menú azul marino, tarjetas blancas, acento azul). #}
+  <style>
+    :root {
+      --fondo: #f3f5f9; --tarjeta: #fff; --borde: #e3e7ee; --texto: #0f1b33; --tenue: #5b6578;
+      --marino: #111d3c; --marino-2: #1b2a50; --marino-texto: #c5cde0;
+      --acento: #2563eb; --acento-suave: #e8effd;
+      --ok: #15803d; --ok-suave: #e7f6ec; --alerta: #b45309; --alerta-suave: #fdf3e2;
+      --error: #dc2626; --error-suave: #fdecec; --radio: 10px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fondo); color: var(--texto);
+      font: 15px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    a { color: var(--acento); text-decoration: none; font-weight: 600; }
+    h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+    h2 { font-size: 1.1rem; margin: 0 0 .75rem; }
+    .subtitulo { color: var(--tenue); margin: 0 0 1.5rem; }
+
+    /* Layout con menú lateral */
+    .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+    .menu-lateral { background: var(--marino); color: var(--marino-texto); padding: 1.5rem 1rem;
+      display: flex; flex-direction: column; gap: .25rem; }
+    .marca { display: flex; align-items: center; gap: .75rem; padding: 0 .5rem 1.25rem;
+      margin-bottom: .75rem; border-bottom: 1px solid var(--marino-2); }
+    .marca .logo, .marca .inicial { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+    .marca .inicial { background: var(--acento); color: #fff; display: grid; place-items: center;
+      font-weight: 700; font-size: 1.2rem; }
+    .marca strong { color: #fff; display: block; line-height: 1.2; }
+    .marca small { color: var(--marino-texto); }
+    .menu-lateral a { color: var(--marino-texto); font-weight: 500; padding: .6rem .75rem;
+      border-radius: 8px; border-left: 3px solid transparent; }
+    .menu-lateral a:hover { background: var(--marino-2); color: #fff; }
+    .menu-lateral a.activo { background: var(--marino-2); color: #fff; border-left-color: var(--acento); }
+    .menu-lateral { position: sticky; top: 0; height: 100vh; }
+    .menu-opciones { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .15rem;
+      margin: 0 -.25rem; padding: 0 .25rem; scrollbar-width: thin; }
+    .menu-opciones details > a { display: block; padding-left: 1.75rem; font-size: .93rem; }
+    .menu-opciones summary { list-style: none; cursor: pointer; padding: .6rem .75rem; border-radius: 8px;
+      font-weight: 500; display: flex; justify-content: space-between; }
+    .menu-opciones summary::-webkit-details-marker { display: none; }
+    .menu-opciones summary::after { content: "⌄"; transition: transform .15s; }
+    .menu-opciones details[open] summary::after { transform: rotate(180deg); }
+    .menu-opciones summary:hover { background: var(--marino-2); color: #fff; }
+    .menu-lateral form { margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--marino-2); }
+    .menu-lateral form button { background: none; color: var(--marino-texto); width: 100%;
+      text-align: left; padding: .6rem .75rem; }
+    .menu-lateral form button:hover { background: var(--marino-2); color: #fff; }
+    .contenido { padding: 2rem 2.5rem; max-width: 1200px; width: 100%; }
+
+    /* Páginas públicas (login, registro, recuperación) */
+    .publica { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; }
+    .publica main { width: 100%; max-width: 440px; }
+    .publica main::before { content: "Illumi"; display: block; text-align: center; font-weight: 800;
+      font-size: 1.5rem; color: var(--marino); margin-bottom: 1rem; }
+    .publica main > .panel { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--radio); padding: 2rem;
+      box-shadow: 0 1px 3px rgba(15, 27, 51, .06); }
+
+    /* Componentes */
+    .tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--radio);
+      padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: 0 1px 3px rgba(15, 27, 51, .04); }
+    .tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; align-items: start; }
+    .kpi .etiqueta { color: var(--tenue); font-weight: 600; font-size: .9rem; }
+    .kpi .valor { font-size: 1.6rem; font-weight: 700; }
+    .chip { display: inline-block; padding: .15rem .6rem; border-radius: 6px; font-size: .8rem;
+      font-weight: 600; background: var(--acento-suave); color: var(--acento); }
+    .chip.ok { background: var(--ok-suave); color: var(--ok); }
+    .chip.error { background: var(--error-suave); color: var(--error); }
+    .aviso { background: var(--alerta-suave); color: var(--alerta); border: 1px solid #f5d9a8;
+      padding: .75rem 1rem; border-radius: var(--radio); margin-bottom: 1.25rem; font-weight: 600; }
+    .mensaje { background: var(--ok-suave); color: var(--ok); padding: .75rem 1rem;
+      border-radius: var(--radio); margin: 0 0 1.25rem; }
+    .error { background: var(--error-suave); color: var(--error); padding: .75rem 1rem;
+      border-radius: var(--radio); margin: 0 0 1.25rem; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: .6rem 2rem; margin: 0; }
+    dt { color: var(--tenue); font-weight: 600; }
+    dd { margin: 0; }
+    .tabla { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; color: var(--tenue); font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+    th, td { padding: .6rem .5rem; border-bottom: 1px solid var(--borde); }
+    tr:last-child td { border-bottom: 0; }
+    .filtros { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1.25rem; }
+    .filtros label { margin: 0; } .filtros select, .filtros input { width: auto; min-width: 180px; }
+    label.check { display: flex; gap: .5rem; align-items: center; font-weight: 500; margin: .35rem 0; }
+    button.peligro { background: var(--error); } button.peligro:hover { background: #b91c1c; }
+    .estado-func { display: inline-block; padding: .15rem .6rem; border-radius: 6px; font-size: .8rem; font-weight: 600;
+      background: var(--borde); color: var(--tenue); }
+    .estado-func.incluida-en-el-plan { background: var(--acento-suave); color: var(--acento); }
+    .estado-func.agregada { background: var(--ok-suave); color: var(--ok); }
+    .estado-func.quitada { background: var(--error-suave); color: var(--error); }
+    .mensaje.error, .messages .error { background: var(--error-suave); color: var(--error); }
+    .funcionalidad { margin-bottom: .75rem; } label.check code { overflow-wrap: anywhere; } .funcionalidad.bloqueada { opacity: .55; }
+    h3 { font-size: .95rem; margin: 1rem 0 .25rem; color: var(--tenue); }
+    ol { padding-left: 1.25rem; margin: 0; } li { margin: .35rem 0; }
+
+    /* Formularios ({{ form.as_p }}) */
+    form p { margin: 0 0 1rem; }
+    label { display: block; font-weight: 600; font-size: .9rem; margin-bottom: .35rem; }
+    input:not([type=checkbox]):not([type=hidden]), select, textarea { width: 100%; padding: .6rem .75rem;
+      border: 1px solid var(--borde); border-radius: 8px; font: inherit; background: #fff; }
+    input:focus, select:focus { outline: 2px solid var(--acento-suave); border-color: var(--acento); }
+    .helptext, form p span { display: block; color: var(--tenue); font-size: .8rem; margin-top: .25rem; }
+    .errorlist { list-style: none; padding: 0; margin: 0 0 .35rem; color: var(--error); font-size: .85rem; }
+    button { background: var(--acento); color: #fff; border: 0; border-radius: 8px; padding: .65rem 1.25rem;
+      font: inherit; font-weight: 600; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    .publica button { width: 100%; }
+
+    @media (max-width: 800px) {
+      .app { grid-template-columns: 1fr; }
+      .menu-lateral { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: .75rem; }
+      .menu-opciones { order: 3; flex-basis: 100%; flex-direction: row; flex-wrap: wrap; overflow: visible; }
+      .marca { border: 0; padding: 0 .5rem 0 0; margin: 0; }
+      .menu-lateral form { margin: 0 0 0 auto; padding: 0; border: 0; }
+      .contenido { padding: 1.25rem 1rem; }
+    }
+  </style>
+</head>
+{% if user.is_authenticated and user.empresa or user.is_super %}
+<body>
+  <div class="app">
+  <nav class="menu-lateral">
+    <div class="marca">
+      {% if user.empresa.logo %}<img src="{{ user.empresa.logo.url }}" alt="Logo" class="logo">{% elif user.empresa %}<span class="inicial">{{ user.empresa.razon_social|first|upper }}</span>{% else %}<span class="inicial">I</span>{% endif %}
+      <div><strong>{{ user.empresa|default:"Illumi · Plataforma" }}</strong><small>{{ user.email }}</small></div>
+    </div>
+    <div class="menu-opciones">
+      {% for grupo in menu_lateral %}
+        {% if grupo.nombre %}
+        <details {% if grupo.abierto %}open{% endif %}>
+          <summary>{{ grupo.nombre }}</summary>
+          {% for item in grupo.items %}<a href="{{ item.url }}" {% if item.activo %}class="activo"{% endif %}>{{ item.etiqueta }}</a>{% endfor %}
+        </details>
+        {% else %}
+          {% for item in grupo.items %}<a href="{{ item.url }}" {% if item.activo %}class="activo"{% endif %}>{{ item.etiqueta }}</a>{% endfor %}
+        {% endif %}
+      {% endfor %}
+    </div>
+    <form method="post" action="/logout/">{% csrf_token %}<button type="submit">Cerrar sesión</button></form>
+  </nav>
+  <main class="contenido">
+    {% if aviso_vencimiento %}<div class="aviso" role="status">{{ aviso_vencimiento }}</div>{% endif %}
+{% else %}
+<body class="publica">
+  <main>
+{% endif %}
+    {% for m in messages %}<p class="mensaje {{ m.tags }}"{% if m.level_tag == "error" %} role="alert"{% endif %}>{{ m }}</p>{% endfor %}
+    {% block contenido %}{% endblock %}
+  </main>
+{% if user.is_authenticated and user.empresa or user.is_super %}</div>{% endif %}
+</body>
+</html>

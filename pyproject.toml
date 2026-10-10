@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "illumi-crm"
+version = "0.1.0"
+description = "CRM/ERP SaaS multiempresa para PYMEs productoras en Perú"
+requires-python = ">=3.12"
+dependencies = [
+    "django==5.2.18",
+    "djangorestframework==3.16.1",
+    "psycopg[binary]==3.3.6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-django==4.14.0",
+    "pytest-bdd==9.0.0",
+    "hypothesis==6.168.5",
+    "ruff==0.17.0",
+    "import-linter==2.15",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+pythonpath = [".", "src"]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+bdd_features_base_dir = "specs"
+filterwarnings = ["ignore::pytest.PytestUnknownMarkWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["**/migrations/*", ".claude", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "DJ"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.importlinter]
+root_packages = ["shared", "tenancy"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Capas de cada contexto (plan 0000 §2)"
+type = "layers"
+layers = ["interfaces", "infrastructure", "application", "domain"]
+containers = ["shared", "tenancy"]
+
+[[tool.importlinter.contracts]]
+name = "El dominio es Python puro: no importa Django"
+type = "forbidden"
+source_modules = ["shared.domain", "tenancy.domain"]
+forbidden_modules = ["django"]
+
+[[tool.importlinter.contracts]]
+name = "El shared kernel no depende de ningún contexto"
+type = "forbidden"
+source_modules = ["shared"]
+forbidden_modules = ["tenancy"]

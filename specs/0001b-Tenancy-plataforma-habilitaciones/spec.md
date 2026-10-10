@@ -1,6 +1,6 @@
 # Spec 0001b — Plataforma: planes y habilitaciones
 
-Estado: borrador
+Estado: implementada (2026-10-10)
 
 Épica E01 (Tenancy y accesos), parte 2 de 4. Depende de: 0001a. La usan: 0001c, 0001d y 002–008 (catálogo de permisos).
 
@@ -122,5 +122,5 @@ Límites de uso por funcionalidad (N OP/mes), autoservicio para contratar módul
 
 ## Dudas abiertas
 
-- [NECESITA ACLARACIÓN] **PRD Q8:** qué funcionalidades y límites incluye cada plan comercial (Gratis, Emprendedor, Negocio), y cuál es el plan de prueba.
+- **PRD Q8 (resuelta por el PO con el valor por defecto, 2026-10-10):** el plan de prueba incluye todas las funcionalidades y no tiene límites; el contenido de los planes comerciales es un dato que carga el super admin.
 - [NECESITA ACLARACIÓN] Wireframe de "Módulos de la empresa".

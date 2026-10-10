@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Suscripción{% endblock %}
+{% block contenido %}
+<h1>Suscripción</h1>
+<p class="subtitulo">Tu plan y su vigencia.</p>
+{% if not puede_operar %}
+<p class="error" role="alert">
+  {% if estado == "SUSPENDIDA" %}Tu empresa está suspendida.{% else %}Tu prueba o suscripción venció.{% endif %}
+  Tus datos se conservan. Contacta a Illumi para reactivar tu cuenta.
+</p>
+{% endif %}
+<div class="tarjetas">
+  <div class="tarjeta kpi"><div class="etiqueta">Plan</div><div class="valor">{{ empresa.plan }}</div></div>
+  <div class="tarjeta kpi"><div class="etiqueta">Estado</div><div class="valor">{{ estado }}</div>
+    <span class="chip {% if puede_operar %}ok{% else %}error{% endif %}">{% if puede_operar %}Operativa{% else %}Bloqueada{% endif %}</span></div>
+  <div class="tarjeta kpi"><div class="etiqueta">Vence</div><div class="valor">{{ empresa.fecha_termino|default:"Sin fecha de término" }}</div></div>
+  <div class="tarjeta kpi"><div class="etiqueta">Usuarios</div><div class="valor">{{ usuarios_activos }} de {{ empresa.plan.limite_usuarios|default:"ilimitados" }}</div></div>
+</div>
+{% endblock %}

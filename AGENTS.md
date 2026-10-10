@@ -55,9 +55,15 @@ Cada RF es verificable: nada de "rápido" o "fácil" sin un criterio medible.
 
 **Tags Gherkin:** `@E0N` · `@E0Nx` (la parte de la épica) · `@UC-…` · `@RF-…` (obligatorio: los RF que el escenario verifica; un RF sin escenario debe tener un test que lo cite en el plan §7) · `@RN-…` (obligatorio si el escenario prueba una regla) · `@critico` (bloquea el release) · `@borde` · `@mvp` / `@r2` · `@pendiente-qN` (depende de la pregunta N del PRD; no se ejecuta hasta resolverla). Idioma: `# language: es`.
 
-## 4. Comandos de verificación (cuando exista código)
+## 4. Entorno y comandos de verificación
 
-`ruff check` · `ruff format --check` · `lint-imports` · `pytest` · `python manage.py makemigrations --check`.
+```
+docker compose up -d db                      # PostgreSQL 16 en localhost:54320
+python3 -m venv .venv && .venv/bin/pip install -e . pytest pytest-django pytest-bdd hypothesis ruff import-linter   # -e . instala django y djangorestframework
+.venv/bin/python manage.py migrate
+```
+
+`ruff check` · `ruff format --check` · `lint-imports` · `pytest` (o `pytest -k E01a` por spec) · `python manage.py makemigrations --check`.
 
 ## 5. Idioma y estilo
 

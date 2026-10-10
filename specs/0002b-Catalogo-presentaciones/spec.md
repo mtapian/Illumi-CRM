@@ -1,6 +1,6 @@
 # Spec 0002b — Catálogo: presentaciones y materiales
 
-Estado: borrador
+Estado: aprobada (PO, 2026-10-10)
 
 Épica E02 (Catálogo), parte 2 de 3. Depende de: 0002a. La usan: 0005.
 

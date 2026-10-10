@@ -4,18 +4,20 @@
 
 ## Fase actual
 
-**Clarificación.** Las 22 specs (8 épicas divididas en partes, formato `NNNNx-Modulo-nombre`) están en EARS y en `borrador`, esperando las respuestas de las dudas `[NECESITA ACLARACIÓN]` y la aprobación del PO. No hay código. Todas tienen un `tasks.md` **de ejemplo** (283 tareas en total), que no se ejecuta hasta aprobar spec y plan.
+**Implementación** de la épica 0001 completa (0001a–0001d); 0002a–0002c aprobadas y a la espera de la orden del PO. El resto sigue en **Clarificación**.
+
+Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas siguen en `borrador`, esperando respuestas a sus `[NECESITA ACLARACIÓN]`; sus `tasks.md` son ejemplos.
 
 | Spec | spec.md | plan.md | tasks.md | Bloqueos |
 |---|---|---|---|---|
-| 0000 Arquitectura | — | borrador | — | T1 (almacenamiento), T2, T3 |
-| [0001a](specs/0001a-Tenancy-registro-sesion/) Registro, sesión y suscripción | borrador (16 RF) | borrador | ejemplo (26 tareas) | Q6 |
-| [0001b](specs/0001b-Tenancy-plataforma-habilitaciones/) Plataforma: planes y habilitaciones | borrador (13 RF) | borrador | ejemplo (16 tareas) | Q8 |
-| [0001c](specs/0001c-Tenancy-usuarios-roles/) Usuarios, roles y permisos | borrador (18 RF) | borrador | ejemplo (22 tareas) | — |
-| [0001d](specs/0001d-Tenancy-auditoria-tokens/) Auditoría de accesos y tokens de API | borrador (7 RF) | borrador | ejemplo (11 tareas) | — |
-| [0002a](specs/0002a-Catalogo-productos/) Catálogo: unidades y productos | borrador (17 RF) | borrador | ejemplo (16 tareas) | Q7, maquila |
-| [0002b](specs/0002b-Catalogo-presentaciones/) Catálogo: presentaciones y materiales | borrador (4 RF) | borrador | ejemplo (8 tareas) | — |
-| [0002c](specs/0002c-Catalogo-isc/) Catálogo: categorías y tarifas de ISC | borrador (7 RF) | borrador | ejemplo (9 tareas) | código ISC (01 vs 02) |
+| 0000 Arquitectura | — | aprobado | — | T1 (almacenamiento), T2, T3 |
+| [0001a](specs/0001a-Tenancy-registro-sesion/) Registro, sesión y suscripción | **implementada** (16 RF) | implementado | 26/26 ✔ | 2 escenarios parciales (dependen de 0002a, 0003a, 0006b, 0008a) |
+| [0001b](specs/0001b-Tenancy-plataforma-habilitaciones/) Plataforma: planes y habilitaciones | **implementada** (13 RF) | implementado | 16/16 ✔ | — (contador de OP en curso: falso hasta 0005) |
+| [0001c](specs/0001c-Tenancy-usuarios-roles/) Usuarios, roles y permisos | **implementada** (18 RF) | implementado | 22/22 ✔ | 8 escenarios parciales (acciones de 0002a, 0003b/c, 0004a, 0006, 0008) |
+| [0001d](specs/0001d-Tenancy-auditoria-tokens/) Auditoría de accesos y tokens de API | **implementada** (7 RF) | implementado | 11/11 ✔ | 1 escenario parcial (consulta de stock, 0003c) |
+| [0002a](specs/0002a-Catalogo-productos/) Catálogo: unidades y productos | aprobada (17 RF) | aprobado | aprobadas (16) | maquila (Q7 resuelta) |
+| [0002b](specs/0002b-Catalogo-presentaciones/) Catálogo: presentaciones y materiales | aprobada (4 RF) | aprobado | aprobadas (8) | — |
+| [0002c](specs/0002c-Catalogo-isc/) Catálogo: categorías y tarifas de ISC | aprobada (7 RF) | aprobado | aprobadas (9) | código ISC (01 vs 02) |
 | [0003a](specs/0003a-Inventario-movimientos-costo/) Inventario: almacenes, movimientos y costo promedio | borrador (11 RF) | borrador | ejemplo (17 tareas) | Q12 |
 | [0003b](specs/0003b-Inventario-ajustes/) Inventario: ajustes | borrador (7 RF) | borrador | ejemplo (9 tareas) | Q12 (sustento de mermas) |
 | [0003c](specs/0003c-Inventario-consultas-alertas/) Inventario: stock, kardex y alertas | borrador (7 RF) | borrador | ejemplo (9 tareas) | — |
@@ -34,6 +36,8 @@
 
 ## Historial
 
+- **2026-10-10 — Implementación de 0001b, 0001c y 0001d** (orden del PO: "procede con todo 0001"). 0001b: catálogo de accesos como código (`shared/domain/accesos.py`) sincronizado con la BD en cada `migrate`; planes con funcionalidades y vista previa de impacto; ajustes por empresa con vigencia; suspender/reactivar al estado anterior; pantallas `/plataforma/*`. 0001c: roles por empresa con plantillas iniciales (sembrador), permisos efectivos recalculados en cada request (`AccesoMiddleware` + `Actor`), `CasoDeUso` con permiso obligatorio y meta-tests de autorización y aislamiento, control de escalada, último administrador con lock, menú filtrado por permisos, pantallas `/usuarios/` y `/roles/`. 0001d: auditoría de accesos inmutable (trigger), tokens de API con hash SHA-256 mostrados una sola vez, usuario técnico, autenticación DRF por token (`VistaApi`), pantallas `/auditoria/accesos/` y `/integracion/tokens/`. Se agrega `djangorestframework==3.16.1`. 241 tests en verde, 10 escenarios parciales con motivo. Desde ahora `/configuracion/empresa/` exige `core.empresa.gestionar` (pendiente de 0001a). **Inconsistencia a revisar por el PO:** el escenario "El Administrador recibe automáticamente lo que se habilita después" agrega "Órdenes de producción" sola, pero RN-TEN-09 exige "Recetas"; el paso de prueba agrega ambas.
+- **2026-10-10 — Aprobación e implementación de 0001a.** El PO aprueba 0001a–0001d y 0002a–0002c (spec, plan y tareas) con los valores por defecto: Q6 = 5 intentos / 15 min y sesión de 8 h de inactividad (las 8 h las propuso Claude: confirmar); Q8 = el plan de prueba incluye todo; Q7 = vida útil por presentación; código ISC = dato configurable. Se implementa **solo 0001a** (26 tareas, test primero): proyecto Django 5.2, import-linter con 3 contratos, pytest-bdd sobre `specs/*/features`, `TenantContext`/`TenantModel`, `fn_siguiente_correlativo`, triggers de inmutabilidad, registro con sembradores, login con bloqueo, recuperación por outbox de correos, configuración de empresa con IGV con vigencia, middlewares de tenant y suscripción, cron `vencer_suscripciones`, aviso de vencimiento. 94 tests en verde, 2 escenarios parciales. **Desvío del art. 7.1 aprobado por el PO:** Python 3.13 local (no 3.12); PostgreSQL 16 en Docker (`docker-compose.yml`, puerto 54320).
 - **2026-10-10 — Todas las épicas divididas y renombradas** al formato `NNNNx-Modulo-nombre` pedido por el PO (`0000-Arquitectura`, `0001a-Tenancy-…` … `0008b-Finanzas-…`): 22 specs, 251 RF sin pérdidas ni duplicados (verificado por script). Cada parte tiene `spec.md`, `plan.md`, `tasks.md` de ejemplo y sus escenarios; las referencias "spec 00N" pasan a "épica 000N". Escenarios nuevos para RF que no tenían: tokens de API (RF-TEN-45 a 48, 54), escalada (RF-TEN-53), usuarios no se borran (RF-TEN-13), lotes y factura en compras (RF-COM-07, 19, 20, bonificación), anular OP con pedidos (RF-PRD-19), pedido sin OP activa (RF-VEN-41), corrección no aceptada (RF-VEN-40), reintentos simultáneos (RF-FAC-17), rechazados sin reemitir (RF-FAC-32), pendientes tributarios (RF-FIN-12) y exportación sin costos (RF-FIN-16). Sembradores iniciales y `PedidosPort` aparecen como tareas en cada parte. Respaldo de las carpetas originales en el scratchpad.
 - **2026-10-10 — Validación de alcance y specs.** Revisión en 3 frentes (producto, dominio SUNAT/costeo, arquitectura). 10 bloqueantes; corregidos los de modelo (valor total en costo promedio, outbox de comprobantes, locks de anulación, cuotas a crédito, merma de envasado, tablas base de 001). Specs pasadas a revisión.
 - **2026-10-10 — ISC resuelto (Q2)** con el contador: Sistema Específico, S/ 2.51 por litro desde el 2024-07-01; base del IGV = valor + ISC; NC ajusta en proporción; entregas gratuitas = retiro de bienes, su costo y los tributos asumidos van a gastos de venta. ISC configurable por empresa con categorías y tarifas por vigencia (hoy spec 0002c, UC-CAT-05).
@@ -49,6 +53,10 @@
 
 ## Decisiones tomadas (no reabrir sin el PO)
 
+- Supuestos de las plantillas de rol (0001c, la tabla no los detalla): "stock y kardex" incluye lotes; Gerente y Almacén gestionan almacenes; "Compras" incluye proveedores. Confirmar con el PO.
+- Guía visual de la UI: la imagen de `Referencia:html/` (ADR-12 en el plan 0000). Aplicada a las pantallas de 0001a el 2026-10-10.
+- Entorno de desarrollo: Python 3.13 local + PostgreSQL 16 en Docker (desvío temporal del art. 7.1, aprobado por el PO el 2026-10-10).
+- Implementación una spec a la vez; Claude para al terminar cada spec y espera la orden del PO.
 - Stack Python/Django/PostgreSQL con pytest (la plantilla SDD original decía `node --test`; se adaptó).
 - Specs en formato EARS; los `.feature` se mantienen como criterio de aceptación ejecutable.
 - Venta anulada pasa a `ANULADA` de inmediato; la NC espera a que el comprobante original sea aceptado (propuesta, falta visto bueno del contador).

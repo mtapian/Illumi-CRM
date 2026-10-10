@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block titulo %}Inicio{% endblock %}
+{% block contenido %}
+<h1>{{ user.empresa }}</h1>
+<p class="subtitulo">Resumen de tu empresa.</p>
+{% if primeros_pasos %}
+<section class="tarjeta">
+  <h2>Primeros pasos</h2>
+  <ol>
+    <li>{% if "core.empresa.gestionar" in permisos %}<a href="/configuracion/empresa/">Completa los datos de tu empresa.</a>{% else %}Completa los datos de tu empresa.{% endif %}</li>
+    <li>Registra tus productos y su stock inicial.</li>
+    <li>Invita a tu equipo.</li>
+  </ol>
+</section>
+{% endif %}
+{% endblock %}

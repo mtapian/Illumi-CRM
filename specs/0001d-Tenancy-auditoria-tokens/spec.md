@@ -1,6 +1,6 @@
 # Spec 0001d — Auditoría de accesos y tokens de API
 
-Estado: borrador
+Estado: implementada (2026-10-10)
 
 Épica E01 (Tenancy y accesos), parte 4 de 4. Depende de: 0001a, 0001b, 0001c.
 

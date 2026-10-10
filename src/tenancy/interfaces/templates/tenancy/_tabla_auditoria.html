@@ -1,0 +1,9 @@
+<div class="tarjeta tabla">
+<table><thead><tr><th>Fecha</th><th>Autor</th><th>Entidad</th><th>Acción</th><th>Cambio</th></tr></thead><tbody>
+{% for f in filas %}<tr>
+  <td>{{ f.fecha|date:"Y-m-d H:i" }}</td><td>{{ f.autor }}</td>
+  <td>{{ f.entidad }} <strong>{{ f.nombre }}</strong></td><td>{{ f.accion }}</td>
+  <td>{% for c in f.cambios %}<div>{{ c }}</div>{% empty %}—{% endfor %}</td>
+</tr>{% empty %}<tr><td colspan="5">Sin cambios registrados.</td></tr>{% endfor %}
+</tbody></table>
+</div>

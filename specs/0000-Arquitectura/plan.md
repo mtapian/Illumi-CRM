@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | borrador |
+| Estado | aprobado (PO, 2026-10-10) |
 | Aplica a | Todas las épicas (E01–E08) |
 | PRD | `../../PRD.md` |
 
@@ -23,6 +23,7 @@
 | ADR-09 | Tests de aceptación con `pytest-bdd` sobre los `.feature` | `behave` | Integra con pytest y sus fixtures |
 | ADR-10 | **PL/pgSQL como red de seguridad**: las reglas viven en el dominio Python y la BD las refuerza con constraints, triggers, funciones atómicas y vistas de reporte (ver §5.1) | Lógica transaccional en stored procedures; ORM sin objetos de BD | Las reglas se prueban sin BD y la BD impide corrupción aunque haya un bug o un acceso directo |
 | ADR-11 | **Autorización por permisos con catálogo como código** (módulo → funcionalidad → permiso), habilitaciones por plan/empresa y roles por tenant; el caso de uso verifica el permiso con un `Actor` | Roles fijos con `if rol in (...)`; `django.contrib.auth` permissions/groups por modelo | Los permisos de Django son por modelo (CRUD), no por caso de uso, y no modelan las habilitaciones comerciales por empresa |
+| ADR-12 | **Guía visual:** la imagen de `Referencia:html/` (dashboard SaaS: menú lateral azul marino, tarjetas blancas con KPI, acento azul `#2563eb`). Los colores son variables CSS en `src/shared/interfaces/templates/base.html`; clases comunes `tarjeta`, `tarjetas`, `kpi`, `chip`, `aviso`, `error`, `panel` (páginas públicas). Menú lateral por registro: cada contexto llama a `menu.agregar(grupo, etiqueta, url, orden)` en su `urls.py` (`shared/interfaces/menu.py`); un grupo por módulo, plegable, con scroll propio | Bootstrap/Tailwind | CSS propio sin build ni dependencias; pedido del PO (2026-10-10) |
 
 ## 2. Capas y reglas de dependencia
 

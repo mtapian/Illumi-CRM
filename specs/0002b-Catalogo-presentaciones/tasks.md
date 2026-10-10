@@ -1,6 +1,6 @@
 # Tareas 0002b — Catálogo: presentaciones y materiales
 
-Estado: borrador (ejemplo). **No ejecutar:** `spec.md` y `plan.md` siguen en borrador (constitución, art. 2.1).
+Estado: aprobada (PO, 2026-10-10). Se ejecutan una spec a la vez, en orden de dependencia.
 
 Spec: `./spec.md` · Plan: `./plan.md`
 

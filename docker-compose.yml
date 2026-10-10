@@ -1,0 +1,10 @@
+# Base de datos de desarrollo (plan 0000 §9). La app corre con Python local por ahora.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: illumi
+      POSTGRES_PASSWORD: illumi
+      POSTGRES_DB: illumi
+    ports:
+      - "54320:5432"

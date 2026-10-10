@@ -1,6 +1,6 @@
 # Spec 0002a — Catálogo: unidades y productos
 
-Estado: borrador
+Estado: aprobada (PO, 2026-10-10)
 
 Épica E02 (Catálogo), parte 1 de 3. Depende de: 0001a, 0001c. La usan: 0002b, 0002c y 0003–0008.
 
@@ -97,5 +97,5 @@ Conversión de unidad de compra a unidad de uso, variantes, listas de precios po
 
 ## Dudas abiertas
 
-- [NECESITA ACLARACIÓN] **PRD Q7:** ¿la vida útil va por presentación (botella vs. barril) o por estilo? Hoy es por presentación y obligatoria.
+- **PRD Q7 (resuelta por el PO con el valor por defecto, 2026-10-10): vida útil por presentación, obligatoria.** Pregunta original: ¿la vida útil va por presentación (botella vs. barril) o por estilo? Hoy es por presentación y obligatoria.
 - [NECESITA ACLARACIÓN] **Cerveza que entra sin producir:** ¿hay maquila o compra de cerveza a granel? Si la hay, `GRANEL` y `TERMINADO` deberían poder comprarse. ¿La cerveza de terceros que se revende paga ISC de nuevo? (contador)

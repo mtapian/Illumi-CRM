@@ -1,6 +1,6 @@
 # Tareas 0002c — Catálogo: categorías y tarifas de ISC
 
-Estado: borrador (ejemplo). **No ejecutar:** `spec.md` y `plan.md` siguen en borrador (constitución, art. 2.1). Depende de la validación del código de tipo de sistema ISC.
+Estado: aprobada (PO, 2026-10-10). Se ejecutan una spec a la vez, en orden de dependencia.
 
 Spec: `./spec.md` · Plan: `./plan.md`
 
