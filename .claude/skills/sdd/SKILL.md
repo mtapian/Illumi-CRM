@@ -13,13 +13,13 @@ constitución; se enmienda según su artículo 9.
 para y pregunta.
 - Un cambio de requisitos se hace primero en la spec, luego en el plan y las tareas, y
 por último en el código.
-- Cada spec vive en su carpeta: `specs/NNN-nombre/` con `spec.md`, `plan.md`,
+- Cada spec vive en su carpeta: `specs/NNNNx-Modulo-nombre/` (p. ej. `specs/0002a-Catalogo-productos/`) con `spec.md`, `plan.md`,
 `tasks.md` y `features/*.feature` (escenarios Gherkin en español, criterio de aceptación
 ejecutable con `pytest-bdd`). Los principios están en `docs/constitution.md` y la guía de trabajo en `AGENTS.md`.
 - Al terminar cada fase, actualiza `MEMORY.md`.
 ## Plantilla de spec (spec.md)
 ```
-# Spec NNN — <Nombre de la funcionalidad>
+# Spec NNNNx — <Módulo>: <nombre de la funcionalidad>
 Estado: borrador | aprobada | implementada
 ## Contexto y objetivo
 <Qué problema resuelve y por qué merece la pena. Un párrafo.>

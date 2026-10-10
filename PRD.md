@@ -49,7 +49,7 @@ El sistema de referencia resuelve ventas, inventario simple y facturación SUNAT
 | **Ventas** | Vendedor B2B/B2C o atención de taproom | Clientes, pedidos, ventas y comprobantes |
 | **Super admin** | Operador de la plataforma SaaS | Alta de empresas, planes, suspensión, soporte, y **habilitar módulos y funcionalidades por plan y por empresa** |
 
-> Los roles de empresa Gerente, Producción, Almacén y Ventas son **plantillas iniciales editables**; "Administrador" es un rol de sistema que no se edita (siempre tiene todos los permisos habilitados). Cada empresa crea sus propios roles combinando permisos, pero solo dentro de las funcionalidades que la plataforma le habilitó. Modelo completo en `specs/001-tenancy-accesos/spec.md` ("Definiciones").
+> Los roles de empresa Gerente, Producción, Almacén y Ventas son **plantillas iniciales editables**; "Administrador" es un rol de sistema que no se edita (siempre tiene todos los permisos habilitados). Cada empresa crea sus propios roles combinando permisos, pero solo dentro de las funcionalidades que la plataforma le habilitó. Modelo completo en `specs/0001b-Tenancy-plataforma-habilitaciones/spec.md` y `specs/0001c-Tenancy-usuarios-roles/spec.md` ("Definiciones").
 
 ```
 Super admin ──► Plan (paquete de funcionalidades) ± ajustes por empresa (con vigencia)
@@ -95,7 +95,7 @@ Gastos del mes ─► Estado de resultados: utilidad bruta ─► utilidad opera
 | **E07 Facturación electrónica** | UC-FAC-01 Configurar facturación · UC-FAC-02 Emitir comprobante · UC-FAC-03 Reintentar comprobantes pendientes · UC-FAC-04 Enviar resumen diario de boletas · UC-FAC-05 Emitir nota de crédito · UC-FAC-06 Descargar y enviar comprobante | Must (04 condicional a Q1: sale del MVP si el PSE envía los resúmenes) |
 | **E08 Finanzas** | UC-FIN-01 Registrar gasto operativo · UC-FIN-02 Anular gasto · UC-FIN-03 Ver estado de resultados · UC-FIN-04 Ver dashboard de indicadores · UC-FIN-05 Exportar reportes a CSV | Must (04 Should) |
 
-Detalle de comportamiento en `specs/00X-*/spec.md` y criterios de aceptación en `specs/00X-*/features/*.feature`.
+Detalle de comportamiento en `specs/000Nx-*/spec.md` y criterios de aceptación en `specs/000Nx-*/features/*.feature`.
 
 ## 6. Reglas de negocio transversales
 

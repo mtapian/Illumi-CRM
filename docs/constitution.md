@@ -56,7 +56,7 @@ Illumi-CRM es un CRM/ERP SaaS multiempresa para PYMEs productoras en Perú. El c
 
 ## Artículo 7 — Arquitectura
 
-1. **Stack:** Python 3.12, Django 5.2 LTS, PostgreSQL 16, plantillas Django + HTMX, DRF solo para la API de integración, tareas con cron. Decisiones y alternativas descartadas: `../specs/000-arquitectura/plan.md`.
+1. **Stack:** Python 3.12, Django 5.2 LTS, PostgreSQL 16, plantillas Django + HTMX, DRF solo para la API de integración, tareas con cron. Decisiones y alternativas descartadas: `../specs/0000-Arquitectura/plan.md`.
 2. **Hexagonal pragmática:** las reglas de negocio viven en un dominio de Python puro, testeable sin base de datos. Cada contexto usa a otro solo por su fachada pública, y lo verifica una herramienta automática.
 3. **La base de datos es la red de seguridad, no el lugar de la lógica:** constraints, inmutabilidad y funciones atómicas refuerzan reglas que ya están en el dominio.
 4. **Efectos externos** (SUNAT, email) se registran dentro de la transacción de negocio y se envían fuera de ella.

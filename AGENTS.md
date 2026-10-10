@@ -22,8 +22,9 @@ CLAUDE.md                         ← importa docs/constitution.md, AGENTS.md y 
 MEMORY.md                         ← estado y decisiones
 PRD.md                            ← visión, alcance MVP, RN-GEN, métricas, preguntas Q1…Qn
 specs/
-├── 000-arquitectura/plan.md      ← decisiones técnicas transversales (ADR, capas, tenancy, persistencia)
-└── NNN-nombre/                   ← una carpeta por spec (001 tenancy … 008 finanzas)
+├── 0000-Arquitectura/plan.md     ← decisiones técnicas transversales (ADR, capas, tenancy, persistencia)
+└── NNNNx-Modulo-nombre/          ← una carpeta por spec: épica de 4 dígitos + parte (a, b, c…) + módulo + nombre
+                                    (p. ej. 0002a-Catalogo-productos … 0008b-Finanzas-resultados-reportes)
     ├── spec.md                   ← QUÉ y POR QUÉ: historias, RF en EARS, casos límite, dudas. Sin stack
     ├── plan.md                   ← CÓMO: modelo de datos, casos de uso, algoritmos, decisiones, tests
     ├── tasks.md                  ← tareas de ≤ 30 min con su RF y su "hecho cuando" (solo con plan aprobado)
@@ -36,7 +37,7 @@ Estado de cada spec (en su encabezado): `borrador` → `aprobada` → `implement
 
 | Elemento | Formato | Ejemplo |
 |---|---|---|
-| Spec | `NNN` (carpeta); alias de épica `E0N` en tags y textos | `006` = `E06` |
+| Spec | Carpeta `NNNNx-Modulo-nombre`; se cita por `NNNNx` y la épica por `NNNN`; alias `E0N` / `E0Nx` en tags | `0006b-Ventas-registro-venta` = `0006b` = `E06b` |
 | Historia de usuario | `H<n>` (por spec) | `H3` |
 | Requisito funcional | `RF-<MÓDULO>-<NN>` en EARS, en `spec.md` | `RF-TEN-07` |
 | Requisito no funcional | `RNF-<MÓDULO>-<NN>` | `RNF-FAC-01` |
@@ -52,7 +53,7 @@ Estado de cada spec (en su encabezado): `borrador` → `aprobada` → `implement
 
 Cada RF es verificable: nada de "rápido" o "fácil" sin un criterio medible.
 
-**Tags Gherkin:** `@E0N` · `@UC-…` · `@RF-…` (obligatorio: los RF que el escenario verifica; un RF sin escenario debe tener un test que lo cite en el plan §7) · `@RN-…` (obligatorio si el escenario prueba una regla) · `@critico` (bloquea el release) · `@borde` · `@mvp` / `@r2` · `@pendiente-qN` (depende de la pregunta N del PRD; no se ejecuta hasta resolverla). Idioma: `# language: es`.
+**Tags Gherkin:** `@E0N` · `@E0Nx` (la parte de la épica) · `@UC-…` · `@RF-…` (obligatorio: los RF que el escenario verifica; un RF sin escenario debe tener un test que lo cite en el plan §7) · `@RN-…` (obligatorio si el escenario prueba una regla) · `@critico` (bloquea el release) · `@borde` · `@mvp` / `@r2` · `@pendiente-qN` (depende de la pregunta N del PRD; no se ejecuta hasta resolverla). Idioma: `# language: es`.
 
 ## 4. Comandos de verificación (cuando exista código)
 
