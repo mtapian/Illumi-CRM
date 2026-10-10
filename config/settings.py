@@ -77,6 +77,7 @@ AUTHENTICATION_BACKENDS = ["tenancy.infrastructure.auth_backend.EmailBackend"]
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+SERVIR_MEDIA = DEBUG or os.environ.get("DJANGO_SERVIR_MEDIA") == "1"
 
 LOGIN_URL = "/login/"
 
@@ -90,6 +91,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # RF-TEN-09: el enlace de recuperación vence en 60 minutos.
 PASSWORD_RESET_TIMEOUT = 60 * 60
+EMAIL_BACKEND = os.environ.get(
+    "DJANGO_EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+)
 
 # Seguridad (RNF-TEN-01, 03 y 04; plan 0000 §9).
 # Contraseñas: hash PBKDF2 de Django (no reversible).
@@ -98,7 +102,8 @@ SESSION_COOKIE_AGE = 8 * 60 * 60
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
 
-if not DEBUG:
+# DJANGO_HTTPS=0 solo para el despliegue local de prueba por HTTP (docker-compose.yml).
+if not DEBUG and os.environ.get("DJANGO_HTTPS", "1") == "1":
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365

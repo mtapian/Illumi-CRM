@@ -58,10 +58,13 @@ Cada RF es verificable: nada de "rápido" o "fácil" sin un criterio medible.
 ## 4. Entorno y comandos de verificación
 
 ```
-docker compose up -d db                      # PostgreSQL 16 en localhost:54320
+docker run -d --name illumi-pg -e POSTGRES_USER=illumi -e POSTGRES_PASSWORD=illumi \
+  -e POSTGRES_DB=illumi -p 54320:5432 postgres:16   # base de desarrollo en localhost:54320
 python3 -m venv .venv && .venv/bin/pip install -e . pytest pytest-django pytest-bdd hypothesis ruff import-linter   # -e . instala django y djangorestframework
 .venv/bin/python manage.py migrate
 ```
+
+Despliegue local de prueba (gunicorn + PostgreSQL + cron): `docker compose up -d --build` → http://localhost:8020.
 
 `ruff check` · `ruff format --check` · `lint-imports` · `pytest` (o `pytest -k E01a` por spec) · `python manage.py makemigrations --check`.
 

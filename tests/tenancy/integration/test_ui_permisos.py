@@ -35,3 +35,9 @@ def test_el_helper_omite_los_costos_sin_permiso():
     assert sin_costos(filas, set()) == [{"producto": "Stout", "cantidad": 10}]
     columnas = ["producto", "cantidad", "costo_promedio", "valorizacion"]
     assert sin_costos(columnas, set()) == ["producto", "cantidad"]
+
+
+@pytest.mark.parametrize("url", ["/integracion/tokens/", "/usuarios/", "/roles/"])
+def test_sin_sesion_se_redirige_al_login(client, url):
+    respuesta = client.get(url)
+    assert respuesta.status_code == 302 and respuesta.url.startswith("/login/")

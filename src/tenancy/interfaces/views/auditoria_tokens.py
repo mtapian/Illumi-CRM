@@ -3,6 +3,7 @@
 from datetime import date
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
@@ -51,6 +52,7 @@ def auditoria(request):
     return render(request, "tenancy/auditoria.html", contexto)
 
 
+@login_required
 def tokens(request):
     """Tokens de API (RF-TEN-45 a 47, 54). Sin la API habilitada se explica por qué no."""
     actor, hoy = request.actor, timezone.localdate()
