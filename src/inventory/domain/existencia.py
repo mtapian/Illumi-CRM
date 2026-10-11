@@ -35,6 +35,8 @@ class Movimiento:
     lote_id: int | None = None
     revierte_id: int | None = None
     producto_id: int = 0
+    motivo: str = ""
+    costo_total: Decimal | None = None
 
 
 def salir(e: Existencia, cant: Decimal) -> Existencia:

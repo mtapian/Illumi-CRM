@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 
+from django.db import transaction
 from pytest_bdd import given, parsers, then, when
 
 from catalog.application import productos as uc
@@ -509,8 +510,15 @@ def stock_con_costo(ctx, sku, n, costo):
     receta = [("GRA-IPA", "0.33"), ("ENV-BOT330", "1"), ("ENV-TAPA", "1"), ("ENV-ETQ-IPA", "1")]
     crear_fabricado(ctx, sku, [*receta, ("ENV-CAJA24", "0.0417")])
     p = producto(ctx, sku)
-    ctx["inventario"].stocks[p.id] = Decimal(n)
-    ctx["pendientes"].append("el costo promedio del stock lo lleva inventario (0003a)")
+    ctx["inventario"].stocks[p.id] = Decimal(n)  # lo que ve el catálogo por su puerto
+    from inventory.application.servicio import Linea
+    from inventory.infrastructure.contenedor import inventario
+    from inventory.infrastructure.models import Almacen
+
+    with tenant_context(ctx["empresa"].id), transaction.atomic():
+        principal = Almacen.objects.get_or_create(nombre="Principal")[0].id
+        linea = Linea(p.id, principal, Decimal(n), Decimal(costo))
+        inventario().registrar_entrada("SALDO_INICIAL", "AJUSTE", 1, [linea], None, date.today())
 
 
 @when(re_("cambio la etiqueta en la receta de {} por {}", "sku", "nueva"))
@@ -524,7 +532,10 @@ def cambio_etiqueta(client, ctx, sku, nueva):
 
 @then(re_(r"el costo promedio de {} sigue siendo (?P<costo>[\d.]+)", "sku"))
 def costo_sigue(ctx, sku, costo):
-    pass  # pendiente: el costo promedio lo lleva inventario (0003a); el catálogo no lo toca
+    from inventory.infrastructure.models import CostoProducto
+
+    c = CostoProducto.all_tenants.get(producto=producto(ctx, sku))
+    assert c.costo_promedio == Decimal(costo)  # cambiar la receta no toca el costo (RF-CAT-18)
 
 
 @then(re_("la próxima producción de {} consume {}", "sku", "componente"))

@@ -5,7 +5,9 @@ from datetime import date, timedelta
 from inventory.domain.errores import LoteConOtroVencimiento, LoteVencido, ServicioSinStock
 from inventory.domain.existencia import Existencia
 
-MERMA = "MERMA"
+# Salidas que admite un lote vencido: la merma, el conteo (refleja lo que hay) y la
+# transferencia (no consume); RF-INV-23 y RF-INV-29.
+SALEN_VENCIDOS = ("MERMA", "CONTEO", "TRANSFERENCIA")
 
 
 def lote_vencido(vencimiento: date | None, hoy: date) -> bool:
@@ -14,8 +16,8 @@ def lote_vencido(vencimiento: date | None, hoy: date) -> bool:
 
 
 def validar_salida_de_lote(e: Existencia, motivo: str, hoy: date) -> None:
-    """RF-INV-23: un lote vencido solo sale por merma."""
-    if lote_vencido(e.vencimiento, hoy) and motivo != MERMA:
+    """RF-INV-23 y RF-INV-29: un lote vencido no se vende ni se consume."""
+    if lote_vencido(e.vencimiento, hoy) and motivo not in SALEN_VENCIDOS:
         raise LoteVencido(f"El lote {e.lote} está vencido: solo puede salir por merma")
 
 

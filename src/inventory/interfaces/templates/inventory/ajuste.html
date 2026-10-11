@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titulo %}Ajuste {{ ajuste.numero }}{% endblock %}
+{% block contenido %}
+<h1>Ajuste N.° {{ ajuste.numero }}</h1>
+{% include "catalog/_migas.html" %}
+<section class="tarjeta">
+  <p><strong>{{ ajuste.tipo }}</strong> · {{ ajuste.almacen.nombre }}{% if ajuste.almacen_destino %} → {{ ajuste.almacen_destino.nombre }}{% endif %} · {{ ajuste.fecha|date:"Y-m-d H:i" }}
+    · <span class="chip {% if ajuste.estado == 'ANULADO' %}error{% else %}ok{% endif %}">{{ ajuste.estado|title }}</span></p>
+  <p>Motivo: {{ ajuste.motivo }}{% if ajuste.motivo_anulacion %}<br>Anulado: {{ ajuste.motivo_anulacion }} ({{ ajuste.anulado_en|date:"Y-m-d H:i" }}){% endif %}</p>
+  <h2>Líneas</h2>
+  <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Sistema</th><th>Lote</th><th>Costo unit.</th><th>Sentido</th></tr></thead><tbody>
+  {% for l in lineas %}<tr><td>{{ l.producto.sku }} · {{ l.producto.nombre }}</td><td>{{ l.cantidad }} {{ l.producto.unidad.abreviatura }}</td><td>{{ l.cantidad_sistema|default_if_none:"" }}</td><td>{{ l.lote_codigo }}</td><td>{{ l.costo_unitario|default_if_none:"" }}</td><td>{{ l.sentido }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <h2>Movimientos de kardex</h2>
+  <div class="tabla"><table><thead><tr><th>Tipo</th><th>Motivo</th><th>Producto</th><th>Almacén</th><th>Lote</th><th>Cantidad</th><th>Costo unit.</th><th>Total</th></tr></thead><tbody>
+  {% for m in movimientos %}<tr><td>{{ m.tipo }}</td><td>{{ m.motivo }}</td><td>{{ m.producto.sku }}</td><td>{{ m.almacen.nombre }}</td><td>{{ m.lote.codigo|default:"" }}</td><td>{{ m.cantidad }}</td><td>{{ m.costo_unitario }}</td><td>{{ m.costo_total }}</td></tr>
+  {% empty %}<tr><td colspan="8" class="subtitulo">Sin movimientos (conteo igual al sistema).</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if puede_anular %}
+  <form method="post">{% csrf_token %}
+    <label>Motivo de la anulación<input name="motivo" required maxlength="200"></label>
+    <button type="submit" class="peligro" onclick="return confirm('¿Anular el ajuste {{ ajuste.numero }}?')">Anular</button>
+  </form>
+  {% endif %}
+  <p><a class="boton secundario" href="{% url 'ajustes' %}">Volver</a></p>
+</section>
+{% endblock %}

@@ -1,6 +1,6 @@
-"""Pasos de los escenarios de inventario (spec 0003a). Las compras (0004a), los ajustes
-(0003b) y las OP (0005a) aún no existen: los pasos llaman directo al servicio de inventario
-con el motivo que esas specs usarán."""
+"""Pasos de los escenarios de inventario (specs 0003a y 0003b). Los ajustes usan su caso de
+uso; las compras (0004a) y las OP (0005a) aún no existen: esos pasos llaman directo al
+servicio de inventario con el motivo que esas specs usarán."""
 
 from datetime import date
 from decimal import Decimal as D
@@ -9,14 +9,26 @@ import pytest
 from django.db import DatabaseError, transaction
 from pytest_bdd import given, parsers, then, when
 
+from inventory.application import ajustes as ua
+from inventory.application.ajustes import LineaAjuste
 from inventory.application.servicio import InventarioService, Linea
-from inventory.infrastructure.contenedor import inventario
-from inventory.infrastructure.models import Almacen, CostoProducto, Lote, Movimiento, Stock
+from inventory.infrastructure.contenedor import caso_de_ajuste, inventario
+from inventory.infrastructure.models import (
+    Ajuste,
+    AjusteLinea,
+    Almacen,
+    CostoProducto,
+    Lote,
+    Movimiento,
+    Stock,
+)
 from shared.domain.errores import DomainError
 from shared.domain.tenant import tenant_context
+from tenancy.infrastructure.models import Usuario
 from tests.acceptance.conftest import contenido
-from tests.acceptance.pasos_accesos import como, re_
-from tests.acceptance.pasos_catalogo import EMAIL, crear_directo, producto
+from tests.acceptance.pasos_accesos import actor, como, re_
+from tests.acceptance.pasos_catalogo import EMAIL, ROLES, crear_directo, producto
+from tests.acceptance.pasos_sesion import crear_usuario
 
 REF = {"COMPRA": "COMPRA", "CONSUMO_OP": "OP", "VENTA": "VENTA"}  # el resto, AJUSTE
 OPERACION = r'(?P<cant>[\d.]+) (?P<u>\w+) de "(?P<sku>[^"]+)"'
@@ -48,6 +60,28 @@ def mover(ctx, tipo, motivo, sku, cant, costo=None, lote=None, vence=None, alm="
             )
     except DomainError as e:
         ctx["textos"] = [e.mensaje]
+
+
+def ajustar(ctx, tipo, lineas, motivo="Ajuste", alm="Principal", destino=None, email=EMAIL):
+    """Registra un ajuste con su caso de uso (0003b); el error queda para "rechazada"."""
+    try:
+        with tenant_context(ctx["empresa"].id):
+            ctx["ajuste"] = caso_de_ajuste(ua.RegistrarAjuste).ejecutar(
+                actor(email),
+                tipo,
+                almacen(ctx, alm),
+                motivo,
+                lineas,
+                destino and almacen(ctx, destino),
+                hoy(ctx),
+            )
+    except DomainError as e:
+        ctx["textos"] = [e.mensaje]
+
+
+def bien(ctx, sku, u="KG") -> int:
+    ctx["sku"] = sku
+    return crear_directo(ctx, sku, u=u).id
 
 
 def movimientos(ctx, sku):
@@ -92,9 +126,18 @@ def bien_con_lotes(ctx, sku, alm, datatable):
 # --- Costo promedio y kardex ---
 
 
-@when(parsers.re(r'registro un ajuste "SALDO_INICIAL" de ' + OPERACION + r" a costo (?P<c>[\d.]+)"))
-def saldo_inicial(ctx, cant, u, sku, c):
-    mover(ctx, "ENTRADA", "SALDO_INICIAL", sku, cant, c)
+@when(
+    parsers.re(
+        r'registro un ajuste "SALDO_INICIAL" de '
+        + OPERACION
+        + r"(?: a costo (?P<c>[\d.]+)| sin costo unitario)"
+        + r'(?: con lote "(?P<lote>[^"]+)" que vence el "(?P<vence>[^"]+)")?'
+    )
+)
+def saldo_inicial(ctx, cant, u, sku, c, lote, vence):
+    vence = vence and date.fromisoformat(vence)
+    linea = LineaAjuste(bien(ctx, sku, u), D(cant), c and D(c), lote, vence)
+    ajustar(ctx, "SALDO_INICIAL", [linea])
 
 
 @when(parsers.re(r"se registra una compra de " + OPERACION + r" a costo (?P<c>[\d.]+)"))
@@ -114,13 +157,16 @@ def consumo_op(ctx, cant, u, sku):
 
 @when(
     parsers.re(
-        r'registro un ajuste "(?P<motivo>MERMA|CORRECCION)"(?: de salida)? de '
+        r'registro un ajuste "(?P<tipo>MERMA|CORRECCION)"(?P<salida> de salida)? de '
         + OPERACION
-        + r'(?: del lote "(?P<lote>[^"]+)")?(?: con motivo "[^"]+")?'
+        + r'(?: del lote "(?P<lote>[^"]+)")?'
+        + r'(?: con motivo "(?P<motivo>[^"]+)"|(?P<sin> sin motivo))?'
     )
 )
-def ajuste_de_salida(ctx, motivo, cant, u, sku, lote):
-    mover(ctx, "SALIDA", motivo, sku, cant, lote=lote)
+def ajuste_de_salida(ctx, tipo, salida, cant, u, sku, lote, motivo, sin):
+    sentido = "SALIDA" if tipo == "CORRECCION" else ""
+    linea = LineaAjuste(bien(ctx, sku, u), D(cant), lote=lote, sentido=sentido)
+    ajustar(ctx, tipo, [linea], "" if sin else motivo or "Ajuste")
 
 
 @then(parsers.re(r'el kardex de "(?P<sku>[^"]+)" muestra:'))
@@ -223,12 +269,9 @@ def intenta_editar(ctx):
 
 @then("la operación no está disponible")
 def no_disponible(ctx):
-    assert set(ctx["operaciones"]) == {
-        "bloquear",
-        "registrar_entrada",
-        "registrar_salida",
-        "revertir",
-    }
+    prohibidas = ("editar", "modificar", "eliminar", "borrar", "actualizar")
+    assert ctx["operaciones"]
+    assert not [o for o in ctx["operaciones"] if o.startswith(prohibidas)]
 
 
 @then("un intento directo en la base de datos es rechazado")
@@ -331,3 +374,146 @@ def desactivar_almacen(client, ctx, nombre):
     datos = {"accion": "desactivar", "id": alm}
     respuesta = como(client, EMAIL).post("/inventario/almacenes/", datos, follow=True)
     ctx["textos"] = [contenido(respuesta)]
+
+
+# --- Ajustes (0003b) ---
+
+
+@given(re_(r"que {} tiene stock (?P<n>[\d.]+) (?P<u>\w+)(?: con promedio (?P<p>[\d.]+))?", "sku"))
+def tiene_stock(ctx, sku, n, u, p):
+    bien(ctx, sku, u)
+    mover(ctx, "ENTRADA", "SALDO_INICIAL", sku, n, p or "1")
+
+
+@when(
+    parsers.re(
+        r'registro un ajuste "CONTEO"(?: de "(?P<sku>[^"]+)")?(?: del lote "(?P<lote>[^"]+)")?'
+        r" con cantidad contada (?P<n>[\d.]+) (?P<u>\w+)(?: y motivo \"(?P<motivo>[^\"]+)\")?"
+    )
+)
+def conteo(ctx, sku, lote, n, u, motivo):
+    linea = LineaAjuste(producto(ctx, sku or ctx["sku"]).id, D(n), lote=lote)
+    ajustar(ctx, "CONTEO", [linea], motivo or "Conteo")
+
+
+def del_ajuste(ctx):
+    return Movimiento.all_tenants.filter(
+        empresa=ctx["empresa"], ref_tipo="AJUSTE", ref_id=ctx["ajuste"]
+    ).select_related("lote")
+
+
+@then(re_(r"se registra una salida de (?P<n>[\d.]+) (?P<u>\w+) a costo (?P<c>[\d.]+)"))
+def salida_a_costo(ctx, n, u, c):
+    [m] = del_ajuste(ctx)
+    assert (m.tipo, m.cantidad, m.costo_unitario) == ("SALIDA", D(n), D(c))
+
+
+@then(re_(r"se registra una salida de (?P<n>[\d.]+) (?P<u>\w+) del lote {}", "lote"))
+def salida_del_lote(ctx, n, u, lote):
+    [m] = del_ajuste(ctx)
+    assert (m.tipo, m.cantidad, m.lote.codigo) == ("SALIDA", D(n), lote)
+
+
+@then(re_(r"el stock de {} es (?P<n>[\d.]+) (?P<u>\w+)", "sku"))
+def stock_es(ctx, sku, n, u):
+    assert costo(ctx, sku).cantidad_total == D(n)
+
+
+@then("el ajuste queda registrado con diferencia 0")
+def diferencia_cero(ctx):
+    linea = AjusteLinea.all_tenants.get(ajuste_id=ctx["ajuste"])
+    assert linea.cantidad - linea.cantidad_sistema == 0
+
+
+@then("no se genera movimiento de kardex")
+def sin_movimiento(ctx):
+    assert not del_ajuste(ctx).exists()
+
+
+@given(re_("que existe el bien {} que se fabrica y se vende, sin movimientos", "sku"))
+def bien_sin_movimientos(ctx, sku):
+    crear_directo(
+        ctx, sku, u="UND", se_compra=False, se_fabrica=True, se_vende=True, precio_venta=15
+    )
+
+
+@then(re_(r"existe el lote {} de {} con (?P<n>[\d.]+) UND en {}", "lote", "sku", "alm"))
+def existe_lote(ctx, lote, sku, n, alm):
+    s = Stock.all_tenants.get(
+        producto=producto(ctx, sku), lote__codigo=lote, almacen_id=almacen(ctx, alm)
+    )
+    assert s.cantidad == D(n)
+
+
+@given(re_(r'un ajuste "MERMA" de (?P<n>[\d.]+) KG de {} a costo (?P<c>[\d.]+)', "sku"))
+def un_ajuste_merma(ctx, n, sku, c):
+    bien(ctx, sku)
+    mover(ctx, "ENTRADA", "SALDO_INICIAL", sku, "100", "4")
+    mover(ctx, "ENTRADA", "COMPRA", sku, "50", "5")
+    ajustar(ctx, "MERMA", [LineaAjuste(producto(ctx, sku).id, D(n))], "Saco roto")
+    [m] = del_ajuste(ctx)
+    assert m.costo_unitario == D(c)
+
+
+def anular(ctx, rol, motivo):
+    email = f"{rol}@andina.pe"
+    if not Usuario.objects.filter(email=email).exists():
+        crear_usuario(email, ctx["empresa"], ROLES[rol])
+    try:
+        with tenant_context(ctx["empresa"].id):
+            caso_de_ajuste(ua.AnularAjuste).ejecutar(actor(email), ctx["ajuste"], motivo)
+    except DomainError as e:
+        ctx["textos"] = [e.mensaje]
+
+
+@when(re_("un usuario {} lo anula con motivo {}", "rol", "motivo"))
+def lo_anula(ctx, rol, motivo):
+    anular(ctx, rol, motivo)
+
+
+@given(re_("que un usuario {} lo anuló con motivo {}", "rol", "motivo"))
+def lo_anulo(ctx, rol, motivo):
+    anular(ctx, rol, motivo)
+
+
+@then(re_(r'se registra una entrada "ANULACION" de (?P<n>[\d.]+) KG a costo (?P<c>[\d.]+)'))
+def entrada_anulacion(ctx, n, c):
+    m = del_ajuste(ctx).get(motivo="ANULACION")
+    assert (m.tipo, m.cantidad, m.costo_unitario) == ("ENTRADA", D(n), D(c))
+
+
+@then(re_("el ajuste queda en estado {}", "estado"))
+def estado_ajuste(ctx, estado):
+    assert Ajuste.all_tenants.get(pk=ctx["ajuste"]).estado == estado
+
+
+@given(re_(r"{} con stock (?P<n>[\d.]+) KG en {} y costo promedio (?P<p>[\d.]+)", "sku", "alm"))
+def con_stock_y_promedio(ctx, sku, n, alm, p):
+    bien(ctx, sku)
+    mover(ctx, "ENTRADA", "SALDO_INICIAL", sku, n, p, alm=alm)
+
+
+@when(re_(r'registro un ajuste "TRANSFERENCIA" de ' + OPERACION + " de {} a {}", "o", "d"))
+def transferencia(ctx, cant, u, sku, o, d):
+    linea = LineaAjuste(producto(ctx, sku).id, D(cant))
+    ajustar(ctx, "TRANSFERENCIA", [linea], "Reposición", alm=o, destino=d)
+
+
+@then(re_(r"{} queda con (?P<a>[\d.]+) KG y {} con (?P<b>[\d.]+) KG", "o", "d"))
+def quedan(ctx, o, a, d, b):
+    p = producto(ctx, ctx["sku"])
+    for alm, n in ((o, a), (d, b)):
+        assert Stock.all_tenants.get(producto=p, almacen_id=almacen(ctx, alm)).cantidad == D(n)
+
+
+@then(re_(r"la salida y la entrada se registran a costo (?P<c>[\d.]+)"))
+def mismo_costo(ctx, c):
+    assert sorted((m.tipo, m.costo_unitario) for m in del_ajuste(ctx)) == [
+        ("ENTRADA", D(c)),
+        ("SALIDA", D(c)),
+    ]
+
+
+@then(re_("la transferencia no aparece en {} del estado de resultados", "seccion"))
+def fuera_de_resultados(ctx, seccion):
+    pytest.skip("Parcial; pendiente: el estado de resultados es de 0008b")

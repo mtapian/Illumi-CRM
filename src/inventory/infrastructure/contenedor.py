@@ -2,10 +2,13 @@
 
 from datetime import date
 
+from django.db import transaction
+
 from catalog.infrastructure.contenedor import catalogo_query
 from inventory.application.servicio import InventarioService
 from inventory.infrastructure.models import Almacen
-from inventory.infrastructure.repositorios import AlmacenesOrm, InventarioOrm
+from inventory.infrastructure.repositorios import AjustesOrm, AlmacenesOrm, InventarioOrm
+from shared.infrastructure.secuencia import SecuenciaPostgres
 
 PRINCIPAL = "Principal"
 
@@ -18,6 +21,11 @@ def inventario() -> InventarioService:
 def caso_de_uso(clase):
     """`caso_de_uso(almacenes.GuardarAlmacen).ejecutar(actor, …)`."""
     return clase(AlmacenesOrm())
+
+
+def caso_de_ajuste(clase):
+    """`caso_de_ajuste(ajustes.RegistrarAjuste).ejecutar(actor, …)`."""
+    return clase(AjustesOrm(), inventario(), SecuenciaPostgres(), transaction.atomic)
 
 
 def sembrar_almacen(empresa_id: int, admin_id: int, hoy: date) -> None:

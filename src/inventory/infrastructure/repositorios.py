@@ -4,11 +4,20 @@ plan 0000 §5: primero `costo_producto` (mutex por producto), después el stock.
 from decimal import Decimal
 
 from django.db.models import F, Sum
+from django.utils import timezone
 
 from inventory.domain.costo import CostoProducto as Costo
 from inventory.domain.existencia import Existencia
 from inventory.domain.existencia import Movimiento as Mov
-from inventory.infrastructure.models import Almacen, CostoProducto, Lote, Movimiento, Stock
+from inventory.infrastructure.models import (
+    Ajuste,
+    AjusteLinea,
+    Almacen,
+    CostoProducto,
+    Lote,
+    Movimiento,
+    Stock,
+)
 from shared.domain.tenant import empresa_actual
 
 
@@ -22,6 +31,8 @@ def _mov(m) -> Mov:
         m.lote_id,
         m.revierte_id,
         m.producto_id,
+        m.motivo,
+        m.costo_total,
     )
 
 
@@ -133,3 +144,39 @@ class AlmacenesOrm:
 
     def cambiar_estado(self, almacen_id, activo):
         Almacen.objects.filter(pk=almacen_id).update(activo=activo)
+
+
+class AjustesOrm:
+    def crear(self, numero, tipo, motivo, almacen_id, destino_id, usuario_id):
+        return Ajuste.objects.create(
+            numero=numero,
+            tipo=tipo,
+            motivo=motivo,
+            almacen_id=almacen_id,
+            almacen_destino_id=destino_id,
+            usuario_id=usuario_id,
+        ).id
+
+    def agregar_linea(self, ajuste_id, linea, sistema):
+        AjusteLinea.objects.create(
+            ajuste_id=ajuste_id,
+            producto_id=linea.producto_id,
+            lote_codigo=linea.lote or "",
+            vencimiento=linea.vencimiento,
+            sentido=linea.sentido,
+            cantidad=linea.cantidad,
+            cantidad_sistema=sistema,
+            costo_unitario=linea.costo,
+        )
+
+    def estado(self, ajuste_id):
+        filas = Ajuste.objects.select_for_update().filter(pk=ajuste_id)
+        return filas.values_list("estado", flat=True).first()
+
+    def anular(self, ajuste_id, usuario_id, motivo):
+        Ajuste.objects.filter(pk=ajuste_id).update(
+            estado="ANULADO",
+            anulado_por_id=usuario_id,
+            anulado_en=timezone.now(),
+            motivo_anulacion=motivo,
+        )

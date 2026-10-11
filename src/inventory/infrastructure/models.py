@@ -120,3 +120,57 @@ class Movimiento(TenantModel):
                 name="movimiento_valores_validos",
             ),
         ]
+
+
+class Ajuste(TenantModel):
+    """Ajuste de inventario (spec 0003b). Solo cambia su estado al anularse (RF-INV-13)."""
+
+    numero = models.IntegerField()  # correlativo por empresa (RF-INV-28)
+    fecha = models.DateTimeField(auto_now_add=True)
+    tipo = models.CharField(max_length=14)
+    motivo = models.CharField(max_length=200)
+    almacen = models.ForeignKey(Almacen, on_delete=models.PROTECT, related_name="+")
+    almacen_destino = models.ForeignKey(
+        Almacen, on_delete=models.PROTECT, null=True, related_name="+"
+    )
+    estado = models.CharField(max_length=10, default="REGISTRADO")  # o ANULADO
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="+"
+    )
+    anulado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="+"
+    )
+    anulado_en = models.DateTimeField(null=True)
+    motivo_anulacion = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="ajuste_numero_unico"),
+            models.CheckConstraint(condition=~Q(motivo=""), name="ajuste_con_motivo"),
+            models.CheckConstraint(  # RF-INV-12: destino solo en transferencias, y distinto
+                condition=(
+                    Q(tipo="TRANSFERENCIA", almacen_destino__isnull=False)
+                    & ~Q(almacen_destino=models.F("almacen"))
+                )
+                | (~Q(tipo="TRANSFERENCIA") & Q(almacen_destino__isnull=True)),
+                name="ajuste_destino_solo_en_transferencia",
+            ),
+        ]
+
+
+class AjusteLinea(TenantModel):
+    """Lo pedido en cada línea; lo aplicado son los movimientos (ref AJUSTE)."""
+
+    ajuste = models.ForeignKey(Ajuste, on_delete=models.PROTECT, related_name="lineas")
+    producto = models.ForeignKey("catalog.Producto", on_delete=models.PROTECT, related_name="+")
+    lote_codigo = models.CharField(max_length=40, blank=True)
+    vencimiento = models.DateField(null=True)
+    sentido = models.CharField(max_length=7, blank=True)  # ENTRADA o SALIDA en CORRECCION
+    cantidad = _cantidad()  # en CONTEO, lo contado; la diferencia es cantidad − sistema
+    cantidad_sistema = _cantidad(null=True)  # solo en CONTEO
+    costo_unitario = _costo(null=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(cantidad__gte=0), name="ajuste_linea_cantidad")
+        ]

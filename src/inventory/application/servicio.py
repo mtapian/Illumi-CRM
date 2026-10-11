@@ -25,7 +25,8 @@ from inventory.domain.movimientos import inversos_de, validar_reversion
 from shared.domain.errores import NoEncontrado
 
 COSTO_REQUERIDO = "El costo unitario es obligatorio en una entrada"
-REVERSION = "REVERSION"
+ANULACION = "ANULACION"
+TRANSFERENCIA = "TRANSFERENCIA"
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class Linea:
     costo_unitario: Decimal | None = None  # obligatorio en entradas
     lote: str | None = None  # código; en salidas, None = FEFO
     vencimiento: date | None = None  # solo en entradas con lote
+    exacto: bool = False  # en salidas: `lote=None` es el stock sin lote, no FEFO (CONTEO)
 
 
 class InventarioRepo(Protocol):
@@ -135,6 +137,76 @@ class InventarioService:
             )
         return ids
 
+    def _existencias(self, x: Linea, producto: ProductoDTO, almacen: str) -> list[Existencia]:
+        return [
+            replace(e, producto=producto.sku, almacen=almacen)
+            for e in self._repo.existencias(x.producto_id, x.almacen_id)
+        ]
+
+    def _asignar(
+        self, x: Linea, producto, almacen, motivo, hoy
+    ) -> list[tuple[Existencia, Decimal]]:
+        """De qué existencias sale `x`: el lote indicado (o el stock sin lote si `exacto`); si
+        no, FEFO cuando hay stock con lote; si no, el stock sin lote (RF-INV-22, 23)."""
+        existencias = self._existencias(x, producto, almacen)
+        vacia = Existencia(Decimal("0"), x.lote, producto=producto.sku, almacen=almacen)
+        if x.lote or x.exacto:
+            e = next((e for e in existencias if e.lote == x.lote), vacia)
+            validar_salida_de_lote(e, motivo, hoy)
+            return [(e, x.cantidad)]
+        if any(e.lote for e in existencias):
+            return asignar_fefo(existencias, x.cantidad, hoy, producto.unidad)
+        return [(existencias[0] if existencias else vacia, x.cantidad)]
+
+    def stock_en(self, producto_id: int, almacen_id: int, lote: str | None) -> Decimal:
+        """Stock de una existencia (lote `None` = sin lote), para el CONTEO de 0003b."""
+        self._almacen(almacen_id)
+        existencias = self._repo.existencias(producto_id, almacen_id)
+        return next((e.cantidad for e in existencias if e.lote == lote), Decimal("0"))
+
+    def promedio_vigente(self, producto_id: int) -> Decimal | None:
+        """None si el producto nunca tuvo movimientos (RF-INV-27)."""
+        if not self._repo.movimientos(producto_id):
+            return None
+        return self._repo.costo(producto_id).promedio
+
+    def tiene_movimientos(self, producto_id: int) -> bool:
+        return bool(self._repo.movimientos(producto_id))
+
+    def transferir(
+        self, ref_tipo, ref_id, lineas: list[Linea], destino_id: int, usuario_id, hoy: date
+    ) -> list[int]:
+        """RF-INV-12: salida del origen y entrada al destino en el mismo lote, al promedio
+        vigente. No toca el costo del producto: es por producto, no por almacén."""
+        self.bloquear([x.producto_id for x in lineas])
+        self._almacen(destino_id)
+        ids = []
+        for x in lineas:
+            producto = self._producto(x.producto_id)
+            almacen = self._almacen(x.almacen_id)
+            for e, cant in self._asignar(x, producto, almacen, TRANSFERENCIA, hoy):
+                self._repo.fijar_stock(e.id_, salir(e, cant).cantidad)
+                self._repo.sumar_stock(x.producto_id, destino_id, e.lote_id, cp.cantidad(cant))
+                costo = self._repo.costo(x.producto_id)
+                monto = cp.importe(cp.cantidad(cant) * costo.promedio)
+                for tipo, almacen_id in ((SALIDA, x.almacen_id), (ENTRADA, destino_id)):
+                    ids.append(
+                        self._registrar(
+                            (ref_tipo, ref_id),
+                            usuario_id,
+                            costo,
+                            monto,
+                            tipo=tipo,
+                            motivo=TRANSFERENCIA,
+                            producto_id=x.producto_id,
+                            almacen_id=almacen_id,
+                            lote_id=e.lote_id,
+                            cantidad=cant,
+                            costo_unitario=costo.promedio,
+                        )
+                    )
+        return ids
+
     def registrar_salida(
         self, motivo, ref_tipo, ref_id, lineas: list[Linea], usuario_id, hoy: date
     ) -> list[int]:
@@ -145,22 +217,7 @@ class InventarioService:
         for x in lineas:
             producto = self._producto(x.producto_id)
             almacen = self._almacen(x.almacen_id)
-            existencias = [
-                replace(e, producto=producto.sku, almacen=almacen)
-                for e in self._repo.existencias(x.producto_id, x.almacen_id)
-            ]
-            if x.lote:
-                e = next(
-                    (e for e in existencias if e.lote == x.lote),
-                    Existencia(Decimal("0"), x.lote, producto=producto.sku, almacen=almacen),
-                )
-                validar_salida_de_lote(e, motivo, hoy)  # RF-INV-23
-                asignaciones = [(e, x.cantidad)]
-            elif any(e.lote for e in existencias):
-                asignaciones = asignar_fefo(existencias, x.cantidad, hoy, producto.unidad)
-            else:
-                sin_lote = Existencia(Decimal("0"), producto=producto.sku, almacen=almacen)
-                asignaciones = [(existencias[0] if existencias else sin_lote, x.cantidad)]
+            asignaciones = self._asignar(x, producto, almacen, motivo, hoy)
             for e, cant in asignaciones:
                 queda = salir(e, cant)  # RF-INV-19
                 self._repo.fijar_stock(e.id_, queda.cantidad)
@@ -185,22 +242,31 @@ class InventarioService:
 
     def revertir(self, ref_tipo: str, ref_id: int, usuario_id: int | None) -> list[int]:
         """RF-INV-20 y 21: movimientos opuestos al costo original; una entrada ya consumida no
-        se revierte (Q12 = A). Lo ya revertido no se vuelve a revertir."""
+        se revierte (Q12 = A). Lo ya revertido no se vuelve a revertir. Una transferencia se
+        revierte sin tocar el costo del producto (RF-INV-13)."""
         movs = self._repo.por_revertir(ref_tipo, ref_id)
         productos = sorted({m.producto_id for m in movs})
         self.bloquear(productos)
         for p in productos:
-            validar_reversion(self._repo.movimientos(p), [m for m in movs if m.producto_id == p])
+            propios = [m for m in movs if m.producto_id == p and m.motivo != TRANSFERENCIA]
+            validar_reversion(self._repo.movimientos(p), propios)
         ids = []
         for inv in inversos_de(movs):
             antes = self._repo.costo(inv.producto_id)
-            if inv.tipo == SALIDA:  # revierte una entrada
+            if inv.motivo == TRANSFERENCIA:
+                despues, monto = antes, inv.costo_total
+            elif inv.tipo == SALIDA:  # revierte una entrada
                 despues, monto = cp.reversion_de_entrada(antes, inv.cantidad, inv.costo_unitario)
-                delta = -inv.cantidad
             else:  # revierte una salida: vuelve a entrar al costo con que salió
                 despues = cp.entrada(antes, inv.cantidad, inv.costo_unitario)
-                monto, delta = despues.valor - antes.valor, inv.cantidad
-            self._repo.sumar_stock(inv.producto_id, inv.almacen_id, inv.lote_id, delta)
+                monto = despues.valor - antes.valor
+            if inv.tipo == SALIDA:  # el stock de ese almacén y lote debe alcanzar (RF-INV-19)
+                existencias = self._repo.existencias(inv.producto_id, inv.almacen_id)
+                vacia = Existencia(Decimal("0"))
+                e = next((e for e in existencias if e.lote_id == inv.lote_id), vacia)
+                self._repo.fijar_stock(e.id_, salir(e, inv.cantidad).cantidad)
+            else:
+                self._repo.sumar_stock(inv.producto_id, inv.almacen_id, inv.lote_id, inv.cantidad)
             ids.append(
                 self._registrar(
                     (ref_tipo, ref_id),
@@ -208,7 +274,7 @@ class InventarioService:
                     despues,
                     monto,
                     tipo=inv.tipo,
-                    motivo=REVERSION,
+                    motivo=ANULACION,
                     producto_id=inv.producto_id,
                     almacen_id=inv.almacen_id,
                     lote_id=inv.lote_id,

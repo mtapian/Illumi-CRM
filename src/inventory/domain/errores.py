@@ -27,3 +27,7 @@ class CostoRequerido(DomainError):
 
 class AlmacenInvalido(DomainError):
     codigo = "ALMACEN_INVALIDO"
+
+
+class AjusteInvalido(DomainError):
+    codigo = "AJUSTE_INVALIDO"

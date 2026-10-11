@@ -1,6 +1,6 @@
 # Tareas 0003b — Inventario: ajustes
 
-Estado: borrador (ejemplo). **No ejecutar:** `spec.md` y `plan.md` siguen en borrador (constitución, art. 2.1). Depende de Q12 (sustento de mermas).
+Estado: implementado (2026-10-10).
 
 Spec: `./spec.md` · Plan: `./plan.md`
 
@@ -11,37 +11,40 @@ Reglas (constitución, art. 8):
 
 ## Dominio puro
 
-- [ ] **T1. Implementar `costo_de_entrada_ajuste()` con la tabla de costos por tipo.** — RF-INV-08, RF-INV-25
+- [x] **T1. Implementar `costo_de_entrada_ajuste()` con la tabla de costos por tipo.** — RF-INV-08, RF-INV-27
   - Hecho cuando: un test por tipo de ajuste comprueba el costo aplicado y que una entrada al promedio de un producto que nunca tuvo costo exige el costo unitario.
 
-- [ ] **T2. Implementar `validar_saldo_inicial()` y `diferencia_conteo()`.** — RF-INV-09, RF-INV-11
-  - Hecho cuando: un test comprueba que el saldo inicial exige costo > 0 y producto sin movimientos, y que un conteo igual al sistema da diferencia 0.
+- [x] **T2. Implementar `validar_saldo_inicial()`, `diferencia_conteo()` y `validar_ajuste()`.** — RF-INV-08, RF-INV-09, RF-INV-11, RF-INV-12
+  - Hecho cuando: un test comprueba costo > 0 y producto sin movimientos en el saldo inicial, diferencia 0 en el conteo igual, motivo obligatorio y transferencia al mismo almacén rechazada.
+
+- [x] **T3. Permitir `CONTEO` y `TRANSFERENCIA` en lotes vencidos; motivo `ANULACION` en los inversos.** — RF-INV-29, RF-INV-13
+  - Hecho cuando: un test comprueba que un lote vencido sale por conteo y transferencia pero no por venta ni corrección, y los tests de 0003a siguen en verde.
 
 ## Persistencia
 
-- [ ] **T3. Crear los modelos de ajuste y línea de ajuste.** — RF-INV-08
-  - Hecho cuando: la migración se aplica y un test comprueba la numeración correlativa por empresa.
+- [x] **T4. Crear los modelos de ajuste y línea de ajuste con sus constraints y el correlativo.** — RF-INV-08, RF-INV-28
+  - Hecho cuando: la migración se aplica y un test comprueba la numeración correlativa por empresa, el motivo obligatorio y el destino solo en transferencias.
 
 ## Casos de uso
 
-- [ ] **T4. Crear `RegistrarAjuste` para `SALDO_INICIAL`, con creación del lote.** — RF-INV-08 a RF-INV-10
-  - Hecho cuando: "Saldo inicial sin costo es rechazado", "Ajuste sin motivo es rechazado" y "Saldo inicial de producto con lote crea el lote" están en verde.
+- [x] **T5. Crear `RegistrarAjuste` para `SALDO_INICIAL`, `MERMA` y `CORRECCION`, con lote opcional.** — RF-INV-08 a RF-INV-10, RF-INV-27
+  - Hecho cuando: "Saldo inicial sin costo es rechazado", "Ajuste sin motivo es rechazado" y "Saldo inicial con lote crea el lote" están en verde.
 
-- [ ] **T5. Agregar `CONTEO`, `MERMA` y `CORRECCION` a `RegistrarAjuste`.** — RF-INV-08, RF-INV-11, RF-INV-25
+- [x] **T6. Agregar `CONTEO` a `RegistrarAjuste`.** — RF-INV-11, RF-INV-27
   - Hecho cuando: "Ajuste por conteo físico calcula la diferencia" y "Conteo igual al sistema no mueve stock" están en verde.
 
-- [ ] **T6. Agregar `TRANSFERENCIA` (salida y entrada juntas, al mismo costo).** — RF-INV-12
-  - Hecho cuando: "Transferencia entre almacenes no cambia el costo ni el resultado" está en verde.
+- [x] **T7. Agregar `InventarioService.transferir()` y `TRANSFERENCIA`.** — RF-INV-12
+  - Hecho cuando: "Transferencia entre almacenes no cambia el costo ni el resultado" está en verde (salvo el paso del estado de resultados, parcial hasta 0008b) y una transferencia que vacía el origen deja el promedio igual.
 
-- [ ] **T7. Crear `AnularAjuste`.** — RF-INV-13
-  - Hecho cuando: "Anular un ajuste revierte sus movimientos" está en verde, y anular una transferencia revierte la salida y la entrada.
+- [x] **T8. Crear `AnularAjuste`.** — RF-INV-13
+  - Hecho cuando: "Anular un ajuste revierte sus movimientos" está en verde, anular una transferencia revierte salida y entrada sin cambiar el costo, y un ajuste anulado no se anula otra vez.
 
 ## Pantalla
 
-- [ ] **T8. Crear la pantalla de ajustes con líneas dinámicas (HTMX) y el reporte de diferencias de conteo.** — RF-INV-08, RF-INV-11
-  - Hecho cuando: un test de vista registra un conteo de 3 líneas y el reporte del mes muestra la diferencia valorizada.
+- [x] **T9. Crear `/inventario/ajustes/` (nuevo y últimos) y `/inventario/ajustes/<id>/` (detalle y anular).** — RF-INV-08, RF-INV-11, RF-INV-13
+  - Hecho cuando: un test de vista registra un conteo de 3 líneas, el detalle de otra empresa da 404 (ruta en la prueba de aislamiento) y sin `inventario.ajuste.anular` no aparece "Anular" y el servidor lo rechaza.
 
 ## Cierre
 
-- [ ] **T9. Verificar la spec completa.** — RF-INV-08 a RF-INV-13, RF-INV-25
-  - Hecho cuando: `pytest tests/inventory tests/acceptance -k E03b` en verde; lint en verde; `MEMORY.md` actualizado.
+- [x] **T10. Verificar la spec completa.** — RF-INV-08 a RF-INV-13, RF-INV-27 a RF-INV-29
+  - Hecho cuando: `pytest tests/inventory tests/acceptance -k E03b` en verde; lint, contratos y migraciones en verde; `MEMORY.md` actualizado.

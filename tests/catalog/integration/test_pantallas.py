@@ -255,3 +255,32 @@ def test_editar_categoria_en_su_propia_pagina(client, lucia):
     assert (abarrotes.descripcion, abarrotes.activo) == ("Secos", False)
     nueva = client.get("/catalogo/categorias/?nuevo=1").content.decode()
     assert "Nueva categoría" in nueva and "<table" not in nueva
+
+
+def test_sin_permiso_de_isc_no_se_sugiere_el_contenido(client, lucia):
+    """RF-CAT-45: el contenido sugerido desde la receta solo se ofrece a quien puede editarlo;
+    en un campo bloqueado se enviaría igual y el guardado se rechazaría por falta de permiso."""
+    with tenant_context(lucia.empresa_id):
+        litro = Unidad.objects.get(abreviatura="L")
+        granel = Producto.objects.create(
+            sku="GRA-IPA", nombre="IPA", unidad=litro, se_compra=False, se_fabrica=True
+        )
+        ipa = Producto.objects.create(
+            sku="TER-IPA",
+            nombre="IPA",
+            unidad=Unidad.objects.get(abreviatura="UND"),
+            se_compra=False,
+            se_fabrica=True,
+            se_vende=True,
+            precio_venta=12,
+        )
+        ipa.receta.create(componente=granel, cantidad_por_unidad="0.33")
+
+    def contenido(html):
+        return html.split('name="contenido_litros"')[1].split(">")[0]
+
+    assert 'value="0.33' in contenido(client.get(f"/catalogo/productos/{ipa.id}/").content.decode())
+    produccion = Usuario.objects.create_user("pro@andina.pe", "x", empresa=lucia.empresa)
+    client.force_login(asignar_rol(produccion, "Producción"), BACKEND)
+    campo = contenido(client.get(f"/catalogo/productos/{ipa.id}/").content.decode())
+    assert "disabled" in campo and "value=" not in campo

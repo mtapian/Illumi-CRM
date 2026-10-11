@@ -4,7 +4,7 @@
 
 ## Fase actual
 
-**Implementación** de las épicas 0001 (0001a–0001d) y 0002 (0002a–0002d) completas, y de 0003a. El resto sigue en **Clarificación**; la siguiente es 0003b (ajustes), que primero necesita aprobar su spec, plan y tareas.
+**Implementación** de las épicas 0001 (0001a–0001d) y 0002 (0002a–0002d) completas, y de 0003a y 0003b. El resto sigue en **Clarificación**; la siguiente es 0003c (stock, kardex y alertas), que primero necesita aprobar su spec, plan y tareas. 0002e (impuestos) espera al contador.
 
 Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas siguen en `borrador`, esperando respuestas a sus `[NECESITA ACLARACIÓN]`; sus `tasks.md` son ejemplos.
 
@@ -16,11 +16,12 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0001c](specs/0001c-Tenancy-usuarios-roles/) Usuarios, roles y permisos | **implementada** (18 RF) | implementado | 22/22 ✔ | 8 escenarios parciales (acciones de 0002a, 0003b/c, 0004a, 0006, 0008) |
 | [0001d](specs/0001d-Tenancy-auditoria-tokens/) Auditoría de accesos y tokens de API | **implementada** (7 RF) | implementado | 11/11 ✔ | 1 escenario parcial (consulta de stock, 0003c) |
 | [0002a](specs/0002a-Catalogo-productos/) Catálogo: unidades y productos | **implementada** (25 RF, con las enmiendas 1 y 2: RF-CAT-29 a 36) | implementado | 43/43 ✔ | 2 escenarios parciales (compras 0004a, recetas 0005a); maquila sigue abierta |
-| [0002b](specs/0002b-Catalogo-presentaciones/) Catálogo: presentaciones y materiales | **implementada** (4 RF) | implementado | 8/8 ✔ | 1 escenario parcial (costo promedio, 0003a) |
+| [0002b](specs/0002b-Catalogo-presentaciones/) Catálogo: presentaciones y materiales | **implementada** (4 RF) | implementado | 8/8 ✔ | — (el escenario del costo promedio ya corre con el inventario real) |
 | [0002d](specs/0002d-Catalogo-proveedores/) Catálogo: proveedores y proveedores del producto | **implementada** (5 RF: RF-COM-01 a 03, 21, 22) | implementado | 8/8 ✔ | — ("tiene compras": falso hasta 0004a) |
 | [0002c](specs/0002c-Catalogo-isc/) Catálogo: ISC (reglas de cálculo) | **implementada**; categorías retiradas por 0002a enmienda 4 (ISC en la ficha) | implementado | 9/9 ✔ | código ISC (01 vs 02): dato de cada producto |
+| [0002e](specs/0002e-Catalogo-impuestos/) Catálogo: impuestos (maestro y por producto) | **borrador** (9 RF: RF-CAT-52 a 60) | borrador | borrador (7) | aprobación del PO y validación del contador (art. 5.5) |
 | [0003a](specs/0003a-Inventario-movimientos-costo/) Inventario: almacenes, movimientos y costo promedio | **implementada** (13 RF; enmienda 4 de 0002a y Q12 = A) | implementado | 18/18 ✔ | visto bueno del contador sobre Q12 = A |
-| [0003b](specs/0003b-Inventario-ajustes/) Inventario: ajustes | borrador (7 RF) | borrador | ejemplo (9 tareas) | Q12 (sustento de mermas) |
+| [0003b](specs/0003b-Inventario-ajustes/) Inventario: ajustes | **implementada** (9 RF: RF-INV-08 a 13, 27 a 29) | implementado | 10/10 ✔ | 1 escenario parcial (estado de resultados, 0008b); mermas solo con motivo hasta que responda el contador |
 | [0003c](specs/0003c-Inventario-consultas-alertas/) Inventario: stock, kardex y alertas | borrador (7 RF) | borrador | ejemplo (9 tareas) | — |
 | [0004a](specs/0004a-Compras-proveedores-registro/) Compras: proveedores y registro de compras | borrador (16 RF) | borrador | ejemplo (12 tareas) | Q12, maquila |
 | [0004b](specs/0004b-Compras-anulacion/) Compras: anulación | borrador (4 RF) | borrador | ejemplo (6 tareas) | Q12 |
@@ -36,6 +37,12 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0008b](specs/0008b-Finanzas-resultados-reportes/) Finanzas: estado de resultados, dashboard y exportación | borrador (11 RF) | borrador | ejemplo (13 tareas) | Q10 |
 
 ## Historial
+
+- **2026-10-10 — 0003b aprobada (PO: "ok", con las tres decisiones) e implementada.** Dominio `ajuste.py` (tipos, costo por tipo, saldo inicial, diferencia del conteo, motivo y destino); lote vencido sale también por conteo y transferencia (RF-INV-29, ajusta RF-INV-23 de 0003a); los inversos se llaman `ANULACION`. Modelos `Ajuste` (correlativo por empresa con `fn_siguiente_correlativo`, CHECK de motivo y de destino solo en transferencias) y `AjusteLinea` (inmutable por trigger; en conteo guarda lo contado y el stock del sistema). `InventarioService` suma `transferir` (salida + entrada con el mismo costo, sin tocar el costo del producto), `stock_en`, `promedio_vigente`, `tiene_movimientos` y `Linea.exacto`; `revertir` deshace transferencias sin tocar el costo y valida el stock antes de sacar. Casos de uso `RegistrarAjuste` y `AnularAjuste` (no dos veces; una entrada consumida no se anula). Pantallas `/inventario/ajustes/` (nuevo y últimos, 10 líneas fijas) y `/inventario/ajustes/<id>/` (detalle y anular, en la prueba de aislamiento). Los pasos "registro un ajuste…" de 0003a usan ahora el caso de uso. **Error corregido en el catálogo:** a un usuario sin permiso de ISC se le sugería el contenido en litros en un campo bloqueado que igual se enviaba, y el guardado se rechazaba ("Acceso denegado"); ahora la sugerencia solo se muestra a quien puede editar (test que falla sin la corrección). El escenario de 0002b del costo promedio deja de ser parcial. 483 tests en verde, 13 skipped; lint, formato, 9 contratos y migraciones en verde.
+
+- **2026-10-10 — Propuesta: 0002e "Catálogo: impuestos" (borrador, sin código).** Con capturas de Odoo del PO: maestro de impuestos por empresa (tributo IGV/EXO/INA/ISC, uso, forma de cálculo) con tasas por vigencia de solo inserción, e impuestos de venta y de compra por producto como etiquetas. Decisiones del PO: precio de venta con impuestos incluidos; tasas del ISC en el maestro (reemplaza las tasas por producto de la enmienda 4); MVP con IGV, exonerado, inafecto e ISC. Ajuste del PO: el usuario define cada impuesto con nombre, código SUNAT y criterio **monto fijo o porcentaje** (p. ej. "ISC por 750 ml" S/ 2.01, "ISC por galón" S/ 10.94), bajo su responsabilidad; los litros por unidad dejan de intervenir en el cálculo y el sistema del ISC sale del criterio (fijo = 02, porcentaje = 01). Orden ISC → IGV fijo. Afecta 0001a (IGV deja la configuración de la empresa), 0002a (RF-CAT-45, 46, 48), 0002c, 0004a, 0006b y 0007a. Requiere la validación del contador antes de aprobarse (art. 5.5). La 0003b sigue esperando aprobación.
+
+- **2026-10-10 — Propuesta de ajuste de 0003b (borrador, sin código).** Alineada con 0003a implementada y la enmienda 4: lote opcional en entradas de ajuste (RF-INV-10 generalizado); transferencia en el mismo lote, FEFO si no se indica, sin tocar el costo del producto (`InventarioService.transferir`); anulación con motivo y estado `ANULADO`, no dos veces; RF-INV-28 (correlativo); RF-INV-29 (conteo y transferencia pueden sacar de un lote vencido; ajusta RF-INV-23 de 0003a); RF-INV-25 de 0003b renumerado a RF-INV-27 (0003a usó el número); motivo de los inversos `ANULACION`. Q12 (sustento de mermas): propuesta MVP solo con motivo. Sin HTMX de líneas dinámicas: 10 líneas fijas. Tareas T1–T10; dos escenarios nuevos.
 
 - **2026-10-10 — 0003a implementada (T16–T17).** Almacenes: `GuardarAlmacen` (nombre único sin mayúsculas, renombrar) y `CambiarEstadoAlmacen` (con stock no se desactiva; no se eliminan), pantalla `/inventario/almacenes/` con el patrón de listado de maestro y menú "Inventario". Prueba de reconciliación (RNF-INV-01): 5 semillas de 150 operaciones aleatorias (entradas, salidas con y sin lote en dos almacenes, reversiones) y el kardex reproduce stock y valor por producto, almacén y lote. Los 14 escenarios de 0003a en verde. 453 tests en verde, 13 skipped; lint, formato, 9 contratos y migraciones en verde.
 
@@ -101,7 +108,7 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 ## Pendientes del PO / contador
 
 - **Q1** PSE · **Q3** taproom B2C · **Q6** sesión y contraseñas · **Q7** vida útil · **Q8** planes · **Q10** lote perdido · **Q12** consultas al contador (anulación de compra consumida: el PO eligió A; falta el visto bueno del contador).
-- **Código de tipo de sistema ISC:** el contador dijo `01`; el catálogo 08 de SUNAT indica `02` para monto fijo → validar en el sandbox del PSE.
+- **Código de tipo de sistema ISC:** el contador dijo `01`; el catálogo 08 de SUNAT indica `02` para monto fijo. Con 0002e (borrador) sale del criterio del impuesto (fijo = 02, porcentaje = 01) → confirmar con el contador.
 - **Cerveza que entra sin producir:** ¿maquila o compra a granel? Hoy solo se cubre la reventa de terceros (`MERCADERIA`) y el saldo inicial. ¿La reventa de cerveza de terceros paga ISC otra vez? (contador).
 
 ## Próximo paso

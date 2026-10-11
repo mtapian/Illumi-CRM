@@ -171,7 +171,9 @@ def producto(request, producto_id):
         "marca": datos.marca_id or "",
     }
     inicial |= {"afecto_isc": datos.afecto_isc} | ProductoForm.inicial_receta(receta)
-    if datos.contenido_litros is None:  # RF-CAT-45: sugerido desde la receta
+    # RF-CAT-45: sugerido desde la receta, solo a quien puede editarlo; un campo bloqueado
+    # igual se envía y el caso de uso lo tomaría como un cambio de ISC.
+    if datos.contenido_litros is None and request.actor.puede(uc.ISC):
         unidades = repo.unidades_de([c for c, _ in receta])
         inicial["contenido_litros"] = contenido_sugerido(receta, unidades)
     form = _form(request, inicial, bloqueados + _sin_permiso_isc(request), producto_id)

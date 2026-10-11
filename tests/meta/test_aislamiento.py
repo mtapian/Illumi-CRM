@@ -38,11 +38,21 @@ def _ajeno_producto(otra):
     ).id
 
 
+def _ajeno_ajuste(otra):
+    from inventory.infrastructure.models import Ajuste, Almacen
+
+    almacen = Almacen.all_tenants.create(empresa=otra, nombre="Ajeno")
+    return Ajuste.all_tenants.create(
+        empresa=otra, numero=1, tipo="MERMA", motivo="x", almacen=almacen
+    ).id
+
+
 # ruta → función que crea un registro de la otra empresa y devuelve su id
 RUTAS = {
     "usuarios/<int:usuario_id>/": _ajeno_usuario,
     "roles/<int:rol_id>/": _ajeno_rol,
     "catalogo/productos/<int:producto_id>/": _ajeno_producto,
+    "inventario/ajustes/<int:ajuste_id>/": _ajeno_ajuste,
 }
 
 

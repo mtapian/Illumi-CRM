@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% comment %}Ajustes de stock (plan 0003b §5): "Nuevo ajuste" a la izquierda y "Últimos ajustes" a
+la derecha. En CONTEO la cantidad es lo contado; en CORRECCION se indica entrada o salida; el
+costo solo se pide en entradas (obligatorio en SALDO_INICIAL).{% endcomment %}
+{% block titulo %}Ajustes de stock{% endblock %}
+{% block contenido %}
+<h1>Ajustes de stock</h1>
+{% include "catalog/_migas.html" %}
+<div class="dos-columnas">
+<section class="tarjeta">
+  <h2>Nuevo ajuste</h2>
+  <form method="post">{% csrf_token %}
+    <div class="dos-columnas">
+      <label>Tipo<select name="tipo">{% for t in tipos %}<option value="{{ t }}"{% if valores.tipo == t %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+      <label>Almacén<select name="almacen">{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
+      <label>Destino (solo transferencia)<select name="destino"><option value="">—</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.destino == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
+      <label>Motivo<input name="motivo" required maxlength="200" value="{{ valores.motivo|default:'' }}"></label>
+    </div>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad (en conteo, lo contado)</th><th>Lote</th><th>Vence</th><th>Costo unit.</th><th>Corrección</th></tr></thead><tbody>
+    {% for i in lineas %}<tr>
+      <td><select name="producto_{{ i }}" aria-label="Producto {{ forloop.counter }}"><option value="">—</option>{% for p in productos %}<option value="{{ p.id }}">{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select></td>
+      <td><input name="cantidad_{{ i }}" type="number" min="0" step="0.0001" aria-label="Cantidad {{ forloop.counter }}"></td>
+      <td><input name="lote_{{ i }}" maxlength="40" aria-label="Lote {{ forloop.counter }}"></td>
+      <td><input name="vencimiento_{{ i }}" type="date" aria-label="Vencimiento {{ forloop.counter }}"></td>
+      <td><input name="costo_{{ i }}" type="number" min="0" step="0.000001" aria-label="Costo {{ forloop.counter }}"></td>
+      <td><select name="sentido_{{ i }}" aria-label="Sentido {{ forloop.counter }}"><option value="">—</option><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida</option></select></td>
+    </tr>{% endfor %}
+    </tbody></table></div>
+    <p><button type="submit" class="exito">Aplicar ajuste</button></p>
+  </form>
+</section>
+<section class="tarjeta">
+  <h2>Últimos ajustes</h2>
+  <div class="tabla"><table><thead><tr><th>N.°</th><th>Fecha</th><th>Tipo</th><th>Almacén</th><th>Motivo</th><th>Estado</th></tr></thead><tbody>
+  {% for a in ultimos %}<tr><td><a href="{% url 'ajuste' a.id %}">{{ a.numero }}</a></td><td>{{ a.fecha|date:"Y-m-d H:i" }}</td><td>{{ a.tipo }}</td><td>{{ a.almacen.nombre }}</td><td>{{ a.motivo }}</td>
+    <td><span class="chip {% if a.estado == 'ANULADO' %}error{% else %}ok{% endif %}">{{ a.estado|title }}</span></td></tr>
+  {% empty %}<tr><td colspan="6" class="subtitulo">Aún no hay ajustes.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+</div>
+{% endblock %}

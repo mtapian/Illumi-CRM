@@ -53,3 +53,37 @@ def test_con_stock_no_se_desactiva_y_otra_empresa_da_404(web, inv, crear_empresa
     assert (
         web.post("/inventario/almacenes/", {"accion": "desactivar", "id": ajeno}).status_code == 404
     )
+
+
+def test_conteo_de_tres_lineas_y_detalle(web, inv):
+    """T9, RF-INV-08 y RF-INV-11: un conteo de 3 líneas desde la pantalla."""
+    with transaction.atomic():
+        for p in ("malta", "ipa"):
+            linea = Linea(inv[p], inv["principal"], D("10"), D("4"))
+            inventario().registrar_entrada(
+                "SALDO_INICIAL", "AJUSTE", 1, [linea], None, date.today()
+            )
+    datos = {"tipo": "CONTEO", "almacen": inv["principal"], "motivo": "Inventario mensual"}
+    datos |= {"producto_0": inv["malta"], "cantidad_0": "8"}
+    datos |= {"producto_1": inv["ipa"], "cantidad_1": "10"}
+    datos |= {"producto_2": inv["ipa"], "cantidad_2": "3", "lote_2": "NUEVO", "costo_2": "4"}
+    r = web.post("/inventario/ajustes/", datos)
+    assert r.status_code == 302, r.content.decode()[:500]
+    html = web.get(r.url).content.decode()
+    assert "Ajuste N.° 1" in html and "Inventario mensual" in html and "Anular" in html
+    assert f'<a href="{r.url}">1</a>' in web.get("/inventario/ajustes/").content.decode()
+
+
+def test_sin_permiso_de_anular_no_ve_el_boton_ni_puede(client, inv, web):
+    from tenancy.infrastructure.models import Usuario
+    from tests.conftest import asignar_rol
+
+    with transaction.atomic():
+        linea = Linea(inv["malta"], inv["principal"], D("10"), D("4"))
+        inventario().registrar_entrada("SALDO_INICIAL", "AJUSTE", 1, [linea], None, date.today())
+    datos = {"tipo": "MERMA", "almacen": inv["principal"], "motivo": "Saco roto"}
+    r = web.post("/inventario/ajustes/", datos | {"producto_0": inv["malta"], "cantidad_0": "1"})
+    almacen = Usuario.objects.create_user("al@andina.pe", "x", empresa=inv["empresa"])
+    client.force_login(asignar_rol(almacen, "Almacén"), BACKEND)
+    assert "Anular" not in client.get(r.url).content.decode()
+    assert client.post(r.url, {"motivo": "x"}).status_code == 403
