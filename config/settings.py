@@ -16,6 +16,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "tenancy.infrastructure.apps.TenancyConfig",
     "catalog.infrastructure.apps.CatalogConfig",
+    "purchasing.infrastructure.apps.PurchasingConfig",
     "shared.infrastructure.apps.SharedConfig",
 ]
 

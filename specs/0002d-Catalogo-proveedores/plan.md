@@ -1,6 +1,6 @@
 # Plan 0002d — Catálogo: proveedores y proveedores del producto
 
-Estado: borrador (2026-10-10)
+Estado: implementado (2026-10-10)
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 
@@ -10,10 +10,11 @@ Contexto nuevo: `src/purchasing` (compras). En esta spec solo tiene proveedores;
 
 | Archivo | Responsabilidad | RF |
 |---|---|---|
-| `src/shared/domain/documentos.py` | Se mueve `Ruc` desde `tenancy/domain/ruc.py` (lo usan tenancy y compras) y se agrega la validación de DNI (8 dígitos) | RF-COM-01 |
+| `src/shared/domain/documentos.py` | Se mueve `Ruc` desde `tenancy/domain/ruc.py` (lo usan tenancy y compras) y se agrega la validación de DNI (8 dígitos); el error pasa a `shared.domain.errores.DocumentoInvalido` (reemplaza a `RucInvalido`) | RF-COM-01 |
 | `src/purchasing/domain/proveedor.py` | `validar_proveedor()`, `validar_proveedor_producto()` | RF-COM-01, 21 |
-| `src/purchasing/application/proveedores.py` | `CrearProveedor`, `EditarProveedor`, `CambiarEstadoProveedor`, `EliminarProveedor`, `AsociarProveedorProducto`, `QuitarProveedorProducto` (todos `compras.proveedor.gestionar`) | RF-COM-01 a 03, 21, 22 |
+| `src/purchasing/application/proveedores.py` | `GuardarProveedor` (crea o edita, como `GuardarAgrupacion` del catálogo), `CambiarEstadoProveedor`, `EliminarProveedor`, `AsociarProveedorProducto`, `QuitarProveedorProducto` (todos `compras.proveedor.gestionar`) | RF-COM-01 a 03, 21, 22 |
 | `src/purchasing/application/puertos.py` | `ComprasPort.tiene_compras(proveedor_id)`: falso hasta que 0004a lo implemente | RF-COM-02 |
+| `src/purchasing/infrastructure/contenedor.py` | Arma los casos de uso con el repositorio, los puertos y la fachada del catálogo (`catalogo_query()`), que dice si el producto existe en la empresa y si se compra | RF-COM-21 |
 | `src/purchasing/infrastructure/models.py` | Modelos de §2 | §2 |
 | `src/purchasing/interfaces/` | `/compras/proveedores/` y la pestaña "Compras" registrada en `catalog/interfaces/pestanas.py` | RF-COM-01 a 03, 22 |
 | `pyproject.toml` | Contratos: `catalog` y `tenancy` no importan `purchasing`; `purchasing.domain/application` no importan infraestructura ni interfaces de otros contextos | — |
@@ -30,7 +31,7 @@ Contexto nuevo: `src/purchasing` (compras). En esta spec solo tiene proveedores;
 | Función | Qué hace | RF |
 |---|---|---|
 | `validar_documento(tipo, numero)` | RUC con módulo 11 (`Ruc`), DNI de 8 dígitos | RF-COM-01 |
-| `validar_proveedor_producto(tipo_producto, precio, plazo)` | Solo comprables; precio y plazo ≥ 0 | RF-COM-21 |
+| `validar_proveedor_producto(se_compra, precio, plazo)` | Solo comprables (casilla "Se compra", 0002a enmienda 4); precio y plazo ≥ 0 | RF-COM-21 |
 
 ## 4. Algoritmos clave
 
@@ -42,7 +43,8 @@ Sin algoritmos no triviales. Asociar es "crear o actualizar" por (proveedor, pro
 
 | Ruta | Qué se pinta | RF |
 |---|---|---|
-| `/compras/proveedores/` | Listado con búsqueda; alta y edición; activar/desactivar; eliminar si no tiene compras | RF-COM-01 a 03 |
+| `/compras/proveedores/` | Listado con búsqueda; alta y edición (`?nuevo=1`, `?editar=<id>` en su propia página, RF-CAT-51); activar/desactivar; eliminar si no tiene compras | RF-COM-01 a 03 |
+| `/compras/proveedores/producto/` (POST) | Asociar o quitar desde la pestaña; el producto llega en el formulario y se valida con la fachada del catálogo (otra empresa = no existe) | RF-COM-21 |
 | Ficha de producto, pestaña "Compras" | Tabla proveedor · precio referencial · plazo · código; agregar y quitar (como la pestaña Compras de Odoo) | RF-COM-21, 22 |
 
 ## 6. Decisiones técnicas

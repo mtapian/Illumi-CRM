@@ -1,10 +1,6 @@
 from shared.domain.errores import DomainError
 
 
-class RucInvalido(DomainError):
-    codigo = "RUC_INVALIDO"
-
-
 class IgvInvalido(DomainError):
     codigo = "IGV_INVALIDO"
 

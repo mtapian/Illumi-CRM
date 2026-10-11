@@ -4,9 +4,10 @@ from datetime import date
 
 import pytest
 
+from shared.domain.errores import DocumentoInvalido
 from tenancy.application.registro import DatosRegistro, RegistrarEmpresa
 from tenancy.application.sembradores import RegistroSembradores
-from tenancy.domain.errores import EmailDuplicado, RucDuplicado, RucInvalido
+from tenancy.domain.errores import EmailDuplicado, RucDuplicado
 from tenancy.domain.suscripcion import Estado
 from tenancy.infrastructure.contenedor import registrar_empresa
 from tenancy.infrastructure.models import Empresa, Plan, Usuario
@@ -57,7 +58,7 @@ def test_ejecuta_los_sembradores_con_la_empresa_nueva():
 
 
 def test_ruc_invalido_no_crea_nada():
-    with pytest.raises(RucInvalido):
+    with pytest.raises(DocumentoInvalido):
         caso().ejecutar(datos(ruc="20601234560"), HOY)
     assert not Empresa.objects.exists() and not Usuario.objects.exists()
 

@@ -4,7 +4,7 @@
 
 ## Fase actual
 
-**Implementación** de las épicas 0001 (0001a–0001d) y 0002 (0002a–0002c) completas. El resto sigue en **Clarificación**; la siguiente es 0003a, que primero necesita aprobar su spec, plan y tareas.
+**Implementación** de las épicas 0001 (0001a–0001d) y 0002 (0002a–0002d) completas. El resto sigue en **Clarificación**; la siguiente es 0003a, que primero necesita aprobar su spec, plan y tareas.
 
 Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas siguen en `borrador`, esperando respuestas a sus `[NECESITA ACLARACIÓN]`; sus `tasks.md` son ejemplos.
 
@@ -15,9 +15,9 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0001b](specs/0001b-Tenancy-plataforma-habilitaciones/) Plataforma: planes y habilitaciones | **implementada** (13 RF) | implementado | 16/16 ✔ | — (contador de OP en curso: falso hasta 0005) |
 | [0001c](specs/0001c-Tenancy-usuarios-roles/) Usuarios, roles y permisos | **implementada** (18 RF) | implementado | 22/22 ✔ | 8 escenarios parciales (acciones de 0002a, 0003b/c, 0004a, 0006, 0008) |
 | [0001d](specs/0001d-Tenancy-auditoria-tokens/) Auditoría de accesos y tokens de API | **implementada** (7 RF) | implementado | 11/11 ✔ | 1 escenario parcial (consulta de stock, 0003c) |
-| [0002a](specs/0002a-Catalogo-productos/) Catálogo: unidades y productos | **implementada** (25 RF, con las enmiendas 1 y 2: RF-CAT-29 a 36) | implementado | 43/43 ✔ | 2 escenarios parciales (compras 0004a, recetas 0005a; pestaña Compras de 0002d); maquila sigue abierta |
+| [0002a](specs/0002a-Catalogo-productos/) Catálogo: unidades y productos | **implementada** (25 RF, con las enmiendas 1 y 2: RF-CAT-29 a 36) | implementado | 43/43 ✔ | 2 escenarios parciales (compras 0004a, recetas 0005a); maquila sigue abierta |
 | [0002b](specs/0002b-Catalogo-presentaciones/) Catálogo: presentaciones y materiales | **implementada** (4 RF) | implementado | 8/8 ✔ | 1 escenario parcial (costo promedio, 0003a) |
-| [0002d](specs/0002d-Catalogo-proveedores/) Catálogo: proveedores y proveedores del producto | **borrador** (5 RF: RF-COM-01 a 03 movidos de 0004a + RF-COM-21, 22) | borrador | borrador (8) | aprobación del PO |
+| [0002d](specs/0002d-Catalogo-proveedores/) Catálogo: proveedores y proveedores del producto | **implementada** (5 RF: RF-COM-01 a 03, 21, 22) | implementado | 8/8 ✔ | — ("tiene compras": falso hasta 0004a) |
 | [0002c](specs/0002c-Catalogo-isc/) Catálogo: ISC (reglas de cálculo) | **implementada**; categorías retiradas por 0002a enmienda 4 (ISC en la ficha) | implementado | 9/9 ✔ | código ISC (01 vs 02): dato de cada producto |
 | [0003a](specs/0003a-Inventario-movimientos-costo/) Inventario: almacenes, movimientos y costo promedio | borrador (11 RF) | borrador | ejemplo (17 tareas) | Q12 |
 | [0003b](specs/0003b-Inventario-ajustes/) Inventario: ajustes | borrador (7 RF) | borrador | ejemplo (9 tareas) | Q12 (sustento de mermas) |
@@ -36,6 +36,8 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0008b](specs/0008b-Finanzas-resultados-reportes/) Finanzas: estado de resultados, dashboard y exportación | borrador (11 RF) | borrador | ejemplo (13 tareas) | Q10 |
 
 ## Historial
+
+- **2026-10-10 — 0002d aprobada e implementada** (PO: "1 y 2", tras push de la rama). Antes de implementar se alineó la spec con la enmienda 4 de 0002a: "comprable" = casilla "Se compra" (ya no los tipos INSUMO/ENVASE/MERCADERIA). Nuevo contexto `purchasing` (app, capas e import-linter: tenancy y catálogo no lo importan; su dominio y aplicación solo usan la fachada del catálogo). `Ruc` pasó a `shared/domain/documentos.py` con la validación de DNI; el error es `shared.domain.errores.DocumentoInvalido` (reemplaza a `RucInvalido`, sin alias). Proveedores con documento único por empresa (también en la base), eliminar solo sin compras (puerto `ComprasPort`, falso hasta 0004a), desactivado no se asocia; proveedor del producto = crear o actualizar (precio 2 decimales half-up, plazo ≥ 0, CHECK en la base). Pantalla `/compras/proveedores/` con el patrón de listado de maestro (formulario en su propia página) y la pestaña "Compras" de la ficha registrada desde compras (`pestanas.agregar`, casilla `se_compra`); asociar y quitar por `POST /compras/proveedores/producto/`, sin rutas nuevas con id. En el feature se ajustaron dos redacciones para reutilizar pasos ("Y que existe el producto…", "intento eliminar el proveedor…"). El escenario de pestañas de 0002a deja de ser parcial. 396 tests en verde, 13 skipped; lint, formato, 9 contratos y migraciones en verde.
 
 - **2026-10-10 — Validación del trabajo hecho con otra IA (pedido del PO) y ajustes.** Hallazgos: (1) contexto `purchasing` creado **sin spec aprobada** (0002d en borrador; `OrdenCompra` no está en ninguna spec), con archivos de plantilla de Django fuera de la estructura hexagonal y un dominio que no importaba (`TypeError`); la suite no corría y `lint-imports` fallaba por un contrato inválido; (2) `shared/domain/documentos.py` aceptaba dos RUC inválidos por una **lista blanca** para pasar sus propios tests; (3) `tests/conftest.py` pasó a `get_or_create`, ocultando errores de aislamiento entre tests; (4) el renombre familias → categorías dejó alias de "familia" en modelo, dominio, rutas y vistas (contra art. 7.6) y la T43 estaba marcada hecha sin estar implementada (el formulario seguía encima de la tabla). Ajustes: se retiró `purchasing`, se revirtieron RUC, errores y conftest (respaldo completo en el scratchpad de la sesión); el renombre quedó limpio, sin alias; nombre, descripción y estado de la categoría se guardan en una sola operación; nuevo/editar abren su propia página (RF-CAT-51); mensajes con "categoría" con tilde; el test de conversión migra hasta la última migración. 368 tests en verde, lint, formato, contratos y migraciones en verde. Enmienda 5 implementada. 0002d sigue en borrador: el RUC compartido y el DNI se harán al aprobarla.
 

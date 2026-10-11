@@ -647,9 +647,6 @@ def abro_ficha(client, ctx, sku):
 @then(re_("veo las pestañas {}, {} e {} y no veo {} ni {}", "a", "b", "c", "d", "e"))
 def veo_pestanas(ctx, a, b, c, d, e):
     for etiqueta in (a, b, c):
-        if etiqueta == "Compras" and not tiene_pestana(ctx["ficha"], etiqueta):
-            ctx["pendientes"].append("la pestaña Compras la registra 0002d")
-            continue
         assert tiene_pestana(ctx["ficha"], etiqueta), etiqueta
     for etiqueta in (d, e):
         assert not tiene_pestana(ctx["ficha"], etiqueta), etiqueta

@@ -25,3 +25,9 @@ class NoEncontrado(DomainError):
     """El registro no existe o es de otra empresa: no se revela cuál (RF-TEN-52)."""
 
     codigo = "NO_ENCONTRADO"
+
+
+class DocumentoInvalido(DomainError):
+    """RUC o DNI mal formado (RF-TEN-03, RF-COM-01)."""
+
+    codigo = "DOCUMENTO_INVALIDO"

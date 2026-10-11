@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 
 from catalog.application.puertos import puertos
+from purchasing.application.puertos import puertos as puertos_compras
 from tenancy.infrastructure.contenedor import sembrador_roles
 from tenancy.infrastructure.models import Empresa, Plan, Rol, UsuarioRol
 
@@ -46,4 +47,21 @@ class InventarioFalso:
 def inventario(monkeypatch):
     falso = InventarioFalso()
     monkeypatch.setattr(puertos, "inventario", falso)
+    return falso
+
+
+class ComprasFalsas:
+    """Reemplaza a las compras (0004a) en los tests."""
+
+    def __init__(self):
+        self.con_compras = set()
+
+    def tiene_compras(self, proveedor_id):
+        return proveedor_id in self.con_compras
+
+
+@pytest.fixture
+def compras(monkeypatch):
+    falso = ComprasFalsas()
+    monkeypatch.setattr(puertos_compras, "compras", falso)
     return falso

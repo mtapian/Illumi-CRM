@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% comment %}Listado de maestro (ADR-12) de proveedores (RF-COM-01 a 03).{% endcomment %}
+{% block titulo %}Proveedores{% endblock %}
+{% block contenido %}
+<h1>{% if editando %}Editar proveedor{% elif nuevo %}Nuevo proveedor{% else %}Proveedores{% endif %}</h1>
+{% include "catalog/_migas.html" %}
+{% if nuevo or editando %}
+<section class="tarjeta formulario-maestro">
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
+    <div class="dos-columnas">
+    <label>Tipo de documento<select name="tipo_doc">
+      <option value="RUC"{% if valores.tipo_doc != "DNI" %} selected{% endif %}>RUC</option>
+      <option value="DNI"{% if valores.tipo_doc == "DNI" %} selected{% endif %}>DNI</option></select></label>
+    <label>Número<input name="num_doc" required maxlength="11" inputmode="numeric" value="{{ valores.num_doc }}"></label>
+    <label>Razón social<input name="razon_social" required maxlength="200" value="{{ valores.razon_social }}"></label>
+    <label>Contacto<input name="contacto" maxlength="120" value="{{ valores.contacto }}"></label>
+    <label>Teléfono<input name="telefono" maxlength="40" value="{{ valores.telefono }}"></label>
+    <label>Email<input name="email" type="email" maxlength="120" value="{{ valores.email }}"></label>
+    <label>Dirección<input name="direccion" maxlength="250" value="{{ valores.direccion }}"></label>
+    </div>
+    <p><button type="submit">Guardar</button> <a class="boton secundario" href="{{ request.path }}">Cancelar</a></p>
+  </form>
+</section>
+{% else %}
+<div class="barra-listado">
+  <form method="get" class="buscador"><input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre o documento…" aria-label="Buscar proveedor"></form>
+  <a class="boton exito" href="?nuevo=1">+ Nuevo proveedor</a>
+</div>
+<div class="tarjeta tabla">
+<table><thead><tr><th>Razón social</th><th>Documento</th><th>Contacto</th><th>Teléfono</th><th>Productos</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for f, con_compras in filas %}<tr>
+  <td><strong>{{ f.razon_social }}</strong></td><td>{{ f.tipo_doc }} {{ f.num_doc }}</td><td>{{ f.contacto }}</td><td>{{ f.telefono }}</td>
+  <td><span class="chip neutro">{{ f.n_productos }}</span></td>
+  <td><span class="chip {% if f.activo %}ok{% else %}error{% endif %}">{% if f.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+  <td class="acciones"><form method="post">{% csrf_token %}<input type="hidden" name="id" value="{{ f.id }}">
+    <a class="btn-icono" href="?editar={{ f.id }}" title="Editar" aria-label="Editar {{ f.razon_social }}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm17.7-10.2a1 1 0 0 0 0-1.42l-2.33-2.33a1 1 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></a>
+    {% if f.activo %}{% if con_compras %}<button class="btn-icono peligro" name="accion" value="desactivar" title="Tiene compras: desactivar">Desactivar</button>{% else %}<button class="btn-icono" name="accion" value="desactivar">Desactivar</button>{% endif %}
+    {% else %}<button class="btn-icono" name="accion" value="activar">Activar</button>{% endif %}
+    {% if not con_compras %}<button class="btn-icono peligro" name="accion" value="eliminar" title="Eliminar" aria-label="Eliminar {{ f.razon_social }}" onclick="return confirm('¿Eliminar {{ f.razon_social|escapejs }}?')"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>{% endif %}
+  </form></td>
+</tr>{% empty %}<tr><td colspan="7" class="subtitulo">{% if q %}Sin resultados para "{{ q }}".{% else %}Aún no hay proveedores.{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endif %}
+{% endblock %}

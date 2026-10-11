@@ -5,10 +5,10 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import date
 
+from shared.domain.documentos import Ruc
 from tenancy.application.puertos import RegistroRepo
 from tenancy.application.sembradores import RegistroSembradores
 from tenancy.domain.errores import EmailDuplicado, RucDuplicado, SinPlanDePrueba
-from tenancy.domain.ruc import Ruc
 from tenancy.domain.suscripcion import fecha_termino_prueba
 
 

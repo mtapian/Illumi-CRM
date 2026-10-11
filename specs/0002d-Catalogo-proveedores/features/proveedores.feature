@@ -1,5 +1,5 @@
 # language: es
-@E02 @E02d @mvp @borrador
+@E02 @E02d @mvp
 Característica: Proveedores y proveedores del producto
   Como encargado de almacén
   Quiero registrar a mis proveedores y ver a quién le compro cada producto
@@ -7,7 +7,7 @@ Característica: Proveedores y proveedores del producto
 
   Antecedentes:
     Dado que soy usuario "almacen" de "Cervecería Andina"
-    Y existe el producto con SKU "INS-MALTA"
+    Y que existe el producto con SKU "INS-MALTA"
 
   @UC-COM-01 @critico @RF-COM-01
   Escenario: Registrar un proveedor
@@ -30,7 +30,7 @@ Característica: Proveedores y proveedores del producto
   Escenario: Proveedor con compras se desactiva en vez de eliminarse
     Dado el proveedor "Maltería del Sur" con RUC "20512345671"
     Y que "Maltería del Sur" tiene compras
-    Cuando intento eliminar "Maltería del Sur"
+    Cuando intento eliminar el proveedor "Maltería del Sur"
     Entonces la operación es rechazada con el mensaje "El proveedor tiene compras; puedes desactivarlo"
 
   @UC-COM-08 @critico @RF-COM-21 @RF-COM-22
@@ -50,6 +50,6 @@ Característica: Proveedores y proveedores del producto
 
   @UC-COM-08 @borde @RF-COM-22
   Escenario: Un producto que no se compra no tiene pestaña Compras
-    Dado existe el granel "GRA-IPA" (IPA a granel)
+    Dado que existe el bien "GRA-IPA" que no se compra
     Cuando abro la ficha de "GRA-IPA"
     Entonces no veo la pestaña "Compras"

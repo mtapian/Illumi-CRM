@@ -1,6 +1,6 @@
 # Spec 0002d — Catálogo: proveedores y proveedores del producto
 
-Estado: borrador (2026-10-10), pendiente de aprobación del PO
+Estado: implementada (2026-10-10)
 
 Épica E02 (Catálogo), parte 4 de 4. Depende de: 0001c, 0002a. La usan: 0004a (compras) y la pestaña "Compras" de la ficha de producto (0002a, enmienda 1).
 
@@ -26,7 +26,7 @@ Para comprar bien hay que saber a quién se le compra cada insumo, envase o merc
 
 ## Definiciones
 
-- **Proveedor del producto:** relación entre un proveedor y un producto comprable (`INSUMO`, `ENVASE`, `MERCADERIA`) con precio referencial en S/ por unidad del producto, plazo de entrega en días y, opcionalmente, el código con que el proveedor identifica el producto.
+- **Proveedor del producto:** relación entre un proveedor y un producto comprable (con la casilla "Se compra" marcada; 0002a enmienda 4, RF-CAT-38) con precio referencial en S/ por unidad del producto, plazo de entrega en días y, opcionalmente, el código con que el proveedor identifica el producto.
 - **Precio referencial:** dato informativo para comprar; no es el costo. El costo lo fija cada compra (spec 0004a).
 
 ## Requisitos funcionales (criterios de aceptación en EARS)
@@ -50,7 +50,7 @@ Para comprar bien hay que saber a quién se le compra cada insumo, envase o merc
 
 - Un RUC con dígito verificador inválido se rechaza; un DNI debe tener 8 dígitos.
 - El mismo RUC en dos empresas distintas: se permite (cada empresa tiene sus proveedores).
-- Un producto que deja de ser comprable (p. ej. cambia de tipo sin movimientos, RF-CAT-29) conserva sus proveedores asociados, pero no se muestran hasta que vuelva a ser comprable.
+- Un producto que deja de ser comprable (se desmarca "Se compra") conserva sus proveedores asociados, pero no se muestran hasta que vuelva a ser comprable.
 
 ## Fuera de alcance
 
