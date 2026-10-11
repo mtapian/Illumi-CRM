@@ -1,6 +1,6 @@
 # Spec 0002c — Catálogo: categorías y tarifas de ISC
 
-Estado: implementada (2026-10-10)
+Estado: implementada (2026-10-10) · **las categorías se retiraron: el ISC está en la ficha del producto (0002a enmienda 4, RF-CAT-45 a 48, implementada 2026-10-10)**. Siguen vigentes RF-CAT-23 a 27; RF-CAT-22 y 28 (categorías) quedan reemplazados
 
 Épica E02 (Catálogo), parte 3 de 3. Depende de: 0002a. La usan: 0006, 0007.
 

@@ -72,3 +72,80 @@ Reglas (constitución, art. 8):
 
 - [x] **T16. Verificar la spec completa.** — RF-CAT-01 a RF-CAT-14, RF-CAT-19 a RF-CAT-21
   - Hecho cuando: `pytest tests/catalog tests/acceptance -k E02a` en verde; lint en verde; cada RF con escenario `@RF-CAT-…` o test; `MEMORY.md` actualizado.
+
+
+## Enmienda 1: ficha estilo Odoo (en borrador, pendiente de aprobación del PO)
+
+- [x] **T17. Mover `diferencias()` a `shared/domain/auditoria.py`.** — RF-CAT-32
+  - Hecho cuando: tenancy lo importa desde `shared` y sus tests siguen en verde.
+- [x] **T18. Implementar `desglose_precio()`.** — RF-CAT-30
+  - Hecho cuando: `test_precio.py` comprueba S/ 12.00 con IGV 18 % e ISC 0.83 → valor 9.34, IGV 1.83, y sin ISC → valor 10.17.
+- [x] **T19. Agregar referencia, código de barras y el modelo de historial con su trigger.** — RF-CAT-31, RF-CAT-32
+  - Hecho cuando: un test comprueba el código de barras único por empresa (vacío permitido en varios) y que un `UPDATE` o `DELETE` sobre el historial falla.
+- [x] **T20. Registrar el historial en los casos de uso y permitir cambiar el tipo sin movimientos.** — RF-CAT-29, RF-CAT-32
+  - Hecho cuando: `test_historial.py` comprueba creación, edición (antes → después), cambio de estado y cambio de tipo; con movimientos el tipo no cambia.
+- [x] **T21. Crear el registro de pestañas externas (`catalog/interfaces/pestanas.py`).** — RF-CAT-04
+  - Hecho cuando: un test registra una pestaña de prueba y la ficha la muestra solo para los tipos indicados.
+- [x] **T22. Rehacer la ficha: encabezado, pestañas, selector de tipo, desglose y panel de historial.** — RF-CAT-04, RF-CAT-29 a RF-CAT-32
+  - Hecho cuando: un test de vista comprueba qué pestañas ve cada tipo, el desglose de un vendible y el historial; y los escenarios de la enmienda están en verde.
+- [x] **T23. Verificar la enmienda.** — RF-CAT-04, RF-CAT-29 a RF-CAT-32
+  - Hecho cuando: suite, lint, contratos y migraciones en verde; cada RF nuevo con escenario o test; `MEMORY.md` actualizado.
+
+## Enmienda 2: marcas y listado de maestros
+
+- [x] **T24. Modelo `Marca`, `Producto.marca` y unicidad sin mayúsculas en familias y marcas.** — RF-CAT-33, RF-CAT-34
+  - Hecho cuando: la migración aplica y un test comprueba "Gloria" y "gloria" como duplicados.
+- [x] **T25. Casos de uso de agrupaciones (familia y marca) y `EditarUnidad`.** — RF-CAT-33 a RF-CAT-35
+  - Hecho cuando: `test_maestros.py` cubre duplicado, eliminar en uso, desactivar y abreviatura bloqueada.
+- [x] **T26. Marca en la ficha y en el filtro del listado de productos.** — RF-CAT-04, RF-CAT-14
+  - Hecho cuando: un test guarda la marca desde la ficha, no ofrece marcas inactivas y filtra por marca.
+- [x] **T27. Patrón de listado de maestro (migas, buscador, conteo, acciones) en unidades, familias y marcas.** — RF-CAT-36
+  - Hecho cuando: un test de vista busca, cuenta productos y da 404 al editar un elemento de otra empresa.
+- [x] **T28. Categorías de ISC con el mismo patrón.** — RF-CAT-36
+  - Hecho cuando: el listado muestra la tarifa vigente y los productos, y `?editar=` muestra sus tarifas.
+- [x] **T29. Verificar la enmienda 2.** — RF-CAT-33 a RF-CAT-36
+  - Hecho cuando: suite, lint, contratos y migraciones en verde; escenarios `@UC-CAT-07` en verde; `MEMORY.md` actualizado.
+
+## Enmienda 3: unidades de fábrica
+
+- [x] **T30. Sembrar también CAJA, DOC, MT, PAQ y SERV al registrar una empresa.** — RF-CAT-01
+  - Hecho cuando: el test de registro comprueba las 10 unidades con su código SUNAT.
+
+## Enmienda 4: Bien o Servicio, receta e ISC en la ficha
+
+### Etapas A y B (juntas, ver plan): tipo, casillas y receta
+- [x] **T31. Dominio: `BIEN`/`SERVICIO`, casillas, peso y volumen, validación por casilla, sin lote.** — RF-CAT-37 a 40, 42, 43
+  - Hecho cuando: `test_producto.py` cubre al menos una casilla, servicio sin fabricar ni inventario, precio si se vende, vida útil opcional.
+- [x] **T32. Migración A con conversión de datos y CHECK nuevos.** — RF-CAT-44
+  - Hecho cuando: un test de conversión comprueba cada tipo viejo → casillas, y los CHECK rechazan un producto sin casillas y un servicio que se fabrica.
+- [x] **T33. Casos de uso, historial y límite del plan con el modelo nuevo.** — RF-CAT-37 a 43
+  - Hecho cuando: `test_productos.py` y `test_historial.py` en verde con bienes y servicios.
+- [x] **T34. Ficha: tipo y casillas en el encabezado, pestañas por casilla, Inventario con peso y volumen; listado y API.** — RF-CAT-38, 39, 42, 47
+  - Hecho cuando: tests de vista por casilla y de la API con `tipo` y casillas; escenarios UC-CAT-08 de tipo, casillas y peso en verde.
+
+### Etapa B: receta
+- [x] **T35. Dominio de la receta: validación, ciclos y componentes por cantidad.** — RF-CAT-41
+  - Hecho cuando: `test_receta.py` cubre 1 y varios componentes, sin el propio producto, ciclo A→B→A y redondeo a 4 decimales.
+- [x] **T36. Migración B: `receta_componente`, conversión desde presentaciones y retiro de `Presentacion`.** — RF-CAT-41, 44
+  - Hecho cuando: un test convierte una presentación (granel × contenido + materiales) en receta sin perder componentes.
+- [x] **T37. Receta en casos de uso, fachada (`receta`, `componentes_para`) y pestaña Producción.** — RF-CAT-41
+  - Hecho cuando: crear sin receta, agregar una de 1 componente y una de varios; escenarios de receta en verde; features de 0002b reescritas.
+
+### Etapa C: ISC en la ficha
+- [x] **T38. Dominio y migración C: ISC en el producto, tasas por producto con trigger, conversión desde categorías.** — RF-CAT-45, 46, 48
+  - Hecho cuando: la conversión copia todas las tarifas con sus fechas; un `UPDATE` sobre una tasa falla.
+- [x] **T39. `AgregarTasaIsc`, contenido sugerido desde la receta, bloqueo con movimientos y fachada (`isc_aplicable`).** — RF-CAT-45, 46
+  - Hecho cuando: `test_isc_producto.py` cubre tasa nueva, fecha repetida, venta antes y después del cambio, contenido sugerido 0.33 y bloqueado con movimientos.
+- [x] **T40. Pestaña Ventas con "Afecto a ISC" y tasas; retiro de la pantalla de categorías.** — RF-CAT-45, 46
+  - Hecho cuando: test de vista con el bloque de ISC y el desglose; features de 0002c reescritas y en verde; `/catalogo/isc/` ya no existe.
+
+### Cierre
+- [x] **T41. Verificar la enmienda 4.** — RF-CAT-37 a 48
+  - Hecho cuando: suite, lint, contratos y migraciones en verde; cada RF nuevo con escenario o test; specs 0002b/0002c marcadas como reformuladas; `MEMORY.md` actualizado.
+
+## Enmienda 5: familias → categorías (implementada)
+
+- [x] **T42. Renombrar "familia" a "categoría" en pantallas, filtros, menú, mensajes y API; descripción opcional.** — RF-CAT-49, RF-CAT-50
+  - Hecho cuando: ningún texto visible dice "familia"; la categoría guarda su descripción; los tests y escenarios de familias pasan con el nombre nuevo.
+- [x] **T43. Formulario propio para nuevo y editar en los maestros (con "activa" en categorías).** — RF-CAT-50, RF-CAT-51
+  - Hecho cuando: `?nuevo=1` y `?editar=<id>` muestran solo el formulario con migas, Guardar y Cancelar; un test cubre editar nombre, descripción y estado de una categoría.

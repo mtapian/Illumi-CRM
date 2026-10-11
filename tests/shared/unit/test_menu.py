@@ -33,3 +33,13 @@ def test_separa_las_opciones_de_plataforma():
         "Empresas"
     ]
     assert [i["etiqueta"] for g in menu.armar("/") for i in g["items"]] == ["Inicio"]
+
+
+def test_cada_opcion_lleva_su_icono_o_uno_por_defecto():
+    from shared.interfaces.iconos import ICONOS
+
+    menu = Menu()
+    menu.agregar(None, "Inicio", "/dashboard/", icono="inicio")
+    menu.agregar(None, "Otra", "/otra/")
+    inicio, otra = menu.armar("/")[0]["items"]
+    assert inicio["icono"] == ICONOS["inicio"] and otra["icono"] == ICONOS["punto"]

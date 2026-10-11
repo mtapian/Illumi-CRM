@@ -34,7 +34,7 @@ def _ajeno_producto(otra):
         empresa=otra, nombre="U", abreviatura="UND", codigo_sunat="NIU"
     )
     return Producto.all_tenants.create(
-        empresa=otra, sku="AJENO", nombre="Ajeno", tipo="INSUMO", unidad=unidad
+        empresa=otra, sku="AJENO", nombre="Ajeno", tipo="BIEN", unidad=unidad
     ).id
 
 

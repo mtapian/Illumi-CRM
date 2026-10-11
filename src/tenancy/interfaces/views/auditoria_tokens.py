@@ -7,9 +7,9 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
+from shared.domain.auditoria import diferencias
 from shared.domain.errores import AccesoDenegado
 from tenancy.application import tokens as uc_tokens
-from tenancy.domain.auditoria import diferencias
 from tenancy.domain.tokens import API
 from tenancy.infrastructure.contenedor import caso_de_tokens, tenancy_service
 from tenancy.infrastructure.models import ApiToken, AuditoriaAcceso, Rol, Usuario

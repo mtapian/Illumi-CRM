@@ -8,7 +8,7 @@ from catalog.application.fachada import CatalogoQuery
 from catalog.application.productos import UNIDADES_INICIALES
 from catalog.application.puertos import puertos
 from catalog.infrastructure.models import Unidad
-from catalog.infrastructure.repositorios import CatalogoOrm, IscOrm
+from catalog.infrastructure.repositorios import CatalogoOrm
 from tenancy.infrastructure.contenedor import tenancy_service
 
 
@@ -27,7 +27,3 @@ def sembrar_unidades(empresa_id: int, admin_id: int, hoy: date) -> None:
         Unidad(empresa_id=empresa_id, nombre=n, abreviatura=a, codigo_sunat=c)
         for n, a, c in UNIDADES_INICIALES
     )
-
-
-def caso_de_isc(clase):
-    return clase(IscOrm(), transaction.atomic)

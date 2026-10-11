@@ -31,3 +31,13 @@ def pytest_bdd_after_scenario(request, feature, scenario):
     pendientes = request.getfixturevalue("ctx")["pendientes"]
     if pendientes:
         pytest.skip("Parcial; pendiente de otras specs: " + "; ".join(pendientes))
+
+
+def pytest_bdd_apply_tag(tag, function):
+    """`@borrador` (spec o enmienda sin aprobar) y `@pendiente-qN` (duda abierta del PRD) no se
+    ejecutan: quedan como skip con su motivo (AGENTS.md §3)."""
+    if tag == "borrador" or tag.startswith("pendiente-q"):
+        motivo = "spec en borrador" if tag == "borrador" else f"duda abierta {tag[10:].upper()}"
+        pytest.mark.skip(reason=f"{motivo}: no se ejecuta hasta su aprobación")(function)
+        return True
+    return None

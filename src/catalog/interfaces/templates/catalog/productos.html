@@ -2,14 +2,19 @@
 {% block titulo %}Productos{% endblock %}
 {% block contenido %}
 <h1>Productos</h1>
+<nav class="migas" aria-label="Migas de pan"><a href="/">Inicio</a><span aria-hidden="true">/</span><span aria-current="page">Productos</span></nav>
 <p class="subtitulo">Insumos, envases, graneles, terminados y mercadería de reventa.
-{% if "catalogo.producto.gestionar" in permisos %} <a href="{% url 'producto_nuevo' %}">Nuevo producto</a>{% endif %}</p>
+{% if "catalogo.producto.gestionar" in permisos %} <a href="{% url 'producto_nuevo' %}">Nuevo bien</a> · <a href="{% url 'producto_nuevo' %}?tipo=SERVICIO">Nuevo servicio</a>{% endif %}</p>
 <form method="get" class="filtros">
   <label>Buscar<input name="q" value="{{ filtro.q }}" placeholder="SKU o nombre"></label>
   <label>Tipo<select name="tipo"><option value="">Todos</option>
-    {% for t in tipos %}<option value="{{ t }}" {% if filtro.tipo == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
-  <label>Familia<select name="familia"><option value="">Todas</option>
-    {% for f in familias %}<option value="{{ f.id }}" {% if filtro.familia == f.id|stringformat:"s" %}selected{% endif %}>{{ f }}</option>{% endfor %}</select></label>
+    {% for t in tipos %}<option value="{{ t }}" {% if filtro.tipo == t %}selected{% endif %}>{{ t|lower|capfirst }}</option>{% endfor %}</select></label>
+  <label>Gestión<select name="casilla"><option value="">Todas</option>
+    {% for c, etiqueta in casillas %}<option value="{{ c }}" {% if filtro.casilla == c %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select></label>
+  <label>Categoría<select name="categoria"><option value="">Todas</option>
+    {% for c in categorias %}<option value="{{ c.id }}" {% if filtro.categoria == c.id|stringformat:"s" %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+  <label>Marca<select name="marca"><option value="">Todas</option>
+    {% for m in marcas %}<option value="{{ m.id }}" {% if filtro.marca == m.id|stringformat:"s" %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></label>
   <label>Estado<select name="estado">
     <option value="activos" {% if filtro.estado == "activos" %}selected{% endif %}>Activos</option>
     <option value="inactivos" {% if filtro.estado == "inactivos" %}selected{% endif %}>Inactivos</option>
@@ -18,10 +23,10 @@
   <button type="submit">Filtrar</button>
 </form>
 <div class="tarjeta tabla">
-<table><thead><tr><th>SKU</th><th>Nombre</th><th>Tipo</th><th>Unidad</th><th>Familia</th><th>Precio</th><th>Estado</th></tr></thead><tbody>
+<table><thead><tr><th>SKU</th><th>Nombre</th><th>Tipo</th><th>Unidad</th><th>Categoría</th><th>Marca</th><th>Precio</th><th>Estado</th></tr></thead><tbody>
 {% for p in pagina %}<tr>
-  <td><a href="{% url 'producto' p.id %}"><code>{{ p.sku }}</code></a></td><td>{{ p.nombre }}</td><td>{{ p.tipo }}</td>
-  <td>{{ p.unidad }}</td><td>{{ p.familia|default:"—" }}</td><td>{{ p.precio_venta|default:"—" }}</td>
+  <td><a href="{% url 'producto' p.id %}"><code>{{ p.sku }}</code></a></td><td>{{ p.nombre }}</td><td>{{ p.tipo|lower|capfirst }}{% if p.se_vende %} <span class="chip ok">V</span>{% endif %}{% if p.se_compra %} <span class="chip neutro">C</span>{% endif %}{% if p.se_fabrica %} <span class="chip">F</span>{% endif %}</td>
+  <td>{{ p.unidad }}</td><td>{{ p.categoria|default:"—" }}</td><td>{{ p.marca|default:"—" }}</td><td>{{ p.precio_venta|default:"—" }}</td>
   <td><span class="chip {% if p.activo %}ok{% else %}error{% endif %}">{% if p.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
 </tr>{% empty %}<tr><td colspan="7">No hay productos con esos filtros.</td></tr>{% endfor %}
 </tbody></table>

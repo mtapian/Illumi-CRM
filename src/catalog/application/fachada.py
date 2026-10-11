@@ -1,14 +1,13 @@
 """Fachada pública del catálogo para los demás contextos (plan 0002a §1)."""
 
-from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
 
 from catalog.domain.errores import IscSinTarifaVigente
-from catalog.domain.isc import Tarifa, isc_linea, tarifa_aplicable
-from catalog.domain.presentacion import DatosPresentacion, materiales_para
+from catalog.domain.isc import CODIGO_TRIBUTO, Tarifa, isc_linea, tarifa_aplicable
+from catalog.domain.receta import Receta, componentes_para
 from catalog.domain.tipos import TipoProducto
 
 
@@ -19,9 +18,21 @@ class ProductoDTO:
     nombre: str
     tipo: TipoProducto
     unidad: str
-    controla_lote: bool
+    se_vende: bool
+    se_compra: bool
+    se_fabrica: bool
     precio_venta: Decimal | None
     activo: bool
+
+
+@dataclass(frozen=True)
+class EntradaHistorial:
+    """Una fila del historial del producto, lista para mostrar (RF-CAT-32)."""
+
+    fecha: datetime
+    autor: str
+    accion: str
+    cambios: list[str]
 
 
 @dataclass(frozen=True)
@@ -35,10 +46,10 @@ class IscDTO:
 
 
 class ConsultaRepo(Protocol):
-    def productos(self, ids=None, tipos=None, solo_activos=False) -> list[ProductoDTO]: ...
-    def presentacion(self, producto_id: int) -> DatosPresentacion | None: ...
-    def isc_de_producto(self, producto_id: int): ...
-    def tarifas_isc(self, categoria_id: int) -> list[Tarifa]: ...
+    def productos(self, ids=None, casillas=None, solo_activos=False) -> list[ProductoDTO]: ...
+    def receta(self, producto_id: int) -> Receta: ...
+    def isc_de_producto(self, producto_id: int) -> tuple[str, Decimal] | None: ...
+    def tasas_isc(self, producto_id: int) -> list[Tarifa]: ...
 
 
 class CatalogoQuery:
@@ -50,36 +61,32 @@ class CatalogoQuery:
         filas = self._repo.productos(ids=[producto_id])
         return filas[0] if filas else None
 
-    def activos(self, tipos: Iterable[TipoProducto] | None = None) -> list[ProductoDTO]:
-        """Lo que se ofrece en operaciones nuevas: compras, recetas, envasados, ventas."""
-        return self._repo.productos(tipos=tipos, solo_activos=True)
+    def activos(self, **casillas: bool) -> list[ProductoDTO]:
+        """Lo que se ofrece en operaciones nuevas, p. ej. `activos(se_vende=True)` en ventas,
+        `activos(se_compra=True)` en compras (RF-CAT-39)."""
+        return self._repo.productos(casillas=casillas, solo_activos=True)
 
-    def presentacion(self, producto_id: int) -> DatosPresentacion | None:
-        return self._repo.presentacion(producto_id)
+    def receta(self, producto_id: int) -> Receta:
+        """Vacía si el producto no tiene receta (es opcional; RF-CAT-41)."""
+        return self._repo.receta(producto_id)
 
-    def materiales_para(self, producto_id: int, unidades: Decimal) -> dict[int, Decimal]:
-        """Materiales que consume envasar `unidades` del terminado (lo usa la épica 0005b)."""
-        p = self._repo.presentacion(producto_id)
-        return materiales_para(dict(p.materiales), unidades) if p else {}
+    def componentes_para(self, producto_id: int, cantidad: Decimal) -> dict[int, Decimal]:
+        """Componentes de la receta para producir `cantidad`: la OP los copia (0005a)."""
+        return componentes_para(self._repo.receta(producto_id), cantidad)
 
     def isc_aplicable(self, producto_id: int, fecha: date) -> IscDTO | None:
-        """None si el producto no tiene categoría (RF-CAT-27); la tarifa vigente a la fecha
-        de emisión si la tiene (RF-CAT-25)."""
+        """None si el producto no está afecto (RF-CAT-27); la tasa vigente a la fecha de
+        emisión si lo está (RF-CAT-25, 46)."""
         datos = self._repo.isc_de_producto(producto_id)
         if datos is None:
             return None
-        categoria, contenido = datos
-        tarifa = tarifa_aplicable(self._repo.tarifas_isc(categoria.id), fecha)
+        codigo_tipo_sistema, contenido = datos
+        tarifa = tarifa_aplicable(self._repo.tasas_isc(producto_id), fecha)
         if tarifa is None:
             raise IscSinTarifaVigente(
-                f"La categoría de ISC {categoria} no tiene tarifa vigente al {fecha:%Y-%m-%d}"
+                f"El producto no tiene tasa de ISC vigente al {fecha:%Y-%m-%d}"
             )
-        return IscDTO(
-            tarifa.monto_por_litro,
-            contenido,
-            categoria.codigo_tributo,
-            categoria.codigo_tipo_sistema,
-        )
+        return IscDTO(tarifa.monto_por_litro, contenido, CODIGO_TRIBUTO, codigo_tipo_sistema)
 
     def isc_de_linea(self, producto_id: int, cantidad: Decimal, fecha: date) -> Decimal:
         isc = self.isc_aplicable(producto_id, fecha)

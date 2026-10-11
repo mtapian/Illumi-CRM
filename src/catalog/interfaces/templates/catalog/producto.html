@@ -1,30 +1,36 @@
 {% extends "base.html" %}
 {% block titulo %}{{ producto.sku }}{% endblock %}
 {% block contenido %}
-<h1>{{ producto.nombre }}</h1>
-<p class="subtitulo"><code>{{ producto.sku }}</code> · {{ producto.tipo }} · stock {{ stock }} {{ producto.unidad }}
- · <span class="chip {% if producto.activo %}ok{% else %}error{% endif %}">{% if producto.activo %}Activo{% else %}Inactivo{% endif %}</span>
- {% if producto.controla_lote %}· <span class="chip">con lote</span>{% endif %}
- · <a href="{% url 'productos' %}">Volver a productos</a></p>
-{% if movimientos %}<p class="aviso">Tiene movimientos de inventario: el SKU, el tipo, la unidad y el control de lote ya no se pueden cambiar.</p>{% endif %}
-<div class="tarjetas">
-<section class="tarjeta">
-  <h2>Datos</h2>
-  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
-    {{ form.as_p }}
-    {% if "catalogo.producto.gestionar" in permisos %}<button type="submit">Guardar</button>{% endif %}
-  </form>
-</section>
-{% if "catalogo.producto.gestionar" in permisos %}
-<section class="tarjeta">
-  <h2>Estado</h2>
-  <p class="subtitulo">Desactivado, deja de ofrecerse en compras, recetas, envasados y ventas, pero sigue en el historial.</p>
+{% with gestiona="catalogo.producto.gestionar" %}
+<nav class="migas" aria-label="Migas de pan"><a href="/">Inicio</a><span aria-hidden="true">/</span><a href="{% url 'productos' %}">Productos</a><span aria-hidden="true">/</span><span aria-current="page">{{ producto.sku }}</span></nav>
+<header class="ficha-encabezado">
+  <div>
+    <h1>{{ producto.nombre }}</h1>
+    <p class="subtitulo"><code>{{ producto.sku }}</code> · <span class="chip">{{ producto.tipo|lower|capfirst }}</span>{% if producto.se_vende %} <span class="chip ok">Se vende</span>{% endif %}{% if producto.se_compra %} <span class="chip neutro">Se compra</span>{% endif %}{% if producto.se_fabrica %} <span class="chip">Se fabrica</span>{% endif %}
+     · <span class="chip {% if producto.activo %}ok{% else %}error{% endif %}">{% if producto.activo %}Activo{% else %}Inactivo{% endif %}</span>
+     · stock {{ stock }} {{ producto.unidad }}
+     · <a href="{% url 'productos' %}">Volver a productos</a></p>
+  </div>
+  {% if gestiona in permisos %}
   <form method="post" class="filtros">{% csrf_token %}
     {% if producto.activo %}<button type="submit" name="accion" value="desactivar" class="peligro">Desactivar</button>
     {% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
     <button type="submit" name="accion" value="eliminar" class="peligro">Eliminar</button>
   </form>
-</section>
-{% endif %}
+  {% endif %}
+</header>
+{% if movimientos %}<p class="aviso">Tiene movimientos de inventario: el SKU, el tipo y la unidad ya no se pueden cambiar.</p>{% endif %}
+<div class="ficha">
+  <div>
+    {% include "catalog/_pestanas.html" %}
+  </div>
+  <aside class="tarjeta historial">
+    <h2>Historial</h2>
+    <ol>{% for h in historial %}
+      <li><strong>{{ h.accion|capfirst }}</strong> · {{ h.autor }}<br><small class="subtitulo">{{ h.fecha|date:"d/m/Y H:i" }}</small>
+        {% if h.cambios %}<ul>{% for c in h.cambios %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}</li>
+    {% empty %}<li class="subtitulo">Sin registros.</li>{% endfor %}</ol>
+  </aside>
 </div>
+{% endwith %}
 {% endblock %}

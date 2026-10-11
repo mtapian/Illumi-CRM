@@ -11,7 +11,7 @@ class ProductosApi(VistaApi):
 
     def get(self, request):
         paginador = PageNumberPagination()
-        filas = Producto.objects.select_related("unidad").order_by("sku")
+        filas = Producto.objects.select_related("unidad", "categoria").order_by("sku")
         pagina = paginador.paginate_queryset(filas, request, view=self)
         return paginador.get_paginated_response(
             [
@@ -19,10 +19,13 @@ class ProductosApi(VistaApi):
                     "id": p.id,
                     "sku": p.sku,
                     "nombre": p.nombre,
-                    "tipo": p.tipo,
+                    "tipo": p.tipo,  # BIEN o SERVICIO (RF-CAT-47)
+                    "se_vende": p.se_vende,
+                    "se_compra": p.se_compra,
+                    "se_fabrica": p.se_fabrica,
                     "unidad": p.unidad.abreviatura,
+                    "categoria": p.categoria.nombre if p.categoria else None,
                     "precio_venta": str(p.precio_venta) if p.precio_venta else None,
-                    "controla_lote": p.controla_lote,
                     "activo": p.activo,
                 }
                 for p in pagina

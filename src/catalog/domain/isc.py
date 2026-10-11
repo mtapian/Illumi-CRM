@@ -27,3 +27,9 @@ def isc_linea(cantidad: Decimal, contenido_litros: Decimal, tarifa: Tarifa | Non
         return Decimal("0.00")
     monto = cantidad * contenido_litros * tarifa.monto_por_litro
     return monto.quantize(DOS_DECIMALES, ROUND_HALF_UP)
+
+
+def contenido_sugerido(receta, unidades: dict[int, str]) -> Decimal | None:
+    """Litros por unidad sugeridos desde la receta: suma de los componentes en L (RF-CAT-45)."""
+    litros = [q for c, q in receta if unidades.get(c) == "L"]
+    return sum(litros, Decimal("0")).quantize(Decimal("0.0001")) if litros else None

@@ -2,7 +2,9 @@
 
 Estado: borrador
 
-Épica E04 (Compras), parte 1 de 2. Depende de: 0002a, 0003a. La usan: 0004b.
+Épica E04 (Compras), parte 1 de 2. Depende de: 0002a, **0002d (proveedores)**, 0003a. La usan: 0004b.
+
+*(2026-10-10)* El maestro de proveedores (UC-COM-01, RF-COM-01 a 03) se movió a la spec **0002d** por decisión del PO; aquí quedan las compras.
 
 ## Contexto y objetivo
 
@@ -19,7 +21,6 @@ El costo de producción nace en la compra de insumos y envases, y el costo de la
 
 ## Historias de usuario
 
-- H1: Como encargado de almacén, quiero registrar a mis proveedores para asociarles las compras.
 - H2: Como encargado de almacén, quiero registrar la compra de insumos, envases y mercadería con su documento, para que el stock y el costo se actualicen solos.
 
 ## Definiciones
@@ -36,9 +37,7 @@ El costo de producción nace en la compra de insumos y envases, y el costo de la
 
 ### UC-COM-01 Gestionar proveedores
 
-- RF-COM-01: CUANDO un usuario con `compras.proveedor.gestionar` registra un proveedor con tipo y número de documento (RUC o DNI), razón social y datos de contacto, EL SISTEMA lo guarda si el documento es válido y no existe en la empresa.
-- RF-COM-02: SI se intenta eliminar un proveedor con compras, ENTONCES EL SISTEMA lo rechaza y ofrece desactivarlo.
-- RF-COM-03: MIENTRAS un proveedor esté desactivado, EL SISTEMA no lo ofrece en compras nuevas.
+Movido a la spec 0002d (RF-COM-01 a 03).
 
 ### UC-COM-02 Registrar compra
 

@@ -1,0 +1,45 @@
+{% comment %}Ficha (ADR-12): tipo y casillas arriba, pestañas solo con CSS. Cada pestaña con casilla se oculta
+   en vivo cuando la casilla se desmarca (`:has`, sin JS); `data-activa` es el estado al cargar.
+   Requiere: form, pestanas, abierta, boton. Los campos del encabezado usan form="ficha".{% endcomment %}
+<style>
+{% for p in pestanas %}#pes-{{ p.clave }}:checked ~ .pestanas label[for="pes-{{ p.clave }}"] { color: var(--acento); border-bottom-color: var(--acento); }
+#pes-{{ p.clave }}:checked ~ form .pan-{{ p.clave }}, #pes-{{ p.clave }}:checked ~ .pan-{{ p.clave }} { display: block; }
+{% if p.casilla == "bien" %}.con-pestanas:has(#id_tipo_1:checked) label[for="pes-{{ p.clave }}"] { display: none; }
+{% elif p.casilla %}.con-pestanas:has(#id_{{ p.casilla }}:not(:checked)) label[for="pes-{{ p.clave }}"] { display: none; }
+{% endif %}{% endfor %}.con-pestanas:has(#id_tipo_1:checked) .casilla-se_fabrica { display: none; }
+.con-pestanas:has(#id_afecto_isc:not(:checked)) :is(.campo-isc_codigo_tipo_sistema, .campo-contenido_litros, .campo-tasa_monto, .campo-tasa_desde, .tasas-isc) { display: none; }
+</style>
+<div class="con-pestanas">
+  <div class="encabezado-ficha tarjeta">
+    <div class="tipo-producto" role="radiogroup" aria-label="Tipo">{% for r in form.tipo %}<label class="check">{{ r.tag }} {{ r.choice_label }}</label>{% endfor %}{{ form.tipo.errors }}</div>
+    <div class="casillas">{% for f in form.encabezado %}{% if f.name != "tipo" %}<label class="check casilla-{{ f.name }}">{{ f }} {{ f.label }}</label>{% endif %}{% endfor %}</div>
+  </div>
+  {% for p in pestanas %}<input type="radio" name="pestana" id="pes-{{ p.clave }}" class="pestana-radio"{% if p.clave == abierta %} checked{% endif %}>{% endfor %}
+  <nav class="pestanas">{% for p in pestanas %}<label for="pes-{{ p.clave }}" data-activa="{{ p.activa|yesno:'si,no' }}">{{ p.etiqueta }}{% if p.errores %} <span class="chip error">!</span>{% endif %}</label>{% endfor %}</nav>
+  <form method="post" id="ficha" class="tarjeta">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    {% if form.non_field_errors %}<div class="error">{{ form.non_field_errors }}</div>{% endif %}
+    {% for p in pestanas %}{% if p.campos %}<section class="panel-pestana pan-{{ p.clave }}">
+      {% if p.clave == "produccion" %}<p class="subtitulo">Receta opcional: uno o varios productos del catálogo por unidad. La orden de producción la copia y la puede editar.</p>{% endif %}
+      <div class="dos-columnas">
+      {% for f in p.campos %}<p class="campo-{{ f.name }}">{{ f.label_tag }} {{ f }}{% if f.help_text %} <small class="subtitulo">{{ f.help_text }}</small>{% endif %}
+        {% if f.name == "unidad" and "catalogo.unidad.gestionar" in permisos %}<small><a href="{% url 'unidades' %}">Administrar unidades</a></small>{% endif %}
+        {% if f.name == "categoria" %}<small><a href="{% url 'categorias' %}">Administrar categorías</a></small>{% endif %}
+        {% if f.name == "marca" %}<small><a href="{% url 'marcas' %}">Administrar marcas</a></small>{% endif %}
+        {{ f.errors }}</p>{% endfor %}
+      </div>
+      {% if p.clave == "ventas" and tasas_isc %}
+        <table class="tasas-isc"><thead><tr><th>Tasa de ISC vigente desde</th><th>S/ por litro</th><th></th></tr></thead><tbody>
+        {% for x in tasas_isc %}<tr><td>{{ x.t.vigente_desde|date:"Y-m-d" }}</td><td>{{ x.t.monto_por_litro }}</td><td>{% if x.vigente %}<span class="chip ok">Vigente hoy</span>{% endif %}</td></tr>{% endfor %}
+        </tbody></table>
+        <p class="subtitulo tasas-isc">Las tasas no se editan ni se borran: un cambio de SUNAT se registra como una tasa nueva con su fecha.</p>
+      {% endif %}
+      {% if p.clave == "ventas" and desglose %}
+        {% if desglose.error %}<p class="aviso">{{ desglose.error }}</p>
+        {% else %}<p class="desglose">S/ {{ desglose.precio|floatformat:2 }} = valor {{ desglose.valor|floatformat:2 }}{% if desglose.isc %} + ISC {{ desglose.isc|floatformat:2 }}{% endif %} + IGV {{ desglose.igv|floatformat:2 }}
+          <br><small class="subtitulo">Informativo, con el IGV ({{ desglose.igv_pct|floatformat:"-2" }} %) y el ISC de hoy. Cada venta calcula sus impuestos a su fecha.</small></p>{% endif %}
+      {% endif %}
+    </section>{% endif %}{% endfor %}
+    {% if boton %}<button type="submit">{{ boton }}</button> <a class="boton secundario" href="{% url 'productos' %}">Cancelar</a>{% endif %}
+  </form>
+  {% for p in pestanas %}{% if not p.campos %}<section class="panel-pestana pan-{{ p.clave }} tarjeta">{{ p.html|safe }}</section>{% endif %}{% endfor %}
+</div>

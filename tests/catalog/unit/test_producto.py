@@ -1,4 +1,5 @@
-"""T1 a T4: productos por tipo (RF-CAT-04 a 13, 20, 21; RN-CAT-01 a 03, 06, 07, 09)."""
+"""0002a enmienda 4, T31: Bien o Servicio y casillas de gestión (RF-CAT-37 a 40, 42, 43;
+RF-CAT-08, 10, 21)."""
 
 from decimal import Decimal
 
@@ -9,7 +10,6 @@ from catalog.domain.producto import (
     DatosProducto,
     cabe_en_limite,
     cambios_prohibidos,
-    campos_requeridos,
     puede_desactivar,
     puede_eliminar,
     validar_producto,
@@ -17,51 +17,62 @@ from catalog.domain.producto import (
 from catalog.domain.tipos import TipoProducto as T
 
 
-def datos(tipo, **kw):
+def datos(tipo=T.BIEN, **kw):
     base = {"sku": "X-1", "nombre": "X", "tipo": T(tipo), "unidad": "UND"}
     return DatosProducto(**(base | kw))
 
 
-def test_capacidades_de_cada_tipo():
-    assert {t for t in T if t.vendible} == {T.TERMINADO, T.MERCADERIA}
-    assert {t for t in T if t.comprable} == {T.INSUMO, T.ENVASE, T.MERCADERIA}
-    assert {t for t in T if t.producible} == {T.GRANEL, T.TERMINADO}
-    assert {t for t in T if t.lote_siempre} == {T.GRANEL, T.TERMINADO}
+def test_un_bien_nuevo_se_compra_por_defecto_y_normaliza_textos():
+    d = validar_producto(datos(sku=" ins-1 ", nombre=" Malta ", codigo_barras=" 775 "))
+    assert (d.se_compra, d.se_vende, d.se_fabrica) == (True, False, False)
+    assert (d.sku, d.nombre, d.codigo_barras) == ("INS-1", "Malta", "775")
 
 
-def test_campos_propios_de_cada_tipo():
-    assert "precio_venta" not in campos_requeridos(T.INSUMO)
-    assert {"precio_venta", "vida_util_dias"} <= campos_requeridos(T.TERMINADO)
-    assert {"precio_venta", "controla_lote", "contenido_litros"} <= campos_requeridos(T.MERCADERIA)
-    assert {"vida_util_dias", "prefijo_lote"} <= campos_requeridos(T.GRANEL)
-
-
-def test_normaliza_el_lote_y_descarta_campos_ajenos_al_tipo():
-    granel = validar_producto(datos("GRANEL", nombre="IPA a granel", unidad="L"))
-    assert granel.controla_lote and granel.prefijo_lote == "IPA"
-    insumo = validar_producto(datos("INSUMO", precio_venta=Decimal("5"), controla_lote=True))
-    assert insumo.precio_venta is None and not insumo.controla_lote
-    agua = validar_producto(
-        datos("MERCADERIA", precio_venta=Decimal("3"), controla_lote=True, vida_util_dias=365)
+def test_si_no_se_vende_se_descartan_precio_e_isc():
+    d = validar_producto(
+        datos(precio_venta=Decimal("5"), isc_sistema="ESPECIFICO", contenido_litros=Decimal("1"))
     )
-    assert agua.controla_lote
+    assert (d.precio_venta, d.isc_sistema, d.contenido_litros) == (None, None, None)
+
+
+def test_un_servicio_no_lleva_inventario_ni_isc():
+    d = validar_producto(
+        datos(
+            T.SERVICIO,
+            se_compra=False,
+            se_vende=True,
+            precio_venta=Decimal("8"),
+            stock_minimo=Decimal("5"),
+            vida_util_dias=10,
+            peso_kg=Decimal("1"),
+            volumen_m3=Decimal("1"),
+            isc_sistema="ESPECIFICO",
+            contenido_litros=Decimal("1"),
+        )
+    )
+    assert d.stock_minimo == 0
+    assert (d.vida_util_dias, d.peso_kg, d.volumen_m3, d.isc_sistema) == (None,) * 4
+
+
+def test_peso_volumen_y_vida_util_son_opcionales():
+    d = validar_producto(datos(peso_kg=Decimal("25"), volumen_m3=Decimal("0.04")))
+    assert (d.peso_kg, d.volumen_m3, d.vida_util_dias) == (Decimal("25"), Decimal("0.04"), None)
 
 
 @pytest.mark.parametrize(
     "producto, mensaje",
     [
-        (datos("GRANEL", unidad="KG"), "El granel debe medirse en litros"),
-        (datos("TERMINADO", precio_venta=Decimal("12")), "La vida útil debe ser mayor a 0 días"),
+        (datos(se_compra=False), "Marca al menos una opción: se vende, se compra o se fabrica"),
+        (datos(T.SERVICIO, se_fabrica=True), "Un servicio no se fabrica"),
+        (datos(se_vende=True), "El precio de venta es obligatorio y debe ser mayor a 0"),
+        (datos(vida_util_dias=0), "La vida útil debe ser mayor a 0 días"),
+        (datos(peso_kg=Decimal("-1")), "El peso no puede ser negativo"),
+        (datos(volumen_m3=Decimal("-1")), "El volumen no puede ser negativo"),
         (
-            datos("TERMINADO", precio_venta=Decimal("12"), vida_util_dias=0),
-            "La vida útil debe ser mayor a 0 días",
+            datos(se_vende=True, precio_venta=Decimal("3"), isc_sistema="ESPECIFICO"),
+            "Un producto con ISC por litro requiere el contenido en litros por unidad",
         ),
-        (datos("MERCADERIA"), "El precio de venta es obligatorio"),
-        (
-            datos("MERCADERIA", precio_venta=Decimal("3"), controla_lote=True),
-            "Indica la vida útil sugerida",
-        ),
-        (datos("INSUMO", sku=" "), "El SKU es obligatorio"),
+        (datos(sku=" "), "El SKU es obligatorio"),
     ],
 )
 def test_rechazos(producto, mensaje):
@@ -69,18 +80,24 @@ def test_rechazos(producto, mensaje):
         validar_producto(producto)
 
 
-def test_con_movimientos_no_cambian_sku_tipo_unidad_ni_lote():
-    original = validar_producto(datos("INSUMO", unidad="KG"))
-    nuevo = validar_producto(datos("INSUMO", unidad="G", sku="X-2", nombre="Otro"))
-    assert cambios_prohibidos(original, nuevo, tiene_movimientos=True) == ["sku", "unidad"]
-    assert cambios_prohibidos(original, nuevo, tiene_movimientos=False) == []
+def test_con_movimientos_no_cambian_tipo_sku_ni_unidad_pero_si_las_casillas():
+    original = validar_producto(datos(unidad="KG"))
+    nuevo = validar_producto(
+        datos(T.SERVICIO, unidad="G", sku="X-2", se_vende=True, precio_venta=Decimal("1"))
+    )
+    assert cambios_prohibidos(original, nuevo, tiene_movimientos=True) == [
+        "sku",
+        "tipo",
+        "unidad",
+    ]
+    casillas = validar_producto(datos(unidad="KG", se_vende=True, precio_venta=Decimal("2")))
+    assert cambios_prohibidos(original, casillas, tiene_movimientos=True) == []
 
 
 def test_limite_desactivar_y_eliminar():
     assert cabe_en_limite(49, 50) and not cabe_en_limite(50, 50) and cabe_en_limite(9, None)
-    assert puede_desactivar(Decimal("0"), granel_con_presentaciones=False) is None
-    assert "stock" in puede_desactivar(Decimal("25"), granel_con_presentaciones=False)
-    assert "presentaciones" in puede_desactivar(Decimal("0"), granel_con_presentaciones=True)
+    assert puede_desactivar(Decimal("0")) is None
+    assert "stock" in puede_desactivar(Decimal("25"))
     assert puede_eliminar(tiene_movimientos=False, referencias=0)
     assert not puede_eliminar(tiene_movimientos=True, referencias=0)
     assert not puede_eliminar(tiene_movimientos=False, referencias=1)

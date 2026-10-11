@@ -24,14 +24,18 @@ def test_al_registrar_una_empresa_se_crean_sus_unidades():
     empresa_id = registrar_empresa().ejecutar(datos, date(2026, 10, 10)).empresa_id
     with tenant_context(empresa_id):
         codigos = dict(Unidad.objects.values_list("abreviatura", "codigo_sunat"))
-    assert codigos == {"UND": "NIU", "KG": "KGM", "G": "GRM", "L": "LTR", "ML": "MLT"}
+    assert codigos == {"UND": "NIU", "KG": "KGM", "G": "GRM", "L": "LTR", "ML": "MLT"} | {
+        "CAJA": "BX",  # enmienda 3
+        "DOC": "DZN",
+        "MT": "MTR",
+        "PAQ": "PK",
+        "SERV": "ZZ",
+    }
 
 
 def test_unidad_en_uso_no_se_elimina_ni_se_desactiva(empresa_catalogo):
     _, actor = empresa_catalogo
-    caso_de_uso(uc.CrearProducto).ejecutar(
-        actor, DatosProducto("INS-MALTA", "Malta", "INSUMO", "KG")
-    )
+    caso_de_uso(uc.CrearProducto).ejecutar(actor, DatosProducto("INS-MALTA", "Malta", "BIEN", "KG"))
     kg = Unidad.objects.get(abreviatura="KG").id
     with pytest.raises(UnidadInvalida, match="La unidad está en uso; puedes desactivarla"):
         caso_de_uso(uc.EliminarUnidad).ejecutar(actor, kg)
@@ -46,17 +50,19 @@ def test_unidad_en_uso_no_se_elimina_ni_se_desactiva(empresa_catalogo):
 def test_sku_unico_por_empresa_y_checks_de_la_base(empresa_catalogo, crear_empresa):
     empresa, actor = empresa_catalogo
     crear = caso_de_uso(uc.CrearProducto)
-    crear.ejecutar(actor, DatosProducto("INS-MALTA", "Malta", "INSUMO", "KG"))
+    crear.ejecutar(actor, DatosProducto("INS-MALTA", "Malta", "BIEN", "KG"))
     with pytest.raises(SkuDuplicado, match="Ya existe un producto con el SKU INS-MALTA"):
-        crear.ejecutar(actor, DatosProducto("ins-malta", "Otra", "INSUMO", "KG"))
+        crear.ejecutar(actor, DatosProducto("ins-malta", "Otra", "BIEN", "KG"))
     kg = Unidad.objects.get(abreviatura="KG")
     for i, malo in enumerate(
         (
             {"tipo": "OTRO"},
-            {"tipo": "INSUMO", "precio_venta": 5},  # RF-CAT-13
-            {"tipo": "TERMINADO", "precio_venta": 5, "controla_lote": True},  # sin vida útil
-            {"tipo": "GRANEL", "controla_lote": False},  # RF-CAT-12
-            {"tipo": "MERCADERIA"},  # vendible sin precio
+            {"se_compra": False},  # RF-CAT-38: sin ninguna casilla
+            {"precio_venta": 5},  # RF-CAT-39: precio sin "se vende"
+            {"se_vende": True},  # se vende sin precio
+            {"tipo": "SERVICIO", "se_fabrica": True},  # RF-CAT-37
+            {"tipo": "SERVICIO", "peso_kg": 1},
+            {"vida_util_dias": 0},
         )
     ):
         with pytest.raises(IntegrityError), transaction.atomic():
@@ -67,7 +73,6 @@ def test_sku_unico_por_empresa_y_checks_de_la_base(empresa_catalogo, crear_empre
         empresa=otra,
         sku="INS-MALTA",
         nombre="Malta",
-        tipo="INSUMO",
         unidad=Unidad.all_tenants.get(empresa=otra),
     )
     assert Producto.all_tenants.filter(sku="INS-MALTA").count() == 2

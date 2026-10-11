@@ -7,7 +7,7 @@ from decimal import Decimal
 import pytest
 
 from catalog.domain.errores import ProductoInvalido
-from catalog.domain.isc import Tarifa, isc_linea, tarifa_aplicable
+from catalog.domain.isc import Tarifa, contenido_sugerido, isc_linea, tarifa_aplicable
 from catalog.domain.producto import DatosProducto, validar_producto
 from catalog.domain.tipos import TipoProducto as T
 
@@ -26,14 +26,46 @@ def test_isc_de_una_linea():
     assert isc_linea(Decimal("10"), Decimal("0.33"), None) == Decimal("0.00")
 
 
-def test_mercaderia_con_isc_requiere_contenido_en_litros():
+def test_un_bien_que_se_vende_con_isc_requiere_contenido_en_litros():
     datos = DatosProducto(
         "MER-CERV",
         "Cerveza de terceros",
-        T.MERCADERIA,
+        T.BIEN,
         "UND",
+        se_vende=True,
         precio_venta=Decimal("8"),
-        isc_categoria_id=1,
+        isc_sistema="ESPECIFICO",
+        isc_codigo_tipo_sistema="02",
     )
     with pytest.raises(ProductoInvalido, match="requiere el contenido en litros por unidad"):
         validar_producto(datos)
+
+
+def test_isc_solo_sistema_especifico_y_con_codigo():
+    """RF-CAT-23, 45: en el MVP solo el Sistema Específico; el código va al comprobante."""
+    base = dict(
+        sku="X",
+        nombre="X",
+        tipo=T.BIEN,
+        unidad="UND",
+        se_vende=True,
+        precio_venta=Decimal("8"),
+        contenido_litros=Decimal("0.33"),
+    )
+    with pytest.raises(ProductoInvalido, match="Sistema Específico"):
+        validar_producto(
+            DatosProducto(**base, isc_sistema="AL_VALOR", isc_codigo_tipo_sistema="01")
+        )
+    with pytest.raises(ProductoInvalido, match="código de tipo de sistema"):
+        validar_producto(DatosProducto(**base, isc_sistema="ESPECIFICO"))
+    d = validar_producto(
+        DatosProducto(**base, isc_sistema="ESPECIFICO", isc_codigo_tipo_sistema="02")
+    )
+    assert d.afecto_isc
+
+
+def test_contenido_sugerido_desde_la_receta():
+    """RF-CAT-45: suma de los componentes medidos en L."""
+    receta = ((1, Decimal("0.33")), (2, Decimal("1")))
+    assert contenido_sugerido(receta, {1: "L", 2: "UND"}) == Decimal("0.3300")
+    assert contenido_sugerido(receta, {1: "KG", 2: "UND"}) is None

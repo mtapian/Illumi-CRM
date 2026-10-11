@@ -67,6 +67,7 @@ DATABASES = {
 
 LANGUAGE_CODE = "es-pe"
 TIME_ZONE = "America/Lima"
+FORMAT_MODULE_PATH = ["config.formats"]  # punto decimal (es_PE)
 USE_I18N = True
 USE_TZ = True
 

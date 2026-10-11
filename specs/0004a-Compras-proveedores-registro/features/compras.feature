@@ -69,12 +69,6 @@ Característica: Registro y anulación de compras
       | costo_unitario | -1         | El costo unitario no puede ser negativo   |
       | lineas         | ninguna    | La compra debe tener al menos una línea   |
 
-  @UC-COM-01 @RF-COM-02
-  Escenario: Proveedor con compras se desactiva en vez de eliminarse
-    Dado que "Maltería del Sur" tiene compras
-    Cuando intento eliminar "Maltería del Sur"
-    Entonces la operación es rechazada con el mensaje "El proveedor tiene compras; puedes desactivarlo"
-
   @UC-COM-02 @borde @RF-COM-19
   Escenario: Un lote existente con otro vencimiento se rechaza
     Dado el lote "AG-2611A" de "MER-AGUA-500" que vence el "2027-11-01"

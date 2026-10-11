@@ -29,8 +29,8 @@ class UnidadInvalida(DomainError):
     codigo = "UNIDAD_INVALIDA"
 
 
-class PresentacionInvalida(DomainError):
-    codigo = "PRESENTACION_INVALIDA"
+class RecetaInvalida(DomainError):
+    codigo = "RECETA_INVALIDA"
 
 
 class ContenidoInmutable(DomainError):
@@ -43,3 +43,11 @@ class IscInvalido(DomainError):
 
 class IscSinTarifaVigente(DomainError):
     codigo = "ISC_SIN_TARIFA_VIGENTE"
+
+
+class CodigoBarrasDuplicado(DomainError):
+    codigo = "CODIGO_BARRAS_DUPLICADO"
+
+
+class AgrupacionInvalida(DomainError):
+    codigo = "AGRUPACION_INVALIDA"

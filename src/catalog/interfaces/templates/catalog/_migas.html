@@ -1,0 +1,1 @@
+<nav class="migas" aria-label="Migas de pan">{% for nombre, url in migas %}{% if url %}<a href="{{ url }}">{{ nombre }}</a><span aria-hidden="true">/</span>{% else %}<span aria-current="page">{{ nombre }}</span>{% endif %}{% endfor %}</nav>

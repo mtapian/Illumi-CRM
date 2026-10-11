@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from tenancy.domain.auditoria import diferencias
+from shared.domain.auditoria import diferencias
 from tenancy.domain.suscripcion import Estado
 from tenancy.domain.tokens import (
     NO_AUTENTICADO,

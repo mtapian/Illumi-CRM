@@ -1,27 +1,15 @@
-"""Validación de un producto según su tipo (spec 0002a; RN-CAT-01 a 03, 06 a 09)."""
+"""Validación de un producto: bien o servicio y sus casillas (spec 0002a, enmienda 4)."""
 
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from decimal import Decimal
 
 from catalog.domain.errores import ProductoInvalido
+from catalog.domain.isc import ESPECIFICO
 from catalog.domain.tipos import TipoProducto as T
 
-LITROS = "L"
-_COMUNES = {"sku", "nombre", "tipo", "unidad", "familia_id", "stock_minimo", "activo"}
-_PROPIOS = {
-    T.INSUMO: set(),
-    T.ENVASE: set(),
-    T.GRANEL: {"vida_util_dias", "prefijo_lote"},
-    T.TERMINADO: {"precio_venta", "isc_categoria_id", "vida_util_dias"},
-    T.MERCADERIA: {
-        "precio_venta",
-        "isc_categoria_id",
-        "contenido_litros",
-        "controla_lote",
-        "vida_util_dias",
-    },
-}
-INMUTABLES_CON_MOVIMIENTOS = ("sku", "tipo", "unidad", "controla_lote")  # RF-CAT-09
+CASILLAS = ("se_vende", "se_compra", "se_fabrica")  # RF-CAT-38
+INMUTABLES_CON_MOVIMIENTOS = ("sku", "tipo", "unidad")  # RF-CAT-43
+SIN_CASILLAS = "Marca al menos una opción: se vende, se compra o se fabrica"
 
 
 @dataclass(frozen=True)
@@ -30,52 +18,86 @@ class DatosProducto:
     nombre: str
     tipo: T
     unidad: str  # abreviatura (UND, KG, L…)
-    familia_id: int | None = None
+    categoria_id: int | None = None  # RF-CAT-49 (antes "familia")
     stock_minimo: Decimal = Decimal("0")
     activo: bool = True
-    controla_lote: bool = False
+    se_vende: bool = False
+    se_compra: bool = True  # un bien nuevo se compra por defecto (RF-CAT-38)
+    se_fabrica: bool = False
     precio_venta: Decimal | None = None
-    isc_categoria_id: int | None = None
-    contenido_litros: Decimal | None = None
-    vida_util_dias: int | None = None
-    prefijo_lote: str | None = None
+    isc_sistema: str | None = None  # "ESPECIFICO" = afecto a ISC (RF-CAT-45); None = no afecto
+    isc_codigo_tipo_sistema: str = ""  # para el comprobante (01 o 02: dato del producto)
+    contenido_litros: Decimal | None = None  # unidad de control del ISC (RF-CAT-26, 45)
+    vida_util_dias: int | None = None  # solo sugiere el vencimiento del lote (RF-CAT-40)
+    peso_kg: Decimal | None = None  # RF-CAT-42
+    volumen_m3: Decimal | None = None
+    referencia: str = ""  # RF-CAT-31
+    codigo_barras: str = ""
+    marca_id: int | None = None  # RF-CAT-33
 
-
-def campos_requeridos(tipo: T) -> set[str]:
-    """Campos que se piden para el tipo: los comunes y los propios (RF-CAT-04 a 07)."""
-    return _COMUNES | _PROPIOS[T(tipo)]
+    @property
+    def afecto_isc(self) -> bool:
+        return self.isc_sistema is not None
 
 
 def validar_producto(d: DatosProducto) -> DatosProducto:
-    """Devuelve el producto normalizado: sin campos ajenos a su tipo y con su lote."""
+    """Devuelve el producto normalizado, sin los campos que sus casillas no usan."""
     tipo = T(d.tipo)
-    propios = _PROPIOS[tipo]
-    limpio = {c: None for c in _PROPIOS[T.MERCADERIA] if c not in propios}
-    limpio.pop("controla_lote", None)
-    d = replace(d, sku=d.sku.strip().upper(), nombre=d.nombre.strip(), **limpio)
+    d = replace(
+        d,
+        tipo=tipo,
+        sku=d.sku.strip().upper(),
+        nombre=d.nombre.strip(),
+        referencia=d.referencia.strip(),
+        codigo_barras=d.codigo_barras.strip(),
+    )
     if not d.sku:
         raise ProductoInvalido("El SKU es obligatorio")
     if not d.nombre:
         raise ProductoInvalido("El nombre es obligatorio")
+    if tipo == T.SERVICIO:  # RF-CAT-37: sin inventario ni ISC
+        if d.se_fabrica:
+            raise ProductoInvalido("Un servicio no se fabrica")
+        d = replace(
+            d,
+            stock_minimo=Decimal("0"),
+            vida_util_dias=None,
+            peso_kg=None,
+            volumen_m3=None,
+            isc_sistema=None,
+            isc_codigo_tipo_sistema="",
+            contenido_litros=None,
+        )
+    if not any(getattr(d, c) for c in CASILLAS):
+        raise ProductoInvalido(SIN_CASILLAS)
+    if not d.se_vende:  # RF-CAT-39: precio e ISC solo si se vende
+        d = replace(
+            d,
+            precio_venta=None,
+            isc_sistema=None,
+            isc_codigo_tipo_sistema="",
+            contenido_litros=None,
+        )
+    elif d.precio_venta is None or d.precio_venta <= 0:
+        raise ProductoInvalido("El precio de venta es obligatorio y debe ser mayor a 0")
     if d.stock_minimo < 0:
         raise ProductoInvalido("El stock mínimo no puede ser negativo")
-    lote = tipo.lote_siempre or (tipo == T.MERCADERIA and d.controla_lote)
-    d = replace(d, controla_lote=lote)
-    if tipo == T.GRANEL:
-        if d.unidad != LITROS:
-            raise ProductoInvalido("El granel debe medirse en litros")
-        d = replace(d, prefijo_lote=(d.prefijo_lote or d.nombre[:3]).strip().upper())
-    if tipo.vendible and (d.precio_venta is None or d.precio_venta <= 0):
-        raise ProductoInvalido("El precio de venta es obligatorio y debe ser mayor a 0")
-    if tipo == T.TERMINADO and not (d.vida_util_dias or 0) > 0:
-        raise ProductoInvalido("La vida útil debe ser mayor a 0 días")  # RN-CAT-09
-    if tipo == T.MERCADERIA and d.controla_lote and not (d.vida_util_dias or 0) > 0:
-        raise ProductoInvalido("Indica la vida útil sugerida en días para controlar lotes")
-    if tipo == T.MERCADERIA and d.isc_categoria_id and not d.contenido_litros:
-        # El ISC del MVP es por litro; el terminado toma el contenido de su presentación.
+    if d.vida_util_dias is not None and d.vida_util_dias <= 0:
+        raise ProductoInvalido("La vida útil debe ser mayor a 0 días")
+    if d.peso_kg is not None and d.peso_kg < 0:
+        raise ProductoInvalido("El peso no puede ser negativo")
+    if d.volumen_m3 is not None and d.volumen_m3 < 0:
+        raise ProductoInvalido("El volumen no puede ser negativo")
+    if d.isc_sistema is None:
+        d = replace(d, isc_codigo_tipo_sistema="")
+    elif d.isc_sistema != ESPECIFICO:
+        raise ProductoInvalido("El MVP solo admite el ISC por Sistema Específico")  # RF-CAT-23
+    elif not d.contenido_litros:
         raise ProductoInvalido(
             "Un producto con ISC por litro requiere el contenido en litros por unidad"
         )  # RF-CAT-26
+    elif not d.isc_codigo_tipo_sistema.strip():
+        raise ProductoInvalido("Indica el código de tipo de sistema del ISC")
     if d.contenido_litros is not None and d.contenido_litros <= 0:
         raise ProductoInvalido("El contenido en litros debe ser mayor a 0")
     return d
@@ -92,15 +114,36 @@ def cabe_en_limite(activos: int, limite: int | None) -> bool:
     return limite is None or activos < limite
 
 
-def puede_desactivar(stock: Decimal, granel_con_presentaciones: bool) -> str | None:
+def puede_desactivar(stock: Decimal) -> str | None:
     """None si se puede; si no, qué hacer primero (RF-CAT-20, RN-CAT-08)."""
     if stock > 0:
         return "El producto tiene stock. Ajusta el stock a cero antes de desactivarlo"
-    if granel_con_presentaciones:
-        return "Desactiva primero las presentaciones de este granel"
     return None
 
 
 def puede_eliminar(tiene_movimientos: bool, referencias: int) -> bool:
-    """Solo sin movimientos ni referencias en recetas, presentaciones o pedidos (RF-CAT-21)."""
+    """Solo sin movimientos ni referencias en recetas u otros documentos (RF-CAT-21)."""
     return not tiene_movimientos and referencias == 0
+
+
+def _texto(valor):
+    if isinstance(valor, Decimal):
+        return format(valor.normalize(), "f")
+    return str(valor) if isinstance(valor, T) else valor
+
+
+def instantanea(d: DatosProducto, receta=None) -> dict:
+    """Datos del producto como texto para su historial, sin el estado (RF-CAT-32).
+
+    ponytail: categoría, marca y componentes se guardan por id; mostrar nombres si el PO lo pide.
+    `receta`: tuplas (componente, cantidad), o None si no se toca.
+    """
+    datos = {c: _texto(v) for c, v in asdict(d).items() if c != "activo"}
+    if receta is not None:
+        datos["receta"] = [f"{m} × {_texto(c)}" for m, c in receta]
+    return datos
+
+
+def solo_cambios(antes: dict, despues: dict) -> tuple[dict, dict]:
+    claves = [c for c in dict.fromkeys([*antes, *despues]) if antes.get(c) != despues.get(c)]
+    return {c: antes.get(c) for c in claves}, {c: despues.get(c) for c in claves}

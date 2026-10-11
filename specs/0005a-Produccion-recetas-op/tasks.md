@@ -56,6 +56,9 @@ Reglas (constitución, art. 8):
 
 ## Pantallas
 
+- [ ] **T-ODOO. Ficha de la OP con encabezado de estados, componentes precargados, responsable e historial (ver plan §5).** — RF-PRD-04, RF-PRD-05, RF-PRD-35
+  - Hecho cuando: un test de vista comprueba la barra de estados, el botón de la acción siguiente según el estado, los componentes precargados desde la receta y el responsable por defecto.
+
 - [ ] **T14. Crear las pantallas de recetas y de OP para tablet.** — RF-PRD-01 a RF-PRD-14, RNF-PRD-02
   - Hecho cuando: un test de vista recorre planificar → iniciar → terminar; la plantilla usa el layout de tablet (pendiente del wireframe).
 

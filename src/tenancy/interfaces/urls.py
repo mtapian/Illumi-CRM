@@ -45,13 +45,35 @@ urlpatterns = [
     path("plataforma/planes/<int:plan_id>/", plataforma.plan, name="plataforma_plan"),
 ]
 
-menu.agregar(None, "Inicio", "/dashboard/", orden=0)
+menu.agregar(None, "Inicio", "/dashboard/", orden=0, icono="inicio")
 CONFIG = "Configuración"
-menu.agregar(CONFIG, "Empresa", "/configuracion/empresa/", 900, permiso="core.empresa.gestionar")
-menu.agregar(CONFIG, "Usuarios", "/usuarios/", 910, permiso="core.usuario.gestionar")
-menu.agregar(CONFIG, "Roles", "/roles/", 920, permiso="core.rol.gestionar")
-menu.agregar(CONFIG, "Auditoría", "/auditoria/accesos/", 925, permiso="core.auditoria.ver")
-menu.agregar(CONFIG, "Tokens de API", "/integracion/tokens/", 928, permiso="api.token.gestionar")
-menu.agregar(CONFIG, "Suscripción", "/suscripcion/", 930, permiso="core.suscripcion.ver")
-menu.agregar(None, "Empresas", "/plataforma/empresas/", orden=0, ambito="plataforma")
-menu.agregar(None, "Planes", "/plataforma/planes/", orden=10, ambito="plataforma")
+menu.agregar(
+    CONFIG,
+    "Empresa",
+    "/configuracion/empresa/",
+    900,
+    permiso="core.empresa.gestionar",
+    icono="empresa",
+)
+menu.agregar(
+    CONFIG, "Usuarios", "/usuarios/", 910, permiso="core.usuario.gestionar", icono="usuarios"
+)
+menu.agregar(CONFIG, "Roles", "/roles/", 920, permiso="core.rol.gestionar", icono="roles")
+menu.agregar(
+    CONFIG, "Auditoría", "/auditoria/accesos/", 925, permiso="core.auditoria.ver", icono="auditoria"
+)
+menu.agregar(
+    CONFIG,
+    "Tokens de API",
+    "/integracion/tokens/",
+    928,
+    permiso="api.token.gestionar",
+    icono="token",
+)
+menu.agregar(
+    CONFIG, "Suscripción", "/suscripcion/", 930, permiso="core.suscripcion.ver", icono="suscripcion"
+)
+menu.agregar(
+    None, "Empresas", "/plataforma/empresas/", orden=0, ambito="plataforma", icono="empresa"
+)
+menu.agregar(None, "Planes", "/plataforma/planes/", orden=10, ambito="plataforma", icono="planes")

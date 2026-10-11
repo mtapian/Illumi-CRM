@@ -5,13 +5,16 @@ Cada opción puede pedir un permiso: solo se muestra a quien lo tiene (RF-TEN-50
 no es control de acceso (constitución, art. 6.1): la vista lo verifica en el servidor.
 """
 
+from shared.interfaces.iconos import ICONOS
+
 
 class Menu:
     def __init__(self):
         self._items = {}
 
-    def agregar(self, grupo, etiqueta, url, orden=50, ambito="empresa", permiso=None):
-        """`grupo=None` deja la opción suelta. `ambito`: "empresa" o "plataforma" (super admin)."""
+    def agregar(self, grupo, etiqueta, url, orden=50, ambito="empresa", permiso=None, icono=None):
+        """`grupo=None` deja la opción suelta. `ambito`: "empresa" o "plataforma" (super admin).
+        `icono`: clave de `shared/interfaces/iconos.py` (ADR-12)."""
         self._items[url] = {
             "grupo": grupo,
             "etiqueta": etiqueta,
@@ -19,6 +22,7 @@ class Menu:
             "orden": orden,
             "ambito": ambito,
             "permiso": permiso,
+            "icono": ICONOS.get(icono, ICONOS["punto"]),
         }
 
     def armar(self, ruta_actual, ambito="empresa", permisos=None):
@@ -43,9 +47,16 @@ class Menu:
 menu = Menu()
 
 
+_ICONOS_MARCO = {
+    "icono_marca": ICONOS["cubo"],
+    "icono_menu": ICONOS["menu"],
+    "icono_salir": ICONOS["salir"],
+}
+
+
 def menu_lateral(request):
     actor = getattr(request, "actor", None)
     if actor is None:
         ambito = "plataforma" if getattr(request.user, "is_super", False) else "empresa"
-        return {"menu_lateral": menu.armar(request.path, ambito)}
-    return {"menu_lateral": menu.armar(request.path, "empresa", actor.permisos)}
+        return _ICONOS_MARCO | {"menu_lateral": menu.armar(request.path, ambito)}
+    return _ICONOS_MARCO | {"menu_lateral": menu.armar(request.path, "empresa", actor.permisos)}

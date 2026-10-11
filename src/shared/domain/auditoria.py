@@ -1,4 +1,4 @@
-"""Cómo se lee un cambio de acceso: valor anterior → nuevo (RF-TEN-43, 44)."""
+"""Cómo se lee un cambio: valor anterior → nuevo (RF-TEN-43, 44; RF-CAT-32)."""
 
 
 def _texto(valor) -> str:

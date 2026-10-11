@@ -2,21 +2,21 @@
 
 from django.db import IntegrityError, transaction
 
-from catalog.application.fachada import ProductoDTO
+from catalog.application.fachada import EntradaHistorial, ProductoDTO
 from catalog.domain.errores import SkuDuplicado
 from catalog.domain.isc import Tarifa
-from catalog.domain.presentacion import DatosPresentacion
 from catalog.domain.producto import DatosProducto
 from catalog.domain.tipos import TipoProducto
 from catalog.infrastructure.models import (
-    Familia,
-    IscCategoria,
-    IscTarifa,
-    Presentacion,
-    PresentacionMaterial,
+    Categoria,
+    Marca,
     Producto,
+    ProductoHistorial,
+    ProductoIscTasa,
+    RecetaComponente,
     Unidad,
 )
+from shared.domain.auditoria import diferencias
 from shared.domain.errores import NoEncontrado
 from shared.domain.tenant import empresa_actual
 
@@ -24,13 +24,21 @@ _CAMPOS = (
     "sku",
     "nombre",
     "tipo",
-    "familia_id",
+    "categoria_id",
+    "marca_id",
     "stock_minimo",
-    "controla_lote",
+    "se_vende",
+    "se_compra",
+    "se_fabrica",
     "precio_venta",
     "contenido_litros",
-    "isc_categoria_id",
+    "isc_sistema",
+    "isc_codigo_tipo_sistema",
     "vida_util_dias",
+    "peso_kg",
+    "volumen_m3",
+    "referencia",
+    "codigo_barras",
 )
 
 
@@ -38,9 +46,11 @@ def _a_modelo(d: DatosProducto, unidad_id: int) -> dict:
     campos = {c: getattr(d, c) for c in _CAMPOS}
     return campos | {
         "unidad_id": unidad_id,
-        "prefijo_lote": d.prefijo_lote or "",
         "activo": d.activo,
     }
+
+
+_AGRUPACIONES = {"categoria": Categoria, "marca": Marca}
 
 
 class CatalogoOrm:
@@ -72,11 +82,75 @@ class CatalogoOrm:
     def eliminar_unidad(self, unidad_id) -> None:
         self._unidad(unidad_id).delete()
 
-    def crear_familia(self, nombre) -> int:
-        return Familia.objects.get_or_create(nombre=nombre)[0].id
+    def editar_unidad(self, unidad_id, nombre, abreviatura, codigo_sunat) -> None:
+        Unidad.objects.filter(pk=self._unidad(unidad_id).pk).update(
+            nombre=nombre, abreviatura=abreviatura, codigo_sunat=codigo_sunat
+        )
+
+    def abreviatura_de(self, unidad_id) -> str:
+        return self._unidad(unidad_id).abreviatura
+
+    # --- Categorías y marcas (RF-CAT-33, 34, 49) ---
+
+    def _agrupacion(self, tipo, id_):
+        fila = _AGRUPACIONES[tipo].objects.filter(pk=id_).first()
+        if fila is None:
+            raise NoEncontrado("No encontrado")
+        return fila
+
+    def existe_agrupacion(self, tipo, nombre, excluir_id=None) -> bool:
+        filas = _AGRUPACIONES[tipo].objects.filter(nombre__iexact=nombre)
+        return filas.exclude(pk=excluir_id).exists()
+
+    def guardar_agrupacion(self, tipo, id_, nombre, descripcion, activo) -> int:
+        campos = {"nombre": nombre} | ({"descripcion": descripcion} if tipo == "categoria" else {})
+        if activo is not None:
+            campos["activo"] = activo
+        if id_ is None:
+            return _AGRUPACIONES[tipo].objects.create(**campos).id
+        fila = self._agrupacion(tipo, id_)
+        for campo, valor in campos.items():
+            setattr(fila, campo, valor)
+        fila.save(update_fields=list(campos))
+        return fila.id
+
+    def agrupacion_activa(self, tipo, id_) -> bool:
+        return _AGRUPACIONES[tipo].objects.filter(pk=id_, activo=True).exists()
+
+    def agrupacion_en_uso(self, tipo, id_) -> bool:
+        return self._agrupacion(tipo, id_).productos.exists()
+
+    def cambiar_estado_agrupacion(self, tipo, id_, activo) -> None:
+        fila = self._agrupacion(tipo, id_)
+        fila.activo = activo
+        fila.save(update_fields=["activo"])
+
+    def eliminar_agrupacion(self, tipo, id_) -> None:
+        self._agrupacion(tipo, id_).delete()
 
     def existe_sku(self, sku, excluir_id=None) -> bool:
         return Producto.objects.filter(sku=sku).exclude(pk=excluir_id).exists()
+
+    def sku_con_codigo_barras(self, codigo, excluir_id=None) -> str | None:
+        filas = Producto.objects.filter(codigo_barras=codigo).exclude(pk=excluir_id)
+        return filas.values_list("sku", flat=True).first()
+
+    def registrar_historial(self, producto_id, actor_id, accion, antes, despues) -> None:
+        ProductoHistorial.objects.create(
+            producto_id=producto_id, actor_id=actor_id, accion=accion, antes=antes, despues=despues
+        )
+
+    def historial(self, producto_id) -> list[EntradaHistorial]:
+        filas = ProductoHistorial.objects.filter(producto_id=producto_id).select_related("actor")
+        return [
+            EntradaHistorial(
+                h.created_at,
+                h.actor.email if h.actor else "—",
+                h.accion,
+                diferencias(h.antes, h.despues),
+            )
+            for h in filas.order_by("-created_at", "-id")
+        ]
 
     def contar_activos(self) -> int:
         return Producto.objects.filter(activo=True).count()
@@ -94,7 +168,6 @@ class CatalogoOrm:
             **datos | {"tipo": TipoProducto(p.tipo)},
             unidad=p.unidad.abreviatura,
             activo=p.activo,
-            prefijo_lote=p.prefijo_lote or None,
         )
 
     def crear_producto(self, datos, unidad_id) -> int:
@@ -115,61 +188,66 @@ class CatalogoOrm:
     def eliminar_producto(self, producto_id) -> None:
         self._producto(producto_id).delete()
 
-    def granel_con_presentaciones_activas(self, producto_id) -> bool:
-        return Presentacion.objects.filter(granel_id=producto_id, producto__activo=True).exists()
-
     def referencias_internas(self, producto_id) -> int:
-        como_granel = Presentacion.objects.filter(granel_id=producto_id).count()
-        como_material = PresentacionMaterial.objects.filter(
-            material_id=producto_id, presentacion__empresa_id=empresa_actual()
+        return RecetaComponente.objects.filter(
+            componente_id=producto_id, producto__empresa_id=empresa_actual()
         ).count()
-        return como_granel + como_material
 
-    def categoria_isc_activa(self, categoria_id) -> bool:
-        return IscCategoria.objects.filter(pk=categoria_id, activo=True).exists()
-
-    def tarifas_isc(self, categoria_id) -> list[Tarifa]:
-        filas = IscTarifa.objects.filter(categoria_id=categoria_id)
+    def tasas_isc(self, producto_id) -> list[Tarifa]:
+        filas = ProductoIscTasa.objects.filter(producto_id=producto_id).order_by("-vigente_desde")
         return [Tarifa(d, m) for d, m in filas.values_list("vigente_desde", "monto_por_litro")]
 
-    def isc_de_producto(self, producto_id):
-        """(categoría, contenido en litros) o None si no tiene categoría."""
-        p = Producto.objects.select_related("isc_categoria").filter(pk=producto_id).first()
-        if p is None or p.isc_categoria is None:
-            return None
-        contenido = p.contenido_litros
-        if p.tipo == TipoProducto.TERMINADO:
-            contenido = Presentacion.objects.get(producto=p).contenido_litros
-        return p.isc_categoria, contenido
+    def existe_tasa(self, producto_id, desde) -> bool:
+        return ProductoIscTasa.objects.filter(producto_id=producto_id, vigente_desde=desde).exists()
 
-    def tipos_y_estado(self, ids):
+    def agregar_tasa(self, producto_id, monto, desde, actor_id) -> None:
+        ProductoIscTasa.objects.create(
+            producto_id=producto_id,
+            monto_por_litro=monto,
+            vigente_desde=desde,
+            creado_por_id=actor_id,
+        )
+
+    def isc_de_producto(self, producto_id):
+        """(código de tipo de sistema, litros por unidad) o None si no está afecto."""
+        p = Producto.objects.filter(pk=producto_id, isc_sistema__isnull=False).first()
+        return (p.isc_codigo_tipo_sistema, p.contenido_litros) if p else None
+
+    def unidades_de(self, ids) -> dict[int, str]:
+        filas = Producto.objects.filter(pk__in=ids).values_list("id", "unidad__abreviatura")
+        return dict(filas)
+
+    def estados(self, ids):
         filas = Producto.objects.filter(pk__in=ids).values_list("id", "tipo", "activo")
         return {i: (TipoProducto(t), a) for i, t, a in filas}
 
-    def presentacion(self, producto_id) -> DatosPresentacion | None:
-        p = Presentacion.objects.filter(producto_id=producto_id).first()
-        if p is None:
-            return None
-        materiales = p.materiales.order_by("id").values_list("material_id", "cantidad_por_unidad")
-        return DatosPresentacion(p.granel_id, p.contenido_litros, tuple(materiales))
+    def grafo_recetas(self) -> dict[int, set[int]]:
+        grafo = {}
+        filas = RecetaComponente.objects.filter(producto__empresa_id=empresa_actual())
+        for producto, componente in filas.values_list("producto_id", "componente_id"):
+            grafo.setdefault(producto, set()).add(componente)
+        return grafo
 
-    def guardar_presentacion(self, producto_id, datos: DatosPresentacion) -> None:
-        p, _ = Presentacion.objects.update_or_create(
-            producto_id=producto_id,
-            defaults={"granel_id": datos.granel_id, "contenido_litros": datos.contenido_litros},
+    def receta(self, producto_id):
+        filas = RecetaComponente.objects.filter(
+            producto_id=producto_id, producto__empresa_id=empresa_actual()
         )
-        p.materiales.all().delete()
-        PresentacionMaterial.objects.bulk_create(
-            PresentacionMaterial(presentacion=p, material_id=m, cantidad_por_unidad=c)
-            for m, c in datos.materiales
+        return tuple(filas.order_by("id").values_list("componente_id", "cantidad_por_unidad"))
+
+    def guardar_receta(self, producto_id, receta) -> None:
+        self._producto(producto_id)  # de la empresa actual
+        RecetaComponente.objects.filter(producto_id=producto_id).delete()
+        RecetaComponente.objects.bulk_create(
+            RecetaComponente(producto_id=producto_id, componente_id=c, cantidad_por_unidad=q)
+            for c, q in receta
         )
 
-    def productos(self, ids=None, tipos=None, solo_activos=False) -> list[ProductoDTO]:
+    def productos(self, ids=None, casillas=None, solo_activos=False) -> list[ProductoDTO]:
         filas = Producto.objects.select_related("unidad").order_by("nombre")
         if ids is not None:
             filas = filas.filter(pk__in=ids)
-        if tipos is not None:
-            filas = filas.filter(tipo__in=list(tipos))
+        if casillas:
+            filas = filas.filter(**casillas)
         if solo_activos:
             filas = filas.filter(activo=True)
         return [
@@ -179,39 +257,11 @@ class CatalogoOrm:
                 p.nombre,
                 TipoProducto(p.tipo),
                 p.unidad.abreviatura,
-                p.controla_lote,
+                p.se_vende,
+                p.se_compra,
+                p.se_fabrica,
                 p.precio_venta,
                 p.activo,
             )
             for p in filas
         ]
-
-
-class IscOrm:
-    def existe_categoria(self, nombre) -> bool:
-        return IscCategoria.objects.filter(nombre__iexact=nombre).exists()
-
-    def crear_categoria(self, nombre, codigo_tipo_sistema) -> int:
-        return IscCategoria.objects.create(
-            nombre=nombre, codigo_tipo_sistema=codigo_tipo_sistema
-        ).id
-
-    def categoria_existe(self, categoria_id) -> bool:
-        return IscCategoria.objects.filter(pk=categoria_id).exists()
-
-    def existe_tarifa(self, categoria_id, desde) -> bool:
-        return IscTarifa.objects.filter(categoria_id=categoria_id, vigente_desde=desde).exists()
-
-    def agregar_tarifa(self, categoria_id, monto, desde, actor_id) -> None:
-        IscTarifa.objects.create(
-            categoria_id=categoria_id,
-            monto_por_litro=monto,
-            vigente_desde=desde,
-            creado_por_id=actor_id,
-        )
-
-    def productos_activos_con_categoria(self, categoria_id) -> int:
-        return Producto.objects.filter(isc_categoria_id=categoria_id, activo=True).count()
-
-    def cambiar_estado_categoria(self, categoria_id, activo) -> None:
-        IscCategoria.objects.filter(pk=categoria_id).update(activo=activo)

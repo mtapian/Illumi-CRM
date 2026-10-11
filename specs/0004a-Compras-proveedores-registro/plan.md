@@ -1,5 +1,7 @@
 # Plan 0004a — Compras: proveedores y registro de compras
 
+> Los proveedores (`purchasing_proveedor`, `/compras/proveedores/`) se implementan en la spec 0002d; aquí se usan. 0004a implementa `ComprasPort.tiene_compras()` de 0002d.
+
 Estado: borrador
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
@@ -13,16 +15,14 @@ Contexto: `src/purchasing`. Usa `CatalogoQuery` (épica 0002) para validar produ
 | `src/purchasing/domain/compra.py` | Agregado `Compra`: líneas, IGV según documento, totales, bonificación, lotes | RF-COM-04 a 09, 19, 20 |
 | `src/purchasing/domain/documento.py` | Tipos de documento y si separan IGV | RF-COM-08, 20 |
 | `src/purchasing/domain/errores.py` | `ProductoNoComprable`, `LoteRequerido`, `LoteConOtroVencimiento`, `DocumentoDuplicado`, `FechaFutura`, `FacturaRequiereRuc`, `CostoCeroSinBonificacion` | todos los `SI … ENTONCES` |
-| `src/purchasing/application/proveedores.py` | CRUD de proveedores | RF-COM-01 a 03 |
 | `src/purchasing/application/compras.py` | `RegistrarCompra`, `AnularCompra`, `ComprasQuery` | RF-COM-04 a 14 |
 | `src/purchasing/infrastructure/models.py`, `repositorios.py` | Modelos y repositorios | §2 |
-| `src/purchasing/interfaces/views/*.py` + `templates/purchasing/*.html` | Pantallas de §5 | RF-COM-01 a 14 |
+| `src/purchasing/interfaces/views/*.py` + `templates/purchasing/*.html` | Pantallas de §5 | RF-COM-04 a 14 |
 
 ## 2. Modelo de datos
 
 | Tabla | Campos | Restricciones | RF |
 |---|---|---|---|
-| `purchasing_proveedor` | empresa_id, tipo_doc (`RUC`/`DNI`), num_doc, razon_social, contacto, telefono, email, direccion, activo | UNIQUE(empresa_id, tipo_doc, num_doc) | RF-COM-01 a 03 |
 | `purchasing_compra` | empresa_id, numero, proveedor_id, fecha `DATE`, almacen_id, doc_tipo, doc_serie_numero, igv_pct (vigente a la fecha), subtotal, igv, total, estado (`REGISTRADA`/`ANULADA`), observacion, created_by, anulado_por, anulado_en, motivo_anulacion | UNIQUE(empresa_id, numero); índice único parcial del documento entre compras activas (excepto `SIN_DOCUMENTO`) | RF-COM-04, 11, 13 |
 | `purchasing_compra_linea` | compra_id, producto_id, cantidad, costo_unitario `NUMERIC(14,6)`, es_bonificacion, subtotal, lote_id null | `CHECK cantidad > 0`; `CHECK costo_unitario > 0 OR es_bonificacion` | RF-COM-04, 06, 07 |
 
@@ -59,9 +59,10 @@ RegistrarCompra(cmd):
 
 ## 5. Interfaz
 
+**Referencia visual del PO (2026-10-10):** "Nueva compra" en una tarjeta: proveedor y fecha en dos columnas, observación (n.º de factura, guía), selector de producto con "+ Agregar" que suma filas (código, producto, cantidad, precio de compra, subtotal) y totales a la derecha (subtotal, IGV, total); botones "Registrar compra" (verde) y "Cancelar". Se adapta a los campos de esta spec (lote, vencimiento, bonificación).
+
 | Ruta | Qué se pinta | RF |
 |---|---|---|
-| `/compras/proveedores/` | CRUD; los desactivados no aparecen en el selector de compras | RF-COM-01 a 03 |
 | `/compras/nueva` | Cabecera + tabla de líneas (HTMX): casilla "bonificación", columnas de lote y vencimiento solo para productos con lote (vencimiento sugerido), totales en vivo con o sin IGV según el documento | RF-COM-04 a 12, 19, 20 |
 | `/compras/` | Listado con filtros por proveedor, fecha, estado y número | RF-COM-14 |
 | `/compras/<id>` | Detalle de solo lectura con enlace a sus movimientos de kardex; botón "Anular" con motivo; mensaje de rechazo con el producto consumido | RF-COM-13, 14 |
@@ -84,14 +85,13 @@ Comando: `pytest tests/purchasing tests/acceptance -k "E04a"`.
 | Unitario | `tests/purchasing/unit/test_compra.py` | Comprables, bonificación, lote requerido, lote con otro vencimiento, factura con DNI, fecha futura | RF-COM-04 a 07, 12, 19, 20 |
 | Unitario | `tests/purchasing/unit/test_totales.py` | Factura vs. boleta; redondeo por línea y total | RF-COM-08, 09 |
 | Caso de uso | `tests/purchasing/usecases/test_registrar.py` | Entrada al costo, documento duplicado, numeración | RF-COM-04, 10, 11 |
-| Integración | `tests/purchasing/integration/test_proveedores_y_listado.py` | Proveedor único, no eliminar con compras, filtros, inmutabilidad | RF-COM-01 a 03, 13, 14 |
+| Integración | `tests/purchasing/integration/test_listado.py` | Filtros, inmutabilidad | RF-COM-13, 14 |
 | Aceptación | `features/compras.feature` | Escenarios de la spec | ver etiquetas `@RF-…` |
 
 ## 8. Cobertura de RF
 
 | RF | Partes del plan |
 |---|---|
-| RF-COM-01, RF-COM-02, RF-COM-03 | §1 `proveedores.py` · §2 `purchasing_proveedor` · §5 · §7 |
 | RF-COM-04, RF-COM-05, RF-COM-06, RF-COM-07, RF-COM-19 | §1 `compra.py` · §3 `es_comprable`, `validar_linea`, `vencimiento_sugerido`, `resolver_lote` · §4 registrar · §5 `/compras/nueva` · §7 |
 | RF-COM-08, RF-COM-09, RF-COM-20 | §1 `documento.py` · §3 `separa_igv`, `totales`, `validar_documento` · §7 `test_totales.py` |
 | RF-COM-10, RF-COM-11, RF-COM-12, RF-COM-13, RF-COM-14 | §1 `compras.py` · §2 índice único parcial · §3 `validar_fecha` · §4 registrar · §5 · §7 |

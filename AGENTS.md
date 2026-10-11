@@ -24,7 +24,7 @@ PRD.md                            ← visión, alcance MVP, RN-GEN, métricas, p
 specs/
 ├── 0000-Arquitectura/plan.md     ← decisiones técnicas transversales (ADR, capas, tenancy, persistencia)
 └── NNNNx-Modulo-nombre/          ← una carpeta por spec: épica de 4 dígitos + parte (a, b, c…) + módulo + nombre
-                                    (p. ej. 0002a-Catalogo-productos … 0008b-Finanzas-resultados-reportes)
+                                    (p. ej. 0002a-Catalogo-productos … 0008b-Finanzas-resultados-reportes; 0002d-Catalogo-proveedores se agregó el 2026-10-10)
     ├── spec.md                   ← QUÉ y POR QUÉ: historias, RF en EARS, casos límite, dudas. Sin stack
     ├── plan.md                   ← CÓMO: modelo de datos, casos de uso, algoritmos, decisiones, tests
     ├── tasks.md                  ← tareas de ≤ 30 min con su RF y su "hecho cuando" (solo con plan aprobado)
@@ -53,7 +53,7 @@ Estado de cada spec (en su encabezado): `borrador` → `aprobada` → `implement
 
 Cada RF es verificable: nada de "rápido" o "fácil" sin un criterio medible.
 
-**Tags Gherkin:** `@E0N` · `@E0Nx` (la parte de la épica) · `@UC-…` · `@RF-…` (obligatorio: los RF que el escenario verifica; un RF sin escenario debe tener un test que lo cite en el plan §7) · `@RN-…` (obligatorio si el escenario prueba una regla) · `@critico` (bloquea el release) · `@borde` · `@mvp` / `@r2` · `@pendiente-qN` (depende de la pregunta N del PRD; no se ejecuta hasta resolverla). Idioma: `# language: es`.
+**Tags Gherkin:** `@E0N` · `@E0Nx` (la parte de la épica) · `@UC-…` · `@RF-…` (obligatorio: los RF que el escenario verifica; un RF sin escenario debe tener un test que lo cite en el plan §7) · `@RN-…` (obligatorio si el escenario prueba una regla) · `@critico` (bloquea el release) · `@borde` · `@mvp` / `@r2` · `@pendiente-qN` (depende de la pregunta N del PRD; no se ejecuta hasta resolverla) · `@borrador` (escenario de una spec o enmienda sin aprobar; no se ejecuta hasta su aprobación, y se quita al implementarla). Idioma: `# language: es`.
 
 ## 4. Entorno y comandos de verificación
 
