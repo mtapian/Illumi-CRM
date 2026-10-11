@@ -6,6 +6,7 @@ urlpatterns = [
     path("", include("tenancy.interfaces.urls")),
     path("", include("catalog.interfaces.urls")),
     path("", include("purchasing.interfaces.urls")),
+    path("", include("inventory.interfaces.urls")),
 ]
 
 if settings.SERVIR_MEDIA:

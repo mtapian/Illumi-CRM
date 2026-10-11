@@ -113,3 +113,23 @@ class InventarioConsulta:
 
     def tiene_movimientos(self, producto_id: int) -> bool:
         return Movimiento.objects.filter(producto_id=producto_id).exists()
+
+
+class AlmacenesOrm:
+    def existe(self, almacen_id):
+        return Almacen.objects.filter(pk=almacen_id).exists()
+
+    def existe_nombre(self, nombre, excluir):
+        return Almacen.objects.filter(nombre__iexact=nombre).exclude(pk=excluir).exists()
+
+    def guardar(self, almacen_id, nombre):
+        if almacen_id is None:
+            return Almacen.objects.create(nombre=nombre).id
+        Almacen.objects.filter(pk=almacen_id).update(nombre=nombre)
+        return almacen_id
+
+    def tiene_stock(self, almacen_id):
+        return Stock.objects.filter(almacen_id=almacen_id, cantidad__gt=0).exists()
+
+    def cambiar_estado(self, almacen_id, activo):
+        Almacen.objects.filter(pk=almacen_id).update(activo=activo)

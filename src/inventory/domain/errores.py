@@ -23,3 +23,7 @@ class LoteConOtroVencimiento(DomainError):
 
 class CostoRequerido(DomainError):
     codigo = "COSTO_REQUERIDO"
+
+
+class AlmacenInvalido(DomainError):
+    codigo = "ALMACEN_INVALIDO"

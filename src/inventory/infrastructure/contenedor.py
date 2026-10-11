@@ -5,7 +5,7 @@ from datetime import date
 from catalog.infrastructure.contenedor import catalogo_query
 from inventory.application.servicio import InventarioService
 from inventory.infrastructure.models import Almacen
-from inventory.infrastructure.repositorios import InventarioOrm
+from inventory.infrastructure.repositorios import AlmacenesOrm, InventarioOrm
 
 PRINCIPAL = "Principal"
 
@@ -13,6 +13,11 @@ PRINCIPAL = "Principal"
 def inventario() -> InventarioService:
     """`inventario().registrar_entrada(…)`, dentro de la transacción del caso de uso."""
     return InventarioService(InventarioOrm(), catalogo_query())
+
+
+def caso_de_uso(clase):
+    """`caso_de_uso(almacenes.GuardarAlmacen).ejecutar(actor, …)`."""
+    return clase(AlmacenesOrm())
 
 
 def sembrar_almacen(empresa_id: int, admin_id: int, hoy: date) -> None:

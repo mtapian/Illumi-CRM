@@ -1,6 +1,6 @@
 # Tareas 0003a — Inventario: almacenes, movimientos y costo promedio
 
-Estado: aprobado (2026-10-10, PO). T1 y T2 se hicieron antes, por orden del PO.
+Estado: implementado (2026-10-10). T1 y T2 se hicieron antes, por orden del PO.
 
 Spec: `./spec.md` · Plan: `./plan.md`
 
@@ -65,10 +65,10 @@ Reglas (constitución, art. 8):
 
 ## Almacenes
 
-- [ ] **T16. Crear el CRUD de almacenes y su desactivación.** — RF-INV-02, RF-INV-03
+- [x] **T16. Crear el CRUD de almacenes y su desactivación.** — RF-INV-02, RF-INV-03
   - Hecho cuando: "Almacén con stock no se desactiva" está en verde y un nombre repetido en la empresa se rechaza.
 
 ## Cierre
 
-- [ ] **T17. Verificar la spec completa.** — RF-INV-01 a RF-INV-03, RF-INV-17 a RF-INV-24
+- [x] **T17. Verificar la spec completa.** — RF-INV-01 a RF-INV-03, RF-INV-17 a RF-INV-24
   - Hecho cuando: `pytest tests/inventory tests/acceptance -k E03a` en verde; prueba de reconciliación en verde; lint en verde; `MEMORY.md` actualizado.

@@ -1,6 +1,6 @@
 # Plan 0003a — Inventario: almacenes, movimientos y costo promedio
 
-Estado: aprobado (2026-10-10, PO; enmienda 4 de 0002a y Q12 = A). T1 y T2 ya implementadas (`costo.py`) por orden del PO
+Estado: implementado (2026-10-10; enmienda 4 de 0002a y Q12 = A). T1 y T2 ya implementadas (`costo.py`) por orden del PO
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 
@@ -85,7 +85,7 @@ revertir(ref_tipo, ref_id):
 
 | Ruta | Qué se pinta | RF |
 |---|---|---|
-| `/inventario/almacenes/` | CRUD | RF-INV-01 a 03 |
+| `/inventario/almacenes/` | Listado de maestro (ADR-12): buscar, crear y renombrar en su propia página, activar y desactivar (solo sin stock). No se eliminan | RF-INV-01 a 03 |
 
 ## 6. Decisiones técnicas
 
@@ -108,7 +108,8 @@ Comando: `pytest tests/inventory tests/acceptance -k "E03a"`.
 | Caso de uso | `tests/inventory/usecases/test_revertir.py` | Reversión al costo original; con salidas posteriores ⇒ rechazo | RF-INV-20, 21 |
 | Integración | `tests/inventory/integration/test_concurrencia.py` | Dos salidas por el último stock (`TransactionTestCase`) | RF-INV-19 |
 | Integración | `tests/inventory/integration/test_inmutable.py` | `UPDATE`/`DELETE` sobre movimientos fallan; doble reversión falla | RF-INV-17, 20 |
-| Integración | `tests/inventory/integration/test_almacenes.py` | Almacén "Principal", nombre único, no desactivar con stock | RF-INV-01 a 03 |
+| Integración | `tests/inventory/integration/test_pantallas.py`, `test_modelos.py`; caso de uso `test_almacenes.py` | Almacén "Principal", nombre único, no desactivar con stock | RF-INV-01 a 03 |
+| Integración | `tests/inventory/integration/test_reconciliacion.py` | Secuencias aleatorias (5 semillas) de entradas, salidas y reversiones: el kardex reproduce stock y valor por producto, almacén y lote | RNF-INV-01 |
 | Aceptación | `features/ajustes_lotes_alertas.feature`, `features/costo_y_kardex.feature` | Escenarios de la spec | ver etiquetas `@RF-…` |
 
 ## 8. Cobertura de RF

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% comment %}Listado de maestro (ADR-12) de almacenes (RF-INV-02, 03). No se eliminan: un
+almacén vacío se desactiva.{% endcomment %}
+{% block titulo %}Almacenes{% endblock %}
+{% block contenido %}
+<h1>{% if editando %}Editar almacén{% elif nuevo %}Nuevo almacén{% else %}Almacenes{% endif %}</h1>
+{% include "catalog/_migas.html" %}
+{% if nuevo or editando %}
+<section class="tarjeta formulario-maestro">
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
+    <label>Nombre<input name="nombre" required maxlength="80" value="{{ nombre }}"></label>
+    <p><button type="submit">Guardar</button> <a class="boton secundario" href="{{ request.path }}">Cancelar</a></p>
+  </form>
+</section>
+{% else %}
+<div class="barra-listado">
+  <form method="get" class="buscador"><input type="search" name="q" value="{{ q }}" placeholder="Buscar almacén…" aria-label="Buscar almacén"></form>
+  <a class="boton exito" href="?nuevo=1">+ Nuevo almacén</a>
+</div>
+<div class="tarjeta tabla">
+<table><thead><tr><th>Nombre</th><th>Productos con stock</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for f in filas %}<tr>
+  <td><strong>{{ f.nombre }}</strong></td>
+  <td><span class="chip neutro">{{ f.n_productos }}</span></td>
+  <td><span class="chip {% if f.activo %}ok{% else %}error{% endif %}">{% if f.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+  <td class="acciones"><form method="post">{% csrf_token %}<input type="hidden" name="id" value="{{ f.id }}">
+    <a class="btn-icono" href="?editar={{ f.id }}" title="Editar" aria-label="Editar {{ f.nombre }}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm17.7-10.2a1 1 0 0 0 0-1.42l-2.33-2.33a1 1 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></a>
+    {% if f.activo %}{% if not f.n_productos %}<button class="btn-icono peligro" name="accion" value="desactivar">Desactivar</button>{% endif %}
+    {% else %}<button class="btn-icono" name="accion" value="activar">Activar</button>{% endif %}
+  </form></td>
+</tr>{% empty %}<tr><td colspan="4" class="subtitulo">{% if q %}Sin resultados para "{{ q }}".{% else %}Aún no hay almacenes.{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endif %}
+{% endblock %}

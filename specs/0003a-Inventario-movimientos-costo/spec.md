@@ -1,6 +1,6 @@
 # Spec 0003a — Inventario: almacenes, movimientos y costo promedio
 
-Estado: aprobada (2026-10-10, PO). Se alinea con la enmienda 4 de 0002a (lote opcional en cualquier bien, servicios sin stock; RF-CAT-37 y 40) y registra Q12 = opción A
+Estado: implementada (2026-10-10). Se alinea con la enmienda 4 de 0002a (lote opcional en cualquier bien, servicios sin stock; RF-CAT-37 y 40) y registra Q12 = opción A
 
 Épica E03 (Inventario), parte 1 de 3. Depende de: 0001a, 0002a. La usan: 0003b, 0003c, 0004, 0005, 0006.
 

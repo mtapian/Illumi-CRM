@@ -14,8 +14,9 @@ from inventory.infrastructure.contenedor import inventario
 from inventory.infrastructure.models import Almacen, CostoProducto, Lote, Movimiento, Stock
 from shared.domain.errores import DomainError
 from shared.domain.tenant import tenant_context
-from tests.acceptance.pasos_accesos import re_
-from tests.acceptance.pasos_catalogo import crear_directo, producto
+from tests.acceptance.conftest import contenido
+from tests.acceptance.pasos_accesos import como, re_
+from tests.acceptance.pasos_catalogo import EMAIL, crear_directo, producto
 
 REF = {"COMPRA": "COMPRA", "CONSUMO_OP": "OP", "VENTA": "VENTA"}  # el resto, AJUSTE
 OPERACION = r'(?P<cant>[\d.]+) (?P<u>\w+) de "(?P<sku>[^"]+)"'
@@ -325,5 +326,8 @@ def almacen_con_stock(ctx, nombre):
 
 
 @when(re_("intento desactivar el almacén {}", "nombre"))
-def desactivar_almacen(ctx, nombre):
-    pytest.skip("Parcial; pendiente: desactivar almacenes es la T16 de 0003a")
+def desactivar_almacen(client, ctx, nombre):
+    alm = Almacen.all_tenants.get(empresa=ctx["empresa"], nombre=nombre).id
+    datos = {"accion": "desactivar", "id": alm}
+    respuesta = como(client, EMAIL).post("/inventario/almacenes/", datos, follow=True)
+    ctx["textos"] = [contenido(respuesta)]
