@@ -15,9 +15,9 @@ Contexto: `src/inventory`. Es el núcleo transaccional: compras, producción y v
 | `src/inventory/domain/fefo.py` | Asignación FEFO con `hoy` | RF-INV-22, 23 |
 | `src/inventory/domain/lotes.py` | `lote_vencido`, `lotes_por_vencer` con `hoy`; `sugerir_vencimiento`; `validar_lote_existente` | RF-INV-23, 26 |
 | `src/inventory/domain/errores.py` | `StockInsuficiente`, `LoteVencido`, `AnulacionConConsumoPosterior`, `CostoRequerido`, `SaldoInicialNoPermitido`… | todos los `SI … ENTONCES` |
-| `src/inventory/application/servicio.py` | `InventarioService`: `registrar_entrada`, `registrar_salida`, `revertir`, `bloquear`, `crear_lote`, `asegurar_costo_producto`, `crear_almacen` | RF-INV-17 a 24 |
+| `src/inventory/application/servicio.py` | `InventarioService`: `registrar_entrada`, `registrar_salida` y `revertir` con `Linea(producto, almacén, cantidad, costo, lote, vencimiento)`, y `bloquear(productos)`. Crear el lote y la fila de costo del producto son pasos internos de la entrada y del bloqueo. No es un `CasoDeUso`: lo llaman los casos de uso de compras, producción y ventas dentro de su transacción, después de verificar su permiso | RF-INV-17 a 26 |
 | `src/inventory/application/almacenes.py` | CRUD de almacenes y desactivación | RF-INV-01 a 03 |
-| `src/inventory/application/consulta.py` | Implementa el puerto del catálogo `InventarioConsultaPort` (`stock`, `tiene_movimientos`) y lo registra en `catalog.application.puertos` desde `apps.ready()`; el catálogo no importa al inventario | RF-CAT-16, 43 |
+| `src/inventory/infrastructure/repositorios.py` (`InventarioConsulta`) | Implementa el puerto del catálogo `InventarioConsultaPort` (`stock`, `tiene_movimientos`) y lo registra en `catalog.application.puertos` desde `apps.ready()`; el catálogo no importa al inventario | RF-CAT-16, 43 |
 | `src/inventory/infrastructure/models.py`, `repositorios.py` | Modelos y repositorios con locks en el orden de 0000 §5 | §2 |
 | `src/inventory/infrastructure/sql/*.sql` | `trg_movimiento_inmutable`, `vw_kardex`, `vw_stock_valorizado` | RF-INV-17 |
 | `src/inventory/interfaces/views/*.py` + `templates/inventory/*.html` | Pantallas de §5 | RF-INV-01 a 03 |

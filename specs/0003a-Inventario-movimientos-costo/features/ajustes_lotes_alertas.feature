@@ -39,7 +39,7 @@ Característica: Ajustes, lotes, almacenes y alertas
   @UC-INV-01 @borde @RF-INV-03
   Escenario: Almacén con stock no se desactiva
     Dado que el almacén "Taproom" tiene stock
-    Cuando intento desactivar "Taproom"
+    Cuando intento desactivar el almacén "Taproom"
     Entonces la operación es rechazada con el mensaje "El almacén tiene stock"
 
   @UC-INV-04 @RN-INV-06 @borde @RF-INV-22

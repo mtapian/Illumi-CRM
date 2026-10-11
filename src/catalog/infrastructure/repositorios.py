@@ -262,6 +262,7 @@ class CatalogoOrm:
                 p.se_fabrica,
                 p.precio_venta,
                 p.activo,
+                p.vida_util_dias,
             )
             for p in filas
         ]

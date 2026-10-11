@@ -1,6 +1,6 @@
 """Existencias por producto × almacén × lote y movimientos (spec 0003a; RF-INV-17, 19)."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 
@@ -22,6 +22,7 @@ class Existencia:
     id_: int = 0
     producto: str = ""
     almacen: str = ""
+    lote_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,7 @@ class Movimiento:
     almacen_id: int
     lote_id: int | None = None
     revierte_id: int | None = None
+    producto_id: int = 0
 
 
 def salir(e: Existencia, cant: Decimal) -> Existencia:
@@ -43,4 +45,4 @@ def salir(e: Existencia, cant: Decimal) -> Existencia:
             f"Stock insuficiente de {e.producto} en {e.almacen}: "
             f"disponible {redondear(e.cantidad)}, requerido {redondear(cant)}"
         )
-    return Existencia(nueva, e.lote, e.vencimiento, e.ingreso, e.id_, e.producto, e.almacen)
+    return replace(e, cantidad=nueva)

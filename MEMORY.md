@@ -19,7 +19,7 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0002b](specs/0002b-Catalogo-presentaciones/) Catálogo: presentaciones y materiales | **implementada** (4 RF) | implementado | 8/8 ✔ | 1 escenario parcial (costo promedio, 0003a) |
 | [0002d](specs/0002d-Catalogo-proveedores/) Catálogo: proveedores y proveedores del producto | **implementada** (5 RF: RF-COM-01 a 03, 21, 22) | implementado | 8/8 ✔ | — ("tiene compras": falso hasta 0004a) |
 | [0002c](specs/0002c-Catalogo-isc/) Catálogo: ISC (reglas de cálculo) | **implementada**; categorías retiradas por 0002a enmienda 4 (ISC en la ficha) | implementado | 9/9 ✔ | código ISC (01 vs 02): dato de cada producto |
-| [0003a](specs/0003a-Inventario-movimientos-costo/) Inventario: almacenes, movimientos y costo promedio | **aprobada** (13 RF; enmienda 4 de 0002a y Q12 = A) | aprobado | 11/18 (dominio T1–T7 y T6b; persistencia T8–T10) | visto bueno del contador sobre Q12 = A |
+| [0003a](specs/0003a-Inventario-movimientos-costo/) Inventario: almacenes, movimientos y costo promedio | **aprobada** (13 RF; enmienda 4 de 0002a y Q12 = A) | aprobado | 16/18 (faltan T16 almacenes y T17 cierre) | visto bueno del contador sobre Q12 = A |
 | [0003b](specs/0003b-Inventario-ajustes/) Inventario: ajustes | borrador (7 RF) | borrador | ejemplo (9 tareas) | Q12 (sustento de mermas) |
 | [0003c](specs/0003c-Inventario-consultas-alertas/) Inventario: stock, kardex y alertas | borrador (7 RF) | borrador | ejemplo (9 tareas) | — |
 | [0004a](specs/0004a-Compras-proveedores-registro/) Compras: proveedores y registro de compras | borrador (16 RF) | borrador | ejemplo (12 tareas) | Q12, maquila |
@@ -36,6 +36,8 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0008b](specs/0008b-Finanzas-resultados-reportes/) Finanzas: estado de resultados, dashboard y exportación | borrador (11 RF) | borrador | ejemplo (13 tareas) | Q10 |
 
 ## Historial
+
+- **2026-10-10 — 0003a, servicio de inventario (T11–T15).** `InventarioService` (no es `CasoDeUso`: lo llaman los casos de uso de otras specs dentro de su transacción): `registrar_entrada` (crea el lote si es nuevo, con vencimiento sugerido por la vida útil; rechaza otro vencimiento y servicios), `registrar_salida` (lote indicado, FEFO si hay stock con lote, si no el stock sin lote; lote vencido solo por merma), `revertir` (al costo original; rechaza entradas consumidas; no revierte dos veces) y `bloquear` (mutex por producto en `costo_producto`, luego stock). La fachada del catálogo expone `vida_util_dias`. El inventario llena el puerto del catálogo (`InventarioConsulta`): **el catálogo ya ve stock y movimientos reales** (bloqueo de SKU/unidad, desactivar con stock). Concurrencia probada con dos hilos y transacciones reales (estable en 3 corridas). Escenarios de 0003a ejecutables (`test_e03a.py`): 13 en verde, 1 parcial (desactivar almacén, T16); un paso renombrado ("intento desactivar el almacén…") para no chocar con el del catálogo. Contratos nuevos: nadie depende del inventario; su dominio y aplicación usan solo fachadas. 441 tests en verde, 14 skipped; lint, formato, 9 contratos y migraciones en verde (exit codes verificados).
 
 - **2026-10-10 — 0003a, persistencia (T8–T10).** App `inventory` (capas en import-linter): almacén (nombre único sin mayúsculas), lote de cualquier bien (`fecha_ingreso`, vencimiento opcional), stock por producto × almacén × lote con `NULLS NOT DISTINCT` y sin negativos, costo del producto (CHECK: sin negativos y con cantidad 0 el valor es 0), movimiento con trigger de inmutabilidad, una sola reversión (`UNIQUE revierte_id`) y cantidad > 0. Sembrador del almacén "Principal" en empresas nuevas; la migración lo crea también en las existentes (verificado en la base de desarrollo). Sigue el servicio de inventario (T11–T15). 418 tests en verde, 13 skipped; lint, formato, contratos y migraciones en verde.
 
@@ -80,6 +82,7 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 
 ## Decisiones tomadas (no reabrir sin el PO)
 
+- Agentes, comandos y skills viven en `.agent/` (los usan varias herramientas de IA); `.claude` es un enlace simbólico a `.agent` porque Claude Code solo lee `.claude/` (PO, 2026-10-10).
 - Números en pantalla con punto decimal y coma de miles (`config/formats/es_PE`), decisión del PO (2026-10-10).
 - Pospuesto: límite de productos del plan bajo concurrencia (spec 0002a, "Fuera de alcance"); se toma en una iteración posterior.
 - Un `TERMINADO` se crea con su presentación en la misma transacción (RF-CAT-05).

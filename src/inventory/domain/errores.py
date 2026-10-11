@@ -19,3 +19,7 @@ class ServicioSinStock(DomainError):
 
 class LoteConOtroVencimiento(DomainError):
     codigo = "LOTE_CON_OTRO_VENCIMIENTO"
+
+
+class CostoRequerido(DomainError):
+    codigo = "COSTO_REQUERIDO"

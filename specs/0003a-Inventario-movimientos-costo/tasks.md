@@ -48,19 +48,19 @@ Reglas (constitución, art. 8):
 
 ## Servicio de inventario
 
-- [ ] **T11. Crear `InventarioService.registrar_entrada()` con el orden de locks del plan 000.** — RF-INV-17, RF-INV-18
+- [x] **T11. Crear `InventarioService.registrar_entrada()` con el orden de locks del plan 000.** — RF-INV-17, RF-INV-18
   - Hecho cuando: "Entrada con stock en cero toma el costo de la entrada" está en verde y cada entrada genera un solo movimiento con su saldo.
 
-- [ ] **T12. Crear `InventarioService.registrar_salida()` con FEFO.** — RF-INV-17, RF-INV-19, RF-INV-22 a RF-INV-24
+- [x] **T12. Crear `InventarioService.registrar_salida()` con FEFO.** — RF-INV-17, RF-INV-19, RF-INV-22 a RF-INV-24
   - Hecho cuando: "Asignación FEFO excluye lotes vencidos", "Stock disponible insuficiente sin contar vencidos", "Lote vencido solo sale por merma", "Lote vencido no sale por corrección" y "Una salida no puede dejar stock negativo" están en verde.
 
-- [ ] **T13. Probar la concurrencia sobre el último stock.** — RF-INV-19
+- [x] **T13. Probar la concurrencia sobre el último stock.** — RF-INV-19
   - Hecho cuando: "Concurrencia sobre el último stock" está en verde con `TransactionTestCase`.
 
-- [ ] **T14. Crear `InventarioService.revertir()`.** — RF-INV-20, RF-INV-21
+- [x] **T14. Crear `InventarioService.revertir()`.** — RF-INV-20, RF-INV-21
   - Hecho cuando: un test de caso de uso revierte una entrada sin consumo y rechaza con `AnulacionConConsumoPosterior` una con salidas posteriores.
 
-- [ ] **T15. Comprobar la secuencia completa de costo del ejemplo.** — RF-INV-17, RF-INV-18, RNF-INV-01, RNF-INV-03
+- [x] **T15. Comprobar la secuencia completa de costo del ejemplo.** — RF-INV-17, RF-INV-18, RNF-INV-01, RNF-INV-03
   - Hecho cuando: "Secuencia de entradas y salidas recalcula el promedio" está en verde.
 
 ## Almacenes

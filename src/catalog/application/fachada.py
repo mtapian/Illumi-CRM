@@ -23,6 +23,7 @@ class ProductoDTO:
     se_fabrica: bool
     precio_venta: Decimal | None
     activo: bool
+    vida_util_dias: int | None = None  # sugiere el vencimiento del lote (RF-CAT-40)
 
 
 @dataclass(frozen=True)
