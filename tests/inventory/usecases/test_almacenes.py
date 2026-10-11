@@ -11,17 +11,13 @@ from inventory.application.servicio import Linea
 from inventory.domain.errores import AlmacenInvalido
 from inventory.infrastructure.contenedor import caso_de_uso, inventario
 from inventory.infrastructure.models import Almacen
-from shared.domain.accesos import CATALOGO
 from tenancy.infrastructure.contenedor import actor_de
-from tenancy.infrastructure.models import PlanFuncionalidad
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
 def actor(inv):
-    for f in CATALOGO:
-        PlanFuncionalidad.objects.create(plan=inv["empresa"].plan, funcionalidad_id=f)
     return actor_de(inv["admin"], date.today())
 
 
@@ -46,3 +42,17 @@ def test_almacen_con_stock_no_se_desactiva(inv, actor):
     vacio = caso_de_uso(uc.GuardarAlmacen).ejecutar(actor, None, "Cámara fría")
     caso_de_uso(uc.CambiarEstadoAlmacen).ejecutar(actor, vacio, False)
     assert not Almacen.objects.get(pk=vacio).activo
+
+
+def test_dias_de_alerta_de_vencimiento(inv, actor):
+    """0003c, T2, RF-INV-15: sin configurar valen 30; de 1 a 365."""
+    from inventory.infrastructure.consultas import dias_alerta
+
+    assert dias_alerta() == 30
+    caso = caso_de_uso(uc.GuardarDiasAlerta)
+    caso.ejecutar(actor, 45)
+    caso.ejecutar(actor, 45)  # guardar dos veces no duplica
+    assert dias_alerta() == 45
+    for malo in (0, 366):
+        with pytest.raises(AlmacenInvalido, match="entre 1 y 365"):
+            caso.ejecutar(actor, malo)

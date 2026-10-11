@@ -6,15 +6,19 @@ from catalog.infrastructure.contenedor import sembrar_unidades
 from catalog.infrastructure.models import Producto, Unidad
 from inventory.infrastructure.contenedor import sembrar_almacen
 from inventory.infrastructure.models import Almacen
+from shared.domain.accesos import CATALOGO
 from shared.domain.tenant import tenant_context
-from tenancy.infrastructure.models import Usuario
+from tenancy.infrastructure.models import PlanFuncionalidad, Usuario
 from tests.conftest import asignar_rol
 
 
 @pytest.fixture
 def inv(crear_empresa):
-    """Empresa con unidades, almacén "Principal", la malta (KG) y la IPA en botella (UND)."""
+    """Empresa con todo habilitado (antes de sembrar los roles, que se recortan a lo
+    habilitado), unidades, almacén "Principal", la malta (KG) y la IPA en botella (UND)."""
     empresa = crear_empresa()
+    for f in CATALOGO:
+        PlanFuncionalidad.objects.create(plan=empresa.plan, funcionalidad_id=f)
     admin = asignar_rol(Usuario.objects.create_user("lucia@andina.pe", "x", empresa=empresa))
     sembrar_unidades(empresa.id, admin.id, date.today())
     sembrar_almacen(empresa.id, admin.id, date.today())

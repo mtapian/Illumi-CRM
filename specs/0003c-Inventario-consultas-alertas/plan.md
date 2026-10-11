@@ -1,55 +1,63 @@
 # Plan 0003c — Inventario: stock, kardex y alertas
 
-Estado: borrador
+Estado: implementado (2026-10-10)
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 
-Contexto: `src/inventory`. Es el núcleo transaccional: compras, producción y ventas **solo** cambian stock a través de su fachada `InventarioService` (constitución art. 4). Requiere: 0003a.
+Contexto: `src/inventory`. Solo consultas: no cambia stock. Los datos ya existen (0003a).
 
 ## 1. Archivos y responsabilidades
 
 | Archivo | Responsabilidad | RF |
 |---|---|---|
-| `src/inventory/domain/lotes.py` | `lote_vencido`, `lotes_por_vencer` con `hoy` | RF-INV-15, 16 |
-| `src/inventory/domain/errores.py` | `StockInsuficiente`, `LoteVencido`, `AnulacionConConsumoPosterior`, `CostoRequerido`, `SaldoInicialNoPermitido`… | todos los `SI … ENTONCES` |
-| `src/inventory/application/consultas.py` | `ConsultarStock`, `ConsultarKardex`, `ProductosBajoMinimo`, `LotesPorVencer`, `DiferenciasDeConteo` | RF-INV-04 a 07, 14 a 16 |
-| `src/inventory/infrastructure/models.py`, `repositorios.py` | Modelos y repositorios con locks en el orden de 0000 §5 | §2 |
-| `src/inventory/infrastructure/sql/*.sql` | `trg_movimiento_inmutable`, `vw_kardex`, `vw_stock_valorizado` | RF-INV-04, 06 |
-| `src/inventory/interfaces/views/*.py` + `templates/inventory/*.html` | Pantallas de §5 | RF-INV-04 a 07, 14 a 16 |
+| `src/inventory/domain/lotes.py` | Se agregan `por_vencer(vencimiento, dias, hoy)` y `dias_restantes(vencimiento, hoy)` | RF-INV-15, 16 |
+| `src/inventory/domain/alertas.py` | `bajo_minimo(stock_total, minimo)`: `minimo > 0 and stock_total ≤ minimo` | RF-INV-14 |
+| `src/inventory/infrastructure/consultas.py` | Consultas de lectura con el ORM: stock por producto con detalle por almacén y lote y valorización por categoría; kardex filtrado y paginado por cursor (`id`); productos bajo mínimo; lotes por vencer y vencidos con stock | RF-INV-04 a 07, 14 a 16 |
+| `src/inventory/infrastructure/models.py` | `ConfigInventario` (días de alerta) | RF-INV-15 |
+| `src/inventory/interfaces/views.py` + plantillas | `/inventario/stock/`, `/inventario/kardex/` (+ CSV), `/inventario/configuracion/` | RF-INV-04 a 07, 15, 16 |
+| `src/shared/interfaces/avisos.py` | Registro de avisos del dashboard (mismo patrón que `menu.py` y `pestanas.py`): cada contexto agrega los suyos con permiso; tenancy los pinta sin conocer al inventario | RF-INV-14, 15, 30 |
+| `src/inventory/interfaces/urls.py` | Registra "Stock bajo" y "Por vencer" (`inventario.stock.ver`) y las opciones de menú | RF-INV-14, 15, 30 |
+| `src/tenancy/interfaces/views/inicio.py` + `dashboard.html` | Pinta `avisos.para(request)` | RF-INV-14, 15 |
+| `src/catalog/interfaces/views.py` | El filtro "stock bajo" del listado de productos pasa a `≤`; conserva su recorrido por el puerto (el catálogo no conoce al inventario; se optimiza si la prueba de rendimiento lo pide) | RF-INV-14, RF-CAT-14 |
 
 ## 2. Modelo de datos
 
 | Tabla | Campos | Restricciones | RF |
 |---|---|---|---|
-| `inventory_lote` | empresa_id, producto_id, codigo, fecha_produccion, fecha_vencimiento null, origen_tipo, origen_id | UNIQUE(empresa_id, producto_id, codigo) | RF-INV-15 |
-| `inventory_stock` | empresa_id, producto_id, almacen_id, lote_id null, cantidad `NUMERIC(14,4)` | UNIQUE NULLS NOT DISTINCT (…); `CHECK cantidad >= 0` | RF-INV-04 |
-| `inventory_movimiento` | empresa_id, fecha `timestamptz`, tipo, motivo, producto_id, almacen_id, lote_id, cantidad, costo_unitario `NUMERIC(14,6)`, costo_total `NUMERIC(14,2)`, saldo_cantidad, saldo_promedio, ref_tipo (`COMPRA`, `AJUSTE`, `OP`, `ENVASADO`, `VENTA`), ref_id, revierte_id null, usuario_id | `UNIQUE(revierte_id) WHERE NOT NULL`; trigger de inmutabilidad | RF-INV-06 |
-| `inventory_config` | empresa_id, dias_alerta_vencimiento (30) | UNIQUE(empresa_id) | RF-INV-15 |
+| `inventory_configinventario` | empresa_id, dias_alerta_vencimiento (30) | UNIQUE(empresa_id); CHECK 1 ≤ días ≤ 365; la fila se crea al guardar (sin fila = 30) | RF-INV-15 |
+| índices | `inventory_movimiento (empresa_id, producto_id, id)` y `(empresa_id, fecha)`; el stock ya tiene el índice único `(empresa, producto, almacén, lote)` | para RNF-INV-02 | RNF-INV-02 |
+
+Lote, stock y movimiento ya existen (0003a).
 
 ## 3. Funciones puras
 
 | Función | Qué hace | RF |
 |---|---|---|
-| `lote_vencido(fecha_vencimiento, hoy) -> bool` | `fecha_vencimiento is not None and fecha_vencimiento < hoy` | RF-INV-16 |
-| `lotes_por_vencer(lotes_con_stock, dias, hoy) -> list` | `hoy ≤ vencimiento ≤ hoy + dias` | RF-INV-15 |
-| `bajo_minimo(stock_total, minimo) -> bool` | `stock_total ≤ minimo` | RF-INV-14 |
+| `lote_vencido(vencimiento, hoy)` | Ya existe (0003a) | RF-INV-16 |
+| `por_vencer(vencimiento, dias, hoy) -> bool` | `vencimiento is not None and hoy ≤ vencimiento ≤ hoy + dias` | RF-INV-15 |
+| `dias_restantes(vencimiento, hoy) -> int` | `(vencimiento − hoy).days` | RF-INV-15 |
+| `bajo_minimo(stock_total, minimo) -> bool` | `minimo > 0 and stock_total ≤ minimo` | RF-INV-14 |
 
 ## 4. Algoritmos clave
 
-Sin algoritmos no triviales: la lógica está en las funciones puras de §3.
+Sin algoritmos no triviales. El kardex pagina por cursor (`id > último`) para no contar 100 000 filas.
 
 ## 5. Interfaz
 
 | Ruta | Qué se pinta | RF |
 |---|---|---|
-| `/inventario/stock` | Tabla por producto con desplegable por almacén y lote (vencimiento en rojo si vencido), costo y valor (ocultos sin `inventario.costo.ver`); totales por tipo; filtros | RF-INV-04, 05, 16 |
-| `/inventario/kardex?producto=` | Tabla paginada por cursor con enlace al documento; saldos solo con producto elegido; exportar CSV | RF-INV-06, 07 |
-| Dashboard: avisos "Stock bajo" y "Por vencer" | Listas cortas con enlace al producto o lote | RF-INV-14, 15 |
+| `/inventario/stock/` | Listado (buscador y filtros de RF-INV-05): producto, stock total, costo promedio, valor; detalle desplegable por almacén y lote (`<details>`, sin JS) con vencimiento en rojo si vencido; totales por categoría y general; costos ocultos sin `inventario.costo.ver` | RF-INV-04, 05, 16 |
+| `/inventario/kardex/?producto=…` | Tabla con filtros de RF-INV-07, 50 filas por página por cursor, enlace al ajuste de origen, saldos solo con producto; "Exportar CSV" con los mismos filtros | RF-INV-06, 07 |
+| `/inventario/configuracion/` | Días de alerta de vencimiento | RF-INV-15 |
+| Dashboard | Tarjetas "Stock bajo" (producto, stock y mínimo) y "Por vencer" (lote, producto, días o "Vencido" en rojo), con enlace al stock o al kardex | RF-INV-14 a 16, 30 |
 
 ## 6. Decisiones técnicas
 
 | Decisión | Alternativa descartada | Motivo |
 |---|---|---|
+| Consultas con el ORM y dos índices | Vistas SQL `vw_kardex`, `vw_stock_valorizado` | Menos objetos que mantener; se pasa a vistas si la prueba de rendimiento lo pide (art. 7.6) |
+| Registro de avisos en `shared/interfaces` | Que tenancy consulte al inventario | Tenancy no depende de los contextos de arriba (contratos de import-linter) |
+| Días de alerta en una tabla del inventario | Ajuste de empresa de 0001b | Es un dato del inventario, sin vigencia; no hace falta su historial |
 
 ## 7. Estrategia de tests (pytest)
 
@@ -57,15 +65,18 @@ Comando: `pytest tests/inventory tests/acceptance -k "E03c"`.
 
 | Nivel | Archivo | Qué prueba | RF |
 |---|---|---|---|
-| Integración | `tests/inventory/integration/test_consultas.py` | Stock, kardex, bajo mínimo, por vencer; rendimiento con 100 000 movimientos | RF-INV-04 a 07, 14 a 16, RNF-INV-02 |
+| Unitario | `tests/inventory/unit/test_alertas.py` | `por_vencer`, `dias_restantes`, `bajo_minimo` (mínimo 0, igual al mínimo) | RF-INV-14, 15 |
+| Integración | `tests/inventory/integration/test_consultas.py` | Stock con detalle y valorización por categoría; filtros; kardex con filtros, cursor y CSV; costos ocultos sin permiso; rendimiento con 100 000 movimientos (p95 < 800 ms) | RF-INV-04 a 07, RNF-INV-02, RF-TEN-51 |
+| Integración | `tests/inventory/integration/test_pantallas.py` | Dashboard con avisos y sin ellos para quien no ve stock; configuración de días | RF-INV-14 a 16, 30 |
 | Aceptación | `features/ajustes_lotes_alertas.feature`, `features/costo_y_kardex.feature` | Escenarios de la spec | ver etiquetas `@RF-…` |
 
 ## 8. Cobertura de RF
 
 | RF | Partes del plan |
 |---|---|
-| RF-INV-04, RF-INV-05, RF-INV-06, RF-INV-07 | §1 `consultas.py`, vistas SQL · §5 stock y kardex · §7 `test_consultas.py` |
-| RF-INV-14, RF-INV-15, RF-INV-16 | §1 `lotes.py`, `consultas.py` · §3 `bajo_minimo`, `lotes_por_vencer`, `lote_vencido` · §5 avisos · §7 |
+| RF-INV-04, 05 | §1 `consultas.py` · §5 stock · §7 |
+| RF-INV-06, 07 | §1 `consultas.py` · §2 índices · §5 kardex · §7 |
+| RF-INV-14 a 16, 30 | §1 `alertas.py`, `lotes.py`, `avisos.py` · §2 `ConfigInventario` · §5 dashboard y configuración · §7 |
 
 ## 9. Dependencias de dudas abiertas
 

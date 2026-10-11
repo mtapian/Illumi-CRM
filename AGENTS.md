@@ -4,7 +4,7 @@ Antes de cualquier tarea, lee y respeta:
 
 1. **[docs/constitution.md](docs/constitution.md):** principios no negociables. Gana sobre todo lo demás.
 2. **[MEMORY.md](MEMORY.md):** estado actual: fase de cada spec, decisiones tomadas y pendientes.
-3. **La skill `sdd`** ([.claude/skills/sdd/SKILL.md](.claude/skills/sdd/SKILL.md)): plantillas de spec, plan y tareas.
+3. **La skill `sdd`** ([.agent/skills/sdd/SKILL.md](.agent/skills/sdd/SKILL.md)): plantillas de spec, plan y tareas.
 
 ## 1. Cómo trabajar
 
@@ -20,6 +20,8 @@ docs/constitution.md              ← principios (fase 1 de SDD)
 AGENTS.md                         ← esta guía
 CLAUDE.md                         ← importa docs/constitution.md, AGENTS.md y MEMORY.md
 MEMORY.md                         ← estado y decisiones
+.agent/                           ← agentes, comandos y skills compartidos por las herramientas de IA
+.claude → .agent                  ← enlace simbólico: Claude Code solo lee .claude/
 PRD.md                            ← visión, alcance MVP, RN-GEN, métricas, preguntas Q1…Qn
 specs/
 ├── 0000-Arquitectura/plan.md     ← decisiones técnicas transversales (ADR, capas, tenancy, persistencia)

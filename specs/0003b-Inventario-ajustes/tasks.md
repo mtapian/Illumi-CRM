@@ -42,7 +42,7 @@ Reglas (constitución, art. 8):
 ## Pantalla
 
 - [x] **T9. Crear `/inventario/ajustes/` (nuevo y últimos) y `/inventario/ajustes/<id>/` (detalle y anular).** — RF-INV-08, RF-INV-11, RF-INV-13
-  - Hecho cuando: un test de vista registra un conteo de 3 líneas, el detalle de otra empresa da 404 (ruta en la prueba de aislamiento) y sin `inventario.ajuste.anular` no aparece "Anular" y el servidor lo rechaza.
+  - Hecho cuando: un test de vista registra un conteo de 3 líneas (líneas dinámicas, sin límite: PO 2026-10-10), el detalle de otra empresa da 404 (ruta en la prueba de aislamiento) y sin `inventario.ajuste.anular` no aparece "Anular" y el servidor lo rechaza.
 
 ## Cierre
 

@@ -13,4 +13,7 @@
   </ol>
 </section>
 {% endif %}
+{% if avisos %}<div class="dos-columnas">{% for a in avisos %}
+<section class="tarjeta aviso" aria-label="{{ a.titulo }}"><h2>{{ a.titulo }}</h2>{{ a.html|safe }}</section>
+{% endfor %}</div>{% endif %}
 {% endblock %}

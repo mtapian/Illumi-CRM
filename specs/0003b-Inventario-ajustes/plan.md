@@ -45,7 +45,7 @@ Sin algoritmos no triviales: la lógica está en las funciones puras de §3.
 
 | Ruta | Qué se pinta | RF |
 |---|---|---|
-| `/inventario/ajustes/` (menú "Ajustes de stock") | "Nuevo ajuste" y "Últimos ajustes" en dos tarjetas (referencia visual); formulario por tipo: costo obligatorio en saldo inicial; cantidad contada en conteo (muestra el stock del sistema); almacén destino en transferencia; lote opcional | RF-INV-08 a 12, 27 |
+| `/inventario/ajustes/` (menú "Ajustes de stock") | "Nuevo ajuste" y "Últimos ajustes" en dos tarjetas (referencia visual); una línea por producto, con "+ Agregar producto" y "Quitar" sin límite de líneas; formulario por tipo: costo obligatorio en saldo inicial; cantidad contada en conteo (muestra el stock del sistema); almacén destino en transferencia; lote opcional | RF-INV-08 a 12, 27 |
 | `/inventario/ajustes/<id>/` | Detalle (líneas y movimientos) y botón "Anular" con motivo; ruta agregada a la prueba de aislamiento | RF-INV-13 |
 
 ## 6. Decisiones técnicas
@@ -54,7 +54,7 @@ Sin algoritmos no triviales: la lógica está en las funciones puras de §3.
 |---|---|---|
 | Transferencia como un solo ajuste | Dos ajustes de corrección | Atómica, al mismo costo, sin efecto en resultados |
 | `transferir` no toca `costo_producto` | Salida al promedio + entrada a ese costo | El costo es por producto: mover entre almacenes no cambia el total; así una transferencia que vacía el origen tampoco altera el promedio por redondeo |
-| Sin pantalla HTMX de líneas dinámicas en el MVP | Líneas dinámicas | Un formulario con hasta 10 líneas fijas cubre los conteos del piloto; HTMX cuando haga falta (art. 7.6) |
+| Líneas dinámicas, una por producto, con `<template>` y un script corto en la página (PO, 2026-10-10: "retira los 10 y hazlo dinámico") | 10 líneas fijas; HTMX | El PO necesita agregar los productos que hagan falta; agregar una línea vacía no requiere ir al servidor, así que no se suma HTMX (art. 7.6) |
 
 ## 7. Estrategia de tests (pytest)
 

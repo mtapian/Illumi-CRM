@@ -8,7 +8,7 @@ Característica: Ajustes, lotes, almacenes y alertas
   Antecedentes:
     Dado que soy usuario "almacen" de "Cervecería Andina"
     Y la fecha de hoy es "2026-11-01"
-    Y el producto terminado "TER-IPA-330" con stock por lote en "Principal":
+    Y el bien "TER-IPA-330" que se fabrica y se vende, con stock por lote en "Principal":
       | lote      | vence      | cantidad |
       | IPA-0012  | 2026-10-30 | 10       |
       | IPA-0015  | 2026-12-15 | 48       |
@@ -29,6 +29,21 @@ Característica: Ajustes, lotes, almacenes y alertas
     Entonces el widget "Stock bajo" muestra "ENV-TAPA" con 320 de 500
 
   @UC-INV-02 @RF-INV-04 @RF-INV-05
-  Escenario: Stock valorizado por tipo
-    Cuando consulto el stock con filtro tipo "TERMINADO"
-    Entonces veo cada presentación con su stock total, el detalle por almacén y lote, el costo promedio y el valor total
+  Escenario: Stock valorizado por categoría
+    Dado que "TER-IPA-330" es de la categoría "Cervezas" con costo promedio 4.000000
+    Cuando consulto el stock con el filtro "se fabrica"
+    Entonces veo "TER-IPA-330" con stock 178, costo promedio 4.000000 y valor 712.00
+    Y su detalle muestra los lotes "IPA-0012", "IPA-0015" e "IPA-0018" en "Principal"
+    Y la categoría "Cervezas" suma 712.00
+
+  @UC-INV-02 @borde @RF-INV-04
+  Escenario: Sin permiso de costos no se ven costos ni valor
+    Dado que soy usuario "ventas" de la misma empresa
+    Cuando consulto el stock
+    Entonces veo "TER-IPA-330" con stock 178 y sin costo ni valor
+
+  @UC-INV-05 @borde @RF-INV-14
+  Escenario: Un producto sin stock mínimo no está en stock bajo
+    Dado que "ENV-CHAPA" tiene stock mínimo 0 y stock 0
+    Cuando abro el dashboard
+    Entonces el widget "Stock bajo" no muestra "ENV-CHAPA"

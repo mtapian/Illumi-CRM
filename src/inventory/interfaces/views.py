@@ -1,19 +1,23 @@
 """Pantallas del inventario (plan 0003a §5)."""
 
+import csv
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.db.models import Count, Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.utils import timezone
 
-from catalog.infrastructure.models import Producto
+from catalog.infrastructure.models import Categoria, Producto
 from inventory.application import ajustes as ua
 from inventory.application import almacenes as uc
 from inventory.application.ajustes import LineaAjuste
 from inventory.domain.ajuste import TIPOS
 from inventory.domain.errores import AjusteInvalido
+from inventory.infrastructure import consultas
 from inventory.infrastructure.contenedor import caso_de_ajuste, caso_de_uso
 from inventory.infrastructure.models import Ajuste, Almacen, Movimiento
 from tenancy.interfaces.acceso import requiere
@@ -61,7 +65,7 @@ def almacenes(request):
     return render(request, "inventory/almacenes.html", contexto)
 
 
-LINEAS = 10  # plan 0003b §6: líneas fijas en el MVP
+CAMPOS_LINEA = ("producto", "cantidad", "lote", "vencimiento", "costo", "sentido")
 
 
 def _numero(texto, campo):
@@ -73,21 +77,28 @@ def _numero(texto, campo):
         raise AjusteInvalido(f"{campo} no es un número válido") from None
 
 
+def _filas(post) -> list[dict]:
+    """Las líneas enviadas: una por producto, sin límite (plan 0003b §6). Cada línea manda
+    todos sus campos, así que las listas quedan alineadas."""
+    columnas = [post.getlist(c) for c in CAMPOS_LINEA]
+    return [
+        dict(zip(CAMPOS_LINEA, valores, strict=False)) for valores in zip(*columnas, strict=False)
+    ]
+
+
 def _lineas(post) -> list[LineaAjuste]:
     lineas = []
-    for i in range(LINEAS):
-        producto = post.get(f"producto_{i}", "")
-        if not producto.isdigit():
+    for f in _filas(post):
+        if not f["producto"].isdigit():
             continue
-        vence = post.get(f"vencimiento_{i}")
         lineas.append(
             LineaAjuste(
-                int(producto),
-                _numero(post.get(f"cantidad_{i}"), "La cantidad") or Decimal("0"),
-                _numero(post.get(f"costo_{i}"), "El costo unitario"),
-                post.get(f"lote_{i}", "").strip() or None,
-                date.fromisoformat(vence) if vence else None,
-                post.get(f"sentido_{i}", ""),
+                int(f["producto"]),
+                _numero(f["cantidad"], "La cantidad") or Decimal("0"),
+                _numero(f["costo"], "El costo unitario"),
+                f["lote"].strip() or None,
+                date.fromisoformat(f["vencimiento"]) if f["vencimiento"] else None,
+                f["sentido"],
             )
         )
     return lineas
@@ -116,7 +127,8 @@ def ajustes(request):
         "productos": Producto.objects.filter(activo=True, tipo="BIEN")
         .select_related("unidad")
         .order_by("nombre"),
-        "lineas": range(LINEAS),
+        # Si el ajuste se rechaza, vuelven las líneas ingresadas; si no, una vacía.
+        "filas": (_filas(request.POST) if request.method == "POST" else []) or [{}],
         "valores": request.POST if request.method == "POST" else {},
         "ultimos": Ajuste.objects.select_related("almacen").order_by("-numero")[:15],
         "migas": MIGAS + [("Ajustes", None)],
@@ -146,3 +158,101 @@ def ajuste(request, ajuste_id):
         "migas": MIGAS + [("Ajustes", "/inventario/ajustes/"), (f"N.° {fila.numero}", None)],
     }
     return render(request, "inventory/ajuste.html", contexto)
+
+
+STOCK, KARDEX, COSTO = "inventario.stock.ver", "inventario.kardex.ver", "inventario.costo.ver"
+FILTROS_STOCK = ("q", "casilla", "almacen", "categoria", "stock_bajo", "con_stock")
+FILTROS_KARDEX = ("producto", "almacen", "lote", "motivo", "desde", "hasta")
+
+
+@requiere(STOCK)
+def stock(request):
+    """Stock por producto con detalle por almacén y lote (RF-INV-04, 05, 16)."""
+    filtro = {k: request.GET.get(k, "") for k in FILTROS_STOCK}
+    filas, por_categoria, total = consultas.stock(filtro)
+    contexto = {
+        "filas": filas,
+        "por_categoria": por_categoria,
+        "total": total,
+        "filtro": filtro,
+        "ver_costos": request.actor.puede(COSTO),  # RF-TEN-51
+        "hoy": timezone.localdate(),
+        "casillas": [(c, c.replace("_", " ").capitalize()) for c in consultas.CASILLAS],
+        "almacenes": Almacen.objects.order_by("nombre"),
+        "categorias": Categoria.objects.order_by("nombre"),
+        "migas": MIGAS + [("Stock", None)],
+    }
+    return render(request, "inventory/stock.html", contexto)
+
+
+ENCABEZADO = ["fecha", "tipo", "motivo", "documento", "producto", "almacen", "lote", "cantidad"]
+COSTOS = ["costo_unitario", "costo_total"]
+SALDOS = ["saldo", "promedio"]
+
+
+def _documento(m):
+    return f"{m.ref_tipo} {m.ref_id}" if m.ref_id else m.ref_tipo
+
+
+@requiere(KARDEX)
+def kardex(request):
+    """Kardex con filtros y cursor; saldos solo con producto (RF-INV-06, 07)."""
+    filtro = {k: request.GET.get(k, "") for k in FILTROS_KARDEX}
+    ver_costos, con_producto = request.actor.puede(COSTO), filtro["producto"].isdigit()
+    if request.GET.get("formato") == "csv":
+        respuesta = HttpResponse(content_type="text/csv; charset=utf-8")
+        respuesta["Content-Disposition"] = 'attachment; filename="kardex.csv"'
+        escritor = csv.writer(respuesta)
+        escritor.writerow(
+            ENCABEZADO + (COSTOS if ver_costos else []) + (SALDOS if con_producto else [])
+        )
+        for m in consultas.kardex(filtro, limite=None).iterator():
+            fila = [timezone.localtime(m.fecha).isoformat(timespec="seconds"), m.tipo, m.motivo]
+            fila += [
+                _documento(m),
+                m.producto.sku,
+                m.almacen.nombre,
+                m.lote.codigo if m.lote else "",
+            ]
+            fila += [m.cantidad] + ([m.costo_unitario, m.costo_total] if ver_costos else [])
+            if con_producto:
+                fila += [m.saldo_cantidad] + ([m.saldo_promedio] if ver_costos else [""])
+            escritor.writerow(fila)
+        return respuesta
+    despues = request.GET.get("despues", "")
+    movimientos = consultas.kardex(filtro, int(despues) if despues.isdigit() else None)
+    contexto = {
+        "movimientos": movimientos,
+        "filtro": filtro,
+        "ver_costos": ver_costos,
+        "con_producto": con_producto,
+        "siguiente": movimientos[-1].id if len(movimientos) == 50 else None,
+        "consulta": "&".join(f"{k}={v}" for k, v in filtro.items() if v),
+        "productos": Producto.objects.filter(tipo="BIEN").order_by("nombre"),
+        "almacenes": Almacen.objects.order_by("nombre"),
+        "migas": MIGAS + [("Kardex", None)],
+    }
+    return render(request, "inventory/kardex.html", contexto)
+
+
+@requiere(uc.GESTIONAR)
+def configuracion(request):
+    """Días de alerta de vencimiento (RF-INV-15)."""
+    if request.method == "POST":
+        dias = request.POST.get("dias", "")
+        caso = caso_de_uso(uc.GuardarDiasAlerta)
+        if _intentar(request, lambda: caso.ejecutar(request.actor, int(dias or 0))):
+            messages.success(request, "Cambio guardado.")
+            return redirect(request.path)
+    contexto = {"dias": consultas.dias_alerta(), "migas": MIGAS + [("Configuración", None)]}
+    return render(request, "inventory/configuracion.html", contexto)
+
+
+def aviso_stock_bajo(request):
+    filas = consultas.bajo_minimo_productos()
+    return render_to_string("inventory/_aviso_stock_bajo.html", {"filas": filas})
+
+
+def aviso_por_vencer(request):
+    lotes = consultas.lotes_en_alerta(timezone.localdate())
+    return render_to_string("inventory/_aviso_por_vencer.html", {"lotes": lotes})

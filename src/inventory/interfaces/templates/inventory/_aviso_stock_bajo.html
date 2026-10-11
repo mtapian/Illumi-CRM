@@ -1,0 +1,2 @@
+{% if filas %}<ul>{% for p, total in filas %}<li data-sku="{{ p.sku }}"><a href="{% url 'stock' %}?q={{ p.sku|urlencode }}">{{ p.sku }} · {{ p.nombre }}</a>: {{ total|floatformat:"-4" }} de {{ p.stock_minimo|floatformat:"-4" }}</li>{% endfor %}</ul>
+{% else %}<p class="subtitulo">Ningún producto bajo su stock mínimo.</p>{% endif %}

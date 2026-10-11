@@ -61,6 +61,7 @@ La cervecera vende sobre todo a pedido (bares, restaurantes, distribuidores) y e
 - RF-VEN-28: SI en una línea pagada el ISC deja el valor de venta en 0 o menos, ENTONCES EL SISTEMA rechaza la línea. No aplica a las entregas gratuitas.
 - RF-VEN-29: SI el mismo formulario de venta se envía dos veces, ENTONCES EL SISTEMA registra una sola venta.
 - RF-VEN-30: CUANDO se registra una entrega gratuita (precio 0) con motivo, EL SISTEMA calcula ISC (litros × tarifa vigente) e IGV sobre el valor referencial, la informa como transferencia gratuita y el cliente paga 0 (épica 0007, RN-FAC-11). La línea gratuita puede ir sola o junto a líneas pagadas, en el comprobante que corresponda al cliente (factura si tiene RUC, boleta en otro caso).
+  - *Ajuste pendiente por 0002e (borrador):* el motivo de la entrega gratuita se elige de una lista cerrada que define el código de afectación del comprobante: degustación o muestras (`14`), regalo vinculado a una venta (`15`), regalo a trabajadores (`16`) y retiro sin sustento (`13`); `21` si el producto es exonerado. El ISC se calcula con el impuesto ISC del producto (0002e), ya no con litros × tarifa.
 - RF-VEN-31: CUANDO se registra una venta, EL SISTEMA permite imprimir el comprobante en A4 o ticket de 80 mm.
 
 ## Requisitos no funcionales

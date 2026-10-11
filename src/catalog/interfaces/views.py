@@ -76,7 +76,7 @@ def productos(request):
         bajos = [
             p.id
             for p in filas.filter(stock_minimo__gt=0)
-            if puertos.inventario.stock(p.id) < p.stock_minimo
+            if puertos.inventario.stock(p.id) <= p.stock_minimo  # RF-INV-14
         ]
         filas = filas.filter(pk__in=bajos)
     pagina = Paginator(filas, POR_PAGINA).get_page(g.get("pagina"))

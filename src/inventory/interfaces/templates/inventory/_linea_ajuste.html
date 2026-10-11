@@ -1,0 +1,9 @@
+<tr>
+  <td><select name="producto" aria-label="Producto"><option value="">—</option>{% for p in productos %}<option value="{{ p.id }}"{% if f.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select></td>
+  <td><input name="cantidad" type="number" min="0" step="0.0001" value="{{ f.cantidad|default:'' }}" aria-label="Cantidad"></td>
+  <td><input name="lote" maxlength="40" value="{{ f.lote|default:'' }}" aria-label="Lote"></td>
+  <td><input name="vencimiento" type="date" value="{{ f.vencimiento|default:'' }}" aria-label="Vencimiento"></td>
+  <td><input name="costo" type="number" min="0" step="0.000001" value="{{ f.costo|default:'' }}" aria-label="Costo unitario"></td>
+  <td><select name="sentido" aria-label="Sentido"><option value="">—</option><option value="ENTRADA"{% if f.sentido == "ENTRADA" %} selected{% endif %}>Entrada</option><option value="SALIDA"{% if f.sentido == "SALIDA" %} selected{% endif %}>Salida</option></select></td>
+  <td><button type="button" class="btn-icono peligro" onclick="quitarLinea(this)" aria-label="Quitar línea">Quitar</button></td>
+</tr>

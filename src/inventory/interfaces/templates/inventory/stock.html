@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% comment %}Stock por producto (RF-INV-04, 05, 16): detalle por almacén y lote con <details>,
+sin JS; los costos solo con inventario.costo.ver (RF-TEN-51).{% endcomment %}
+{% block titulo %}Stock{% endblock %}
+{% block contenido %}
+<h1>Stock</h1>
+{% include "catalog/_migas.html" %}
+<form method="get" class="tarjeta filtros dos-columnas">
+  <label>Buscar<input type="search" name="q" value="{{ filtro.q }}" placeholder="SKU o nombre"></label>
+  <label>Gestión<select name="casilla"><option value="">Todas</option>{% for c, e in casillas %}<option value="{{ c }}"{% if filtro.casilla == c %} selected{% endif %}>{{ e }}</option>{% endfor %}</select></label>
+  <label>Almacén<select name="almacen"><option value="">Todos</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if filtro.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
+  <label>Categoría<select name="categoria"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c.id }}"{% if filtro.categoria == c.id|stringformat:"s" %} selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></label>
+  <label class="check"><input type="checkbox" name="stock_bajo" value="1"{% if filtro.stock_bajo %} checked{% endif %}> Solo stock bajo</label>
+  <label class="check"><input type="checkbox" name="con_stock" value="1"{% if filtro.con_stock %} checked{% endif %}> Solo con stock</label>
+  <p><button type="submit">Filtrar</button></p>
+</form>
+<div class="tarjeta tabla">
+<table><thead><tr><th>Producto</th><th>Stock</th>{% if ver_costos %}<th>Costo promedio</th><th>Valor</th>{% endif %}</tr></thead><tbody>
+{% for f in filas %}<tr id="fila-{{ f.producto.sku }}">
+  <td><details><summary><strong>{{ f.producto.sku }}</strong> · {{ f.producto.nombre }}</summary>
+    {% if f.detalle %}<ul class="detalle-stock">{% for almacen, lote, vence, cantidad in f.detalle %}
+      <li>{{ almacen }} · {% if lote %}lote {{ lote }}{% if vence %} · vence {{ vence|date:"Y-m-d" }}{% if vence < hoy %} <span class="chip error">Vencido</span>{% endif %}{% endif %}{% else %}sin lote{% endif %}: {{ cantidad|floatformat:"-4" }}</li>
+    {% endfor %}</ul>{% else %}<p class="subtitulo">Sin stock.</p>{% endif %}</details></td>
+  <td>{{ f.cantidad|floatformat:"-4" }} {{ f.producto.unidad.abreviatura }}</td>
+  {% if ver_costos %}<td>{{ f.promedio }}</td><td>{{ f.valor|floatformat:2 }}</td>{% endif %}
+</tr>{% empty %}<tr><td colspan="4" class="subtitulo">Sin resultados.</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% if ver_costos %}<section class="tarjeta"><h2>Valorización</h2><table><tbody>
+{% for categoria, valor in por_categoria.items %}<tr id="categoria-{{ categoria|slugify }}"><td>{{ categoria }}</td><td>{{ valor|floatformat:2 }}</td></tr>{% endfor %}
+<tr><td><strong>Total</strong></td><td><strong>{{ total|floatformat:2 }}</strong></td></tr>
+</tbody></table></section>{% endif %}
+{% endblock %}

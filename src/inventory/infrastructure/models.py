@@ -120,6 +120,10 @@ class Movimiento(TenantModel):
                 name="movimiento_valores_validos",
             ),
         ]
+        indexes = [  # RNF-INV-02: kardex por producto y por fechas
+            models.Index(fields=["empresa", "producto", "id"], name="mov_empresa_producto"),
+            models.Index(fields=["empresa", "fecha"], name="mov_empresa_fecha"),
+        ]
 
 
 class Ajuste(TenantModel):
@@ -173,4 +177,19 @@ class AjusteLinea(TenantModel):
     class Meta:
         constraints = [
             models.CheckConstraint(condition=Q(cantidad__gte=0), name="ajuste_linea_cantidad")
+        ]
+
+
+class ConfigInventario(TenantModel):
+    """Días de alerta de vencimiento de la empresa; sin fila valen 30 (RF-INV-15)."""
+
+    dias_alerta_vencimiento = models.IntegerField(default=30)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["empresa"], name="config_inventario_unica"),
+            models.CheckConstraint(
+                condition=Q(dias_alerta_vencimiento__gte=1, dias_alerta_vencimiento__lte=365),
+                name="dias_alerta_entre_1_y_365",
+            ),
         ]

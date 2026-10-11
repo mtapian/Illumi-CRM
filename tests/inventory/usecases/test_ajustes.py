@@ -22,9 +22,7 @@ from inventory.infrastructure.models import (
     Movimiento,
     Stock,
 )
-from shared.domain.accesos import CATALOGO
 from tenancy.infrastructure.contenedor import actor_de
-from tenancy.infrastructure.models import PlanFuncionalidad
 
 pytestmark = pytest.mark.django_db
 HOY = date(2026, 11, 1)
@@ -32,8 +30,6 @@ HOY = date(2026, 11, 1)
 
 @pytest.fixture
 def actor(inv):
-    for f in CATALOGO:
-        PlanFuncionalidad.objects.create(plan=inv["empresa"].plan, funcionalidad_id=f)
     return actor_de(inv["admin"], date.today())
 
 

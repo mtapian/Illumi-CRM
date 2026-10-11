@@ -517,3 +517,181 @@ def mismo_costo(ctx, c):
 @then(re_("la transferencia no aparece en {} del estado de resultados", "seccion"))
 def fuera_de_resultados(ctx, seccion):
     pytest.skip("Parcial; pendiente: el estado de resultados es de 0008b")
+
+
+# --- Consultas y alertas (0003c) ---
+
+
+def pagina(client, ctx, url):
+    ctx["html"] = contenido(como(client, ctx.get("email", EMAIL)).get(url))
+    return ctx["html"]
+
+
+def widget(ctx, titulo):
+    return ctx["html"].split(f'aria-label="{titulo}"')[1].split("</section>")[0]
+
+
+@given(re_(r"que el umbral de alerta de vencimiento es (?P<n>\d+) días"))
+def umbral(ctx, n):
+    from inventory.infrastructure.models import ConfigInventario
+
+    ConfigInventario.all_tenants.create(empresa=ctx["empresa"], dias_alerta_vencimiento=int(n))
+
+
+@when("abro el dashboard")
+def abro_dashboard(client, ctx):
+    with tenant_context(ctx["empresa"].id):  # los avisos usan la fecha de hoy del escenario
+        from unittest import mock
+
+        with mock.patch("django.utils.timezone.localdate", return_value=hoy(ctx)):
+            pagina(client, ctx, "/dashboard/")
+
+
+@then(re_(r'el widget "Por vencer" muestra el lote {} con (?P<n>\d+) días restantes', "lote"))
+def por_vencer_muestra(ctx, lote, n):
+    item = widget(ctx, "Por vencer").split(f'data-lote="{lote}"')[1].split("</li>")[0]
+    assert f"{n} días restantes" in item
+
+
+@then(re_("muestra el lote {} como {}", "lote", "estado"))
+def lote_como(ctx, lote, estado):
+    item = widget(ctx, "Por vencer").split(f'data-lote="{lote}"')[1].split("</li>")[0]
+    assert estado in item
+
+
+@then(re_("no muestra el lote {}", "lote"))
+def no_muestra_lote(ctx, lote):
+    assert f'data-lote="{lote}"' not in widget(ctx, "Por vencer")
+
+
+@given(re_(r"que {} tiene stock mínimo (?P<m>\d+) y stock (?P<n>\d+)", "sku"))
+def minimo_y_stock(ctx, sku, m, n):
+    crear_directo(ctx, sku, u="UND", stock_minimo=int(m))
+    if int(n):
+        mover(ctx, "ENTRADA", "SALDO_INICIAL", sku, n, "0.10")
+
+
+@then(re_(r'el widget "Stock bajo" muestra {} con (?P<n>\d+) de (?P<m>\d+)', "sku"))
+def stock_bajo_muestra(ctx, sku, n, m):
+    item = widget(ctx, "Stock bajo").split(f'data-sku="{sku}"')[1].split("</li>")[0]
+    assert f"{n} de {m}" in item
+
+
+@then(re_('el widget "Stock bajo" no muestra {}', "sku"))
+def stock_bajo_no_muestra(ctx, sku):
+    assert f'data-sku="{sku}"' not in widget(ctx, "Stock bajo")
+
+
+@given(re_(r"que {} es de la categoría {} con costo promedio (?P<p>[\d.]+)", "sku", "cat"))
+def de_categoria(ctx, sku, cat, p):
+    from catalog.infrastructure.models import Categoria
+
+    categoria = Categoria.all_tenants.create(empresa=ctx["empresa"], nombre=cat)
+    producto(ctx, sku).__class__.all_tenants.filter(pk=producto(ctx, sku).pk).update(
+        categoria=categoria
+    )
+    assert costo(ctx, sku).costo_promedio == D(p)
+
+
+@when(re_('consulto el stock con el filtro "se fabrica"'))
+def stock_se_fabrica(client, ctx):
+    pagina(client, ctx, "/inventario/stock/?casilla=se_fabrica")
+
+
+@when("consulto el stock")
+def consulto_stock(client, ctx):
+    pagina(client, ctx, "/inventario/stock/")
+
+
+def fila_stock(ctx, sku):
+    return ctx["html"].split(f'id="fila-{sku}"')[1].split("</tr>")[0]
+
+
+@then(
+    re_(
+        r"veo {} con stock (?P<n>\d+), costo promedio (?P<p>[\d.]+) y valor (?P<v>[\d.]+)",
+        "sku",
+    )
+)
+def veo_stock_con_costos(ctx, sku, n, p, v):
+    f = fila_stock(ctx, sku)
+    assert f"{n} UND" in f and p in f and v in f
+
+
+@then(re_("su detalle muestra los lotes {}, {} e {} en {}", "a", "b", "c", "alm"))
+def detalle_lotes(ctx, a, b, c, alm):
+    f = fila_stock(ctx, ctx["sku"])
+    assert all(f"{alm} · lote {lote}" in f for lote in (a, b, c))
+
+
+@then(re_(r"la categoría {} suma (?P<v>[\d.]+)", "cat"))
+def categoria_suma(ctx, cat, v):
+    assert f"<td>{cat}</td><td>{v}</td>" in ctx["html"]
+
+
+@given(re_('que soy usuario "ventas" de la misma empresa'))
+def soy_ventas(ctx):
+    ctx["email"] = "ventas@andina.pe"
+    crear_usuario(ctx["email"], ctx["empresa"], "Ventas")
+
+
+@then(re_(r"veo {} con stock (?P<n>\d+) y sin costo ni valor", "sku"))
+def veo_sin_costos(ctx, sku, n):
+    f = fila_stock(ctx, sku)
+    assert f"{n} UND" in f and "4.000000" not in f and "Valorización" not in ctx["html"]
+
+
+@given(re_(r"que {} tiene (?P<n>\d+) movimientos en distintos almacenes", "sku"))
+def n_movimientos(ctx, sku, n):
+    import random
+
+    azar = random.Random(7)
+    almacen(ctx, "Taproom")
+    mover(ctx, "ENTRADA", "SALDO_INICIAL", sku, "100", "4")
+    while movimientos(ctx, sku).count() < int(n):  # una salida sin stock no cuenta
+        alm = azar.choice(["Principal", "Taproom"])
+        if azar.random() < 0.5:
+            mover(ctx, "ENTRADA", "COMPRA", sku, str(azar.randint(1, 20)), "4.5", alm=alm)
+        else:
+            mover(ctx, "SALIDA", "CONSUMO_OP", sku, str(azar.randint(1, 5)), alm=alm)
+    ctx["textos"] = None
+    assert movimientos(ctx, sku).count() == int(n)
+
+
+def kardex_csv(client, ctx, sku, almacen_id=""):
+    url = f"/inventario/kardex/?producto={producto(ctx, sku).id}&almacen={almacen_id}&formato=csv"
+    import csv
+    import io
+
+    return list(csv.DictReader(io.StringIO(contenido(como(client, EMAIL).get(url)))))
+
+
+@then("la suma de entradas menos salidas del kardex es igual al stock total")
+def suma_igual_stock(client, ctx):
+    filas = kardex_csv(client, ctx, ctx["sku"])
+    neto = sum(D(f["cantidad"]) * (1 if f["tipo"] == "ENTRADA" else -1) for f in filas)
+    assert neto == costo(ctx, ctx["sku"]).cantidad_total
+    ctx["filas_kardex"] = filas
+
+
+@then("el último saldo de promedio del kardex es igual al costo promedio actual")
+def ultimo_promedio(ctx):
+    assert D(ctx["filas_kardex"][-1]["promedio"]) == costo(ctx, ctx["sku"]).costo_promedio
+
+
+@when(re_("exporto a CSV el kardex de {} del almacén {}", "sku", "alm"))
+def exporto_csv(client, ctx, sku, alm):
+    ctx["csv"] = kardex_csv(client, ctx, sku, almacen(ctx, alm))
+
+
+@then(
+    re_(
+        "el CSV tiene una fila por cada movimiento de {} en {}, con su saldo y promedio",
+        "sku",
+        "alm",
+    )
+)
+def csv_filas(ctx, sku, alm):
+    esperado = movimientos(ctx, sku).filter(almacen_id=almacen(ctx, alm)).count()
+    assert len(ctx["csv"]) == esperado > 0
+    assert all(f["almacen"] == alm and f["saldo"] and f["promedio"] for f in ctx["csv"])

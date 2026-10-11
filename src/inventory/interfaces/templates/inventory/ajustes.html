@@ -1,8 +1,19 @@
 {% extends "base.html" %}
 {% comment %}Ajustes de stock (plan 0003b §5): "Nuevo ajuste" a la izquierda y "Últimos ajustes" a
-la derecha. En CONTEO la cantidad es lo contado; en CORRECCION se indica entrada o salida; el
+la derecha; una línea por producto, todas las que hagan falta (§6). En CONTEO la cantidad es lo contado; en CORRECCION se indica entrada o salida; el
 costo solo se pide en entradas (obligatorio en SALDO_INICIAL).{% endcomment %}
-{% block titulo %}Ajustes de stock{% endblock %}
+{% block titulo %}Ajustes de stock<script>
+  // Una línea por producto, sin límite (plan 0003b §6): copia la plantilla y quita filas.
+  function agregarLinea() {
+    const fila = document.getElementById("linea-vacia").content.cloneNode(true);
+    document.getElementById("lineas").appendChild(fila);
+  }
+  function quitarLinea(boton) {
+    const lineas = document.getElementById("lineas");
+    if (lineas.rows.length > 1) boton.closest("tr").remove();
+  }
+</script>
+{% endblock %}
 {% block contenido %}
 <h1>Ajustes de stock</h1>
 {% include "catalog/_migas.html" %}
@@ -16,16 +27,10 @@ costo solo se pide en entradas (obligatorio en SALDO_INICIAL).{% endcomment %}
       <label>Destino (solo transferencia)<select name="destino"><option value="">—</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.destino == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
       <label>Motivo<input name="motivo" required maxlength="200" value="{{ valores.motivo|default:'' }}"></label>
     </div>
-    <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad (en conteo, lo contado)</th><th>Lote</th><th>Vence</th><th>Costo unit.</th><th>Corrección</th></tr></thead><tbody>
-    {% for i in lineas %}<tr>
-      <td><select name="producto_{{ i }}" aria-label="Producto {{ forloop.counter }}"><option value="">—</option>{% for p in productos %}<option value="{{ p.id }}">{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select></td>
-      <td><input name="cantidad_{{ i }}" type="number" min="0" step="0.0001" aria-label="Cantidad {{ forloop.counter }}"></td>
-      <td><input name="lote_{{ i }}" maxlength="40" aria-label="Lote {{ forloop.counter }}"></td>
-      <td><input name="vencimiento_{{ i }}" type="date" aria-label="Vencimiento {{ forloop.counter }}"></td>
-      <td><input name="costo_{{ i }}" type="number" min="0" step="0.000001" aria-label="Costo {{ forloop.counter }}"></td>
-      <td><select name="sentido_{{ i }}" aria-label="Sentido {{ forloop.counter }}"><option value="">—</option><option value="ENTRADA">Entrada</option><option value="SALIDA">Salida</option></select></td>
-    </tr>{% endfor %}
-    </tbody></table></div>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad (en conteo, lo contado)</th><th>Lote</th><th>Vence</th><th>Costo unit.</th><th>Corrección</th><th></th></tr></thead>
+    <tbody id="lineas">{% for f in filas %}{% include "inventory/_linea_ajuste.html" %}{% endfor %}</tbody></table></div>
+    <template id="linea-vacia">{% include "inventory/_linea_ajuste.html" with f=None %}</template>
+    <p><button type="button" class="secundario" onclick="agregarLinea()">+ Agregar producto</button></p>
     <p><button type="submit" class="exito">Aplicar ajuste</button></p>
   </form>
 </section>
@@ -38,4 +43,15 @@ costo solo se pide en entradas (obligatorio en SALDO_INICIAL).{% endcomment %}
   </tbody></table></div>
 </section>
 </div>
+<script>
+  // Una línea por producto, sin límite (plan 0003b §6): copia la plantilla y quita filas.
+  function agregarLinea() {
+    const fila = document.getElementById("linea-vacia").content.cloneNode(true);
+    document.getElementById("lineas").appendChild(fila);
+  }
+  function quitarLinea(boton) {
+    const lineas = document.getElementById("lineas");
+    if (lineas.rows.length > 1) boton.closest("tr").remove();
+  }
+</script>
 {% endblock %}

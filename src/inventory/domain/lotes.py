@@ -15,6 +15,15 @@ def lote_vencido(vencimiento: date | None, hoy: date) -> bool:
     return vencimiento is not None and vencimiento < hoy
 
 
+def por_vencer(vencimiento: date | None, dias: int, hoy: date) -> bool:
+    """RF-INV-15: vence entre hoy y hoy + `dias`, ambos inclusive."""
+    return vencimiento is not None and hoy <= vencimiento <= hoy + timedelta(days=dias)
+
+
+def dias_restantes(vencimiento: date, hoy: date) -> int:
+    return (vencimiento - hoy).days
+
+
 def validar_salida_de_lote(e: Existencia, motivo: str, hoy: date) -> None:
     """RF-INV-23 y RF-INV-29: un lote vencido no se vende ni se consume."""
     if lote_vencido(e.vencimiento, hoy) and motivo not in SALEN_VENCIDOS:

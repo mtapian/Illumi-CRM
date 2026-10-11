@@ -13,6 +13,7 @@ from inventory.infrastructure.models import (
     Ajuste,
     AjusteLinea,
     Almacen,
+    ConfigInventario,
     CostoProducto,
     Lote,
     Movimiento,
@@ -144,6 +145,11 @@ class AlmacenesOrm:
 
     def cambiar_estado(self, almacen_id, activo):
         Almacen.objects.filter(pk=almacen_id).update(activo=activo)
+
+    def guardar_dias_alerta(self, dias):
+        ConfigInventario.objects.update_or_create(
+            empresa_id=empresa_actual(), defaults={"dias_alerta_vencimiento": dias}
+        )
 
 
 class AjustesOrm:

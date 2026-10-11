@@ -9,9 +9,7 @@ from django.db import transaction
 from inventory.application.servicio import Linea
 from inventory.infrastructure.contenedor import inventario
 from inventory.infrastructure.models import Almacen
-from shared.domain.accesos import CATALOGO
 from shared.domain.tenant import tenant_context
-from tenancy.infrastructure.models import PlanFuncionalidad
 
 pytestmark = pytest.mark.django_db
 BACKEND = "tenancy.infrastructure.auth_backend.EmailBackend"
@@ -19,8 +17,6 @@ BACKEND = "tenancy.infrastructure.auth_backend.EmailBackend"
 
 @pytest.fixture
 def web(client, inv):
-    for f in CATALOGO:
-        PlanFuncionalidad.objects.create(plan=inv["empresa"].plan, funcionalidad_id=f)
     client.force_login(inv["admin"], BACKEND)
     return client
 
@@ -64,9 +60,15 @@ def test_conteo_de_tres_lineas_y_detalle(web, inv):
                 "SALDO_INICIAL", "AJUSTE", 1, [linea], None, date.today()
             )
     datos = {"tipo": "CONTEO", "almacen": inv["principal"], "motivo": "Inventario mensual"}
-    datos |= {"producto_0": inv["malta"], "cantidad_0": "8"}
-    datos |= {"producto_1": inv["ipa"], "cantidad_1": "10"}
-    datos |= {"producto_2": inv["ipa"], "cantidad_2": "3", "lote_2": "NUEVO", "costo_2": "4"}
+    # Una línea por producto, todas las que hagan falta (PO, 2026-10-10): listas alineadas.
+    datos |= {
+        "producto": [inv["malta"], inv["ipa"], inv["ipa"]],
+        "cantidad": ["8", "10", "3"],
+        "lote": ["", "", "NUEVO"],
+        "vencimiento": ["", "", ""],
+        "costo": ["", "", "4"],
+        "sentido": ["", "", ""],
+    }
     r = web.post("/inventario/ajustes/", datos)
     assert r.status_code == 302, r.content.decode()[:500]
     html = web.get(r.url).content.decode()
@@ -82,8 +84,25 @@ def test_sin_permiso_de_anular_no_ve_el_boton_ni_puede(client, inv, web):
         linea = Linea(inv["malta"], inv["principal"], D("10"), D("4"))
         inventario().registrar_entrada("SALDO_INICIAL", "AJUSTE", 1, [linea], None, date.today())
     datos = {"tipo": "MERMA", "almacen": inv["principal"], "motivo": "Saco roto"}
-    r = web.post("/inventario/ajustes/", datos | {"producto_0": inv["malta"], "cantidad_0": "1"})
+    linea = {"producto": inv["malta"], "cantidad": "1", "lote": "", "vencimiento": ""}
+    r = web.post("/inventario/ajustes/", datos | linea | {"costo": "", "sentido": ""})
     almacen = Usuario.objects.create_user("al@andina.pe", "x", empresa=inv["empresa"])
     client.force_login(asignar_rol(almacen, "Almacén"), BACKEND)
     assert "Anular" not in client.get(r.url).content.decode()
     assert client.post(r.url, {"motivo": "x"}).status_code == 403
+
+
+def test_lineas_dinamicas_sin_limite_y_se_conservan_si_hay_error(web, inv):
+    """0003b, plan §6 (PO, 2026-10-10): se arranca con una línea, se agregan con un botón
+    sin límite y, si el ajuste se rechaza, las líneas ingresadas vuelven a mostrarse."""
+    html = web.get("/inventario/ajustes/").content.decode()
+    assert html.count('name="producto"') == 2  # la línea inicial y la plantilla para agregar
+    assert "+ Agregar producto" in html and "<template" in html
+    n = 15
+    datos = {"tipo": "SALDO_INICIAL", "almacen": inv["principal"], "motivo": "Apertura"}
+    datos |= {"producto": [inv["malta"]] * n, "cantidad": ["1"] * n, "lote": [""] * n}
+    datos |= {"vencimiento": [""] * n, "costo": [""] * n, "sentido": [""] * n}
+    r = web.post("/inventario/ajustes/", datos)  # sin costo: se rechaza
+    html = r.content.decode()
+    assert "requiere un costo unitario mayor a 0" in html
+    assert html.count(f'<option value="{inv["malta"]}" selected>') == n

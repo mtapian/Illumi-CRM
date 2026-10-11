@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titulo %}Configuración de inventario{% endblock %}
+{% block contenido %}
+<h1>Configuración de inventario</h1>
+{% include "catalog/_migas.html" %}
+<section class="tarjeta formulario-maestro">
+  <form method="post">{% csrf_token %}
+    <label>Días de alerta de vencimiento<input name="dias" type="number" min="1" max="365" required value="{{ dias }}"></label>
+    <p class="subtitulo">Los lotes con stock que vencen dentro de estos días aparecen en el aviso "Por vencer" del inicio.</p>
+    <p><button type="submit">Guardar</button></p>
+  </form>
+</section>
+{% endblock %}

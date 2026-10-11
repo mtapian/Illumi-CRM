@@ -7,13 +7,16 @@ specs (stock, productos, compras) queda como pendiente con su motivo.
 
 import re
 from datetime import date
+from decimal import Decimal
 
+from django.db import transaction
 from django.test import Client
 from django.utils import timezone
 from pytest_bdd import given, parsers, then, when
 
 from shared.domain.accesos import CATALOGO, MODULOS, PERMISOS, requeridas
 from shared.domain.errores import AccesoDenegado, FuncionalidadNoDisponible
+from shared.domain.tenant import tenant_context
 from tenancy.domain.permisos import permisos_habilitados
 from tenancy.infrastructure.contenedor import actor_de, plataforma, sembrador_roles
 from tenancy.infrastructure.models import PlanFuncionalidad, Rol, Usuario, UsuarioRol
@@ -376,17 +379,33 @@ def rol_sin(ctx, nombre, permiso, email):
 
 
 @when(re_("{} consulta el stock", "email"))
-def consulta_stock(ctx, email):
-    ctx["pendientes"].append("la pantalla de stock llega con 0003c (el helper se prueba en T20)")
+def consulta_stock(client, ctx, email):
+    """Con un producto con stock en un lote, a costo 4.25 (pantalla de 0003c)."""
+    from catalog.infrastructure.models import Producto, Unidad
+    from inventory.application.servicio import Linea
+    from inventory.infrastructure.contenedor import inventario
+    from inventory.infrastructure.models import Almacen
+
+    with tenant_context(ctx["empresa"].id), transaction.atomic():
+        und = Unidad.objects.get_or_create(
+            abreviatura="UND", defaults={"nombre": "Unidad", "codigo_sunat": "NIU"}
+        )[0]
+        p = Producto.objects.create(sku="ENV-TAPA", nombre="Tapa corona", unidad=und)
+        principal = Almacen.objects.get_or_create(nombre="Principal")[0]
+        linea = Linea(p.id, principal.id, Decimal("120"), Decimal("4.25"), "T-01")
+        inventario().registrar_entrada("SALDO_INICIAL", "AJUSTE", 1, [linea], None, hoy())
+    ctx["pagina"] = como(client, email).get("/inventario/stock/").content.decode()
 
 
 @then("ve cantidades por producto y lote")
-def ve_cantidades():
-    pass  # pendiente: pantalla de stock (0003c)
+def ve_cantidades(ctx):
+    assert "ENV-TAPA" in ctx["pagina"] and "120 UND" in ctx["pagina"]
+    assert "lote T-01" in ctx["pagina"]
 
 
 @then("no ve costo promedio ni valorización")
-def no_ve_costos():
+def no_ve_costos(ctx):
+    assert "4.25" not in ctx["pagina"] and "Valorización" not in ctx["pagina"]
     assert not actor("ana@andina.pe").puede("inventario.costo.ver")
 
 

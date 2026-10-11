@@ -31,6 +31,26 @@ Hoy el IGV es un dato de la empresa y el ISC una tasa por producto; todo product
 - **Sistema del ISC en el comprobante** (catálogo 08 de SUNAT): lo define el criterio: monto fijo = `02` (aplicación del monto fijo); porcentaje = `01` (sistema al valor). Resuelve la duda 01 vs 02.
 - **Afectación del IGV:** lo define el impuesto de tipo IGV, EXO o INA que tiene el producto: gravado (IGV), exonerado (EXO, tasa 0) o inafecto (INA, tasa 0). Es el dato que cada línea del comprobante necesita.
 - **Precio de lista:** incluye los impuestos (sin cambio respecto de 0002a). El desglose separa valor, ISC e IGV.
+- **Código de afectación del IGV en el comprobante** (catálogo 07 de SUNAT, compartido por el PO el 2026-10-10). Lo deriva el sistema del impuesto de afectación del producto y del tipo de línea:
+
+  | Impuesto del producto | Venta onerosa | Entrega gratuita (0006b) |
+  |---|---|---|
+  | IGV (gravado) | `10` | `11` a `16` según el motivo: premio, donación, retiro, publicidad, bonificación, entrega a trabajadores |
+  | EXO (exonerado) | `20` | `21` |
+  | INA (inafecto) | `30` | `31` a `36` según el motivo: bonificación, retiro, muestras médicas, convenio colectivo, premio, publicidad |
+
+  Fuera del MVP: `17` (IVAP), `37` y `40` (exportación).
+
+  **Motivo de la entrega gratuita → código** (PO, 2026-10-10), para un producto gravado:
+
+  | Motivo (lo elige el vendedor en la línea, 0006b) | Tipo de operación | Código |
+  |---|---|---|
+  | Degustación en eventos o muestras | Retiro por publicidad | `14` |
+  | Regalo vinculado a una venta (promoción) | Bonificación | `15` |
+  | Regalo a trabajadores (festividades, metas) | Retiro por entrega a trabajadores | `16` |
+  | Retiro sin sustento publicitario o comercial | Retiro de bienes (general) | `13` |
+
+  Producto exonerado: `21` con cualquier motivo. Producto inafecto (propuesta, a confirmar): degustación `36`, promoción `31`, trabajadores y retiro general `32`.
 
 Orden del cálculo (fijo, no configurable; contador 2026-10-10): primero el ISC; después el IGV sobre valor + ISC. Con un precio que incluye impuestos:
 
@@ -91,4 +111,4 @@ Exportación (EXP), ICBPER, IVAP y OTROS como códigos (se agregan a la lista cu
 
 ## Dudas abiertas
 
-- [NECESITA ACLARACIÓN] **Contador (art. 5.5), antes de aprobar:** (1) códigos de afectación del comprobante para exonerado (20) e inafecto (30) en ventas onerosas; (2) si en compras un insumo exonerado o inafecto cambia el crédito fiscal que registra 0004a; (3) si el ISC se sigue calculando igual en un producto exonerado de IGV; (4) ISC porcentual (al valor): que la base del ISC sea el valor de venta y la del IGV valor + ISC, y que monto fijo = sistema `02` y porcentaje = `01`.
+- [NECESITA ACLARACIÓN] **Contador (art. 5.5), antes de aprobar:** (1) ~~códigos de afectación en ventas onerosas~~ **resuelto con el catálogo 07 de SUNAT (10, 20, 30)**; (1b) ~~código de las entregas gratuitas~~ **resuelto por el PO para productos gravados (13 a 16 según motivo)**; falta confirmar el mapeo propuesto para inafectos (36, 31, 32); (2) si en compras un insumo exonerado o inafecto cambia el crédito fiscal que registra 0004a; (3) si el ISC se sigue calculando igual en un producto exonerado de IGV; (4) ISC porcentual (al valor): que la base del ISC sea el valor de venta y la del IGV valor + ISC, y que monto fijo = sistema `02` y porcentaje = `01`.

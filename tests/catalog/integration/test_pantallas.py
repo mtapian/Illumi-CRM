@@ -284,3 +284,14 @@ def test_sin_permiso_de_isc_no_se_sugiere_el_contenido(client, lucia):
     client.force_login(asignar_rol(produccion, "Producción"), BACKEND)
     campo = contenido(client.get(f"/catalogo/productos/{ipa.id}/").content.decode())
     assert "disabled" in campo and "value=" not in campo
+
+
+def test_stock_bajo_incluye_el_stock_igual_al_minimo(client, lucia, inventario):
+    """RF-INV-14 (0003c): stock bajo es stock ≤ mínimo, solo con mínimo > 0."""
+    with tenant_context(lucia.empresa_id):
+        und = Unidad.objects.get(abreviatura="UND")
+        papa = Producto.objects.create(sku="MER-PAPA", nombre="Papas", unidad=und, stock_minimo=10)
+    inventario.stocks[papa.id] = 10
+    assert "MER-PAPA" in client.get("/catalogo/productos/?stock_bajo=1").content.decode()
+    inventario.stocks[papa.id] = 11
+    assert "MER-PAPA" not in client.get("/catalogo/productos/?stock_bajo=1").content.decode()

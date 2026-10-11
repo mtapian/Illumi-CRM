@@ -15,6 +15,7 @@ class AlmacenesRepo(Protocol):
     def guardar(self, almacen_id: int | None, nombre: str) -> int: ...
     def tiene_stock(self, almacen_id: int) -> bool: ...
     def cambiar_estado(self, almacen_id: int, activo: bool) -> None: ...
+    def guardar_dias_alerta(self, dias: int) -> None: ...
 
 
 class _Base(CasoDeUso):
@@ -50,3 +51,12 @@ class CambiarEstadoAlmacen(_Base):
         if not activo and self._repo.tiene_stock(almacen_id):
             raise AlmacenInvalido("El almacén tiene stock")
         self._repo.cambiar_estado(almacen_id, activo)
+
+
+class GuardarDiasAlerta(_Base):
+    """RF-INV-15: días de alerta de vencimiento de la empresa, de 1 a 365."""
+
+    def ejecutar(self, actor: Actor, dias: int) -> None:
+        if not 1 <= dias <= 365:
+            raise AlmacenInvalido("Los días de alerta deben estar entre 1 y 365")
+        self._repo.guardar_dias_alerta(dias)
