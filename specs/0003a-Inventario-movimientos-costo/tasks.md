@@ -37,13 +37,13 @@ Reglas (constitución, art. 8):
 
 ## Persistencia
 
-- [ ] **T8. Crear los modelos de almacén, lote, stock y costo de producto, con sus constraints.** — RF-INV-19, RF-INV-24
+- [x] **T8. Crear los modelos de almacén, lote, stock y costo de producto, con sus constraints.** — RF-INV-19, RF-INV-24
   - Hecho cuando: un test comprueba `CHECK cantidad >= 0`, `CHECK valor_total >= 0` y la unicidad de stock por producto, almacén y lote.
 
-- [ ] **T9. Crear el modelo de movimiento con el trigger de inmutabilidad y `UNIQUE(revierte_id)`.** — RF-INV-17, RF-INV-20
+- [x] **T9. Crear el modelo de movimiento con el trigger de inmutabilidad y `UNIQUE(revierte_id)`.** — RF-INV-17, RF-INV-20
   - Hecho cuando: "El kardex es inmutable" está en verde y una segunda reversión del mismo movimiento falla en la base de datos.
 
-- [ ] **T10. Crear el sembrador del almacén "Principal" y registrarlo en 0001a.** — RF-INV-01
+- [x] **T10. Crear el sembrador del almacén "Principal" y registrarlo en 0001a.** — RF-INV-01
   - Hecho cuando: después de registrar una empresa existe el almacén "Principal".
 
 ## Servicio de inventario

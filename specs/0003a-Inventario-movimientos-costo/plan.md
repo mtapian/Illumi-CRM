@@ -27,11 +27,11 @@ Contexto: `src/inventory`. Es el núcleo transaccional: compras, producción y v
 
 | Tabla | Campos | Restricciones | RF |
 |---|---|---|---|
-| `inventory_almacen` | empresa_id, nombre, activo | UNIQUE(empresa_id, nombre) | RF-INV-01 a 03 |
-| `inventory_lote` | empresa_id, producto_id, codigo, fecha_produccion, fecha_vencimiento null, origen_tipo, origen_id | UNIQUE(empresa_id, producto_id, codigo); lote de cualquier bien (RF-CAT-40) | RF-INV-22, 26 |
+| `inventory_almacen` | empresa_id, nombre, activo | UNIQUE(empresa_id, lower(nombre)); la migración crea "Principal" a las empresas que ya existían | RF-INV-01 a 03 |
+| `inventory_lote` | empresa_id, producto_id, codigo, fecha_ingreso (de ingreso o de producción), fecha_vencimiento null, origen_tipo, origen_id | UNIQUE(empresa_id, producto_id, codigo); lote de cualquier bien (RF-CAT-40) | RF-INV-22, 26 |
 | `inventory_stock` | empresa_id, producto_id, almacen_id, lote_id null, cantidad `NUMERIC(14,4)` | UNIQUE NULLS NOT DISTINCT (…); `CHECK cantidad >= 0` | RF-INV-19 |
-| `inventory_costo_producto` | empresa_id, producto_id, cantidad_total, valor_total `NUMERIC(14,2)`, costo_promedio `NUMERIC(14,6)` | UNIQUE(empresa_id, producto_id); `CHECK valor_total >= 0`; la fila se crea con el primer movimiento (`asegurar_costo_producto`), porque el catálogo no conoce al inventario | RF-INV-18, 24 |
-| `inventory_movimiento` | empresa_id, fecha `timestamptz`, tipo, motivo, producto_id, almacen_id, lote_id, cantidad, costo_unitario `NUMERIC(14,6)`, costo_total `NUMERIC(14,2)`, saldo_cantidad, saldo_promedio, ref_tipo (`COMPRA`, `AJUSTE`, `OP`, `VENTA`; el envasado lo reemplaza la OP, 0005a), ref_id, revierte_id null, usuario_id | `UNIQUE(revierte_id) WHERE NOT NULL`; trigger de inmutabilidad | RF-INV-17, 20 |
+| `inventory_costo_producto` | empresa_id, producto_id, cantidad_total, valor_total `NUMERIC(14,2)`, costo_promedio `NUMERIC(14,6)` | UNIQUE(empresa_id, producto_id); `CHECK cantidad_total >= 0 AND valor_total >= 0 AND (cantidad_total > 0 OR valor_total = 0)`; la fila se crea con el primer movimiento (`asegurar_costo_producto`), porque el catálogo no conoce al inventario | RF-INV-18, 24 |
+| `inventory_movimiento` | empresa_id, fecha `timestamptz`, tipo, motivo, producto_id, almacen_id, lote_id, cantidad, costo_unitario `NUMERIC(14,6)`, costo_total `NUMERIC(14,2)`, saldo_cantidad, saldo_promedio, ref_tipo (`COMPRA`, `AJUSTE`, `OP`, `VENTA`; el envasado lo reemplaza la OP, 0005a), ref_id, revierte_id null, usuario_id | `UNIQUE(revierte_id) WHERE NOT NULL`; `CHECK cantidad > 0`, costos y saldo ≥ 0; trigger de inmutabilidad | RF-INV-17, 20 |
 
 ## 3. Funciones puras
 

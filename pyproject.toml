@@ -50,7 +50,7 @@ include_external_packages = true
 name = "Capas de cada contexto (plan 0000 §2)"
 type = "layers"
 layers = ["interfaces", "infrastructure", "application", "domain"]
-containers = ["shared", "tenancy", "catalog", "purchasing"]
+containers = ["shared", "tenancy", "catalog", "purchasing", "inventory"]
 
 [[tool.importlinter.contracts]]
 name = "El dominio es Python puro: no importa Django"

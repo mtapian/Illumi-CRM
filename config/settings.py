@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     "tenancy.infrastructure.apps.TenancyConfig",
     "catalog.infrastructure.apps.CatalogConfig",
     "purchasing.infrastructure.apps.PurchasingConfig",
+    "inventory.infrastructure.apps.InventoryConfig",
     "shared.infrastructure.apps.SharedConfig",
 ]
 
