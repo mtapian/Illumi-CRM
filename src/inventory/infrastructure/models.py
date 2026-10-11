@@ -5,6 +5,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 from shared.infrastructure.tenant_models import TenantModel
 
@@ -91,7 +92,7 @@ class CostoProducto(TenantModel):
 class Movimiento(TenantModel):
     """Cada entrada o salida, con su costo y saldo; no se edita ni se borra (RF-INV-17)."""
 
-    fecha = models.DateTimeField(auto_now_add=True)
+    fecha = models.DateTimeField(default=timezone.now)  # una compra trae su fecha de recepción
     tipo = models.CharField(max_length=7, choices=[("ENTRADA", "Entrada"), ("SALIDA", "Salida")])
     motivo = models.CharField(max_length=20)
     producto = models.ForeignKey("catalog.Producto", on_delete=models.PROTECT, related_name="+")

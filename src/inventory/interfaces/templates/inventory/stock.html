@@ -5,14 +5,15 @@ sin JS; los costos solo con inventario.costo.ver (RF-TEN-51).{% endcomment %}
 {% block contenido %}
 <h1>Stock</h1>
 {% include "catalog/_migas.html" %}
-<form method="get" class="tarjeta filtros dos-columnas">
-  <label>Buscar<input type="search" name="q" value="{{ filtro.q }}" placeholder="SKU o nombre"></label>
-  <label>Gestión<select name="casilla"><option value="">Todas</option>{% for c, e in casillas %}<option value="{{ c }}"{% if filtro.casilla == c %} selected{% endif %}>{{ e }}</option>{% endfor %}</select></label>
-  <label>Almacén<select name="almacen"><option value="">Todos</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if filtro.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
-  <label>Categoría<select name="categoria"><option value="">Todas</option>{% for c in categorias %}<option value="{{ c.id }}"{% if filtro.categoria == c.id|stringformat:"s" %} selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></label>
+<form method="get" class="filtros">
+  <input type="search" name="q" value="{{ filtro.q }}" placeholder="SKU o nombre" aria-label="Buscar por SKU o nombre">
+  <select name="casilla" aria-label="Gestión"><option value="">Todas las gestiones</option>{% for c, e in casillas %}<option value="{{ c }}"{% if filtro.casilla == c %} selected{% endif %}>{{ e }}</option>{% endfor %}</select>
+  <select name="almacen" aria-label="Almacén"><option value="">Todos los almacenes</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if filtro.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>
+  <select name="categoria" aria-label="Categoría"><option value="">Todas las categorías</option>{% for c in categorias %}<option value="{{ c.id }}"{% if filtro.categoria == c.id|stringformat:"s" %} selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select>
   <label class="check"><input type="checkbox" name="stock_bajo" value="1"{% if filtro.stock_bajo %} checked{% endif %}> Solo stock bajo</label>
   <label class="check"><input type="checkbox" name="con_stock" value="1"{% if filtro.con_stock %} checked{% endif %}> Solo con stock</label>
-  <p><button type="submit">Filtrar</button></p>
+  <button type="submit" class="texto"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg> Filtrar</button>
+  <a class="texto" href="{{ request.path }}">Limpiar</a>
 </form>
 <div class="tarjeta tabla">
 <table><thead><tr><th>Producto</th><th>Stock</th>{% if ver_costos %}<th>Costo promedio</th><th>Valor</th>{% endif %}</tr></thead><tbody>

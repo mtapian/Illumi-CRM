@@ -424,6 +424,9 @@ def invoca_directamente(client, ctx, accion):
             "/usuarios/", {"nombre": "X", "email": "x@andina.pe", "password": "x"}
         )
         return
+    if accion == "registrar una compra":
+        ctx["respuesta"] = como(client, ctx["email"]).post("/compras/nueva/", {})
+        return
     if accion == "generar un token de API":
         ctx["respuesta"] = como(client, ctx["email"]).post(
             "/integracion/tokens/", {"accion": "crear", "nombre": "x", "tecnico": "n8n"}
@@ -570,8 +573,24 @@ def intenta_asignar_rol_con(client, ctx, email, otro, permiso):
 
 @given(re_("que {} registró la compra {}", "email", "compra"))
 def registro_compra(ctx, email, compra):
-    crear_usuario(email, empresa_por_nombre("Cervecería Andina"), "Producción")
-    ctx["pendientes"].append("las compras y su autor llegan con 0004a")
+    from inventory.infrastructure.models import Almacen
+    from purchasing.infrastructure.models import Compra, Proveedor
+
+    empresa = empresa_por_nombre("Cervecería Andina")
+    autor = crear_usuario(email, empresa, "Producción")
+    proveedor = Proveedor.all_tenants.create(
+        empresa=empresa, tipo_doc="DNI", num_doc="45678912", razon_social="Juan Pérez"
+    )
+    ctx["compra"] = Compra.all_tenants.create(
+        empresa=empresa,
+        numero=int(compra.removeprefix("C-")),
+        proveedor=proveedor,
+        fecha=date.today(),
+        almacen=Almacen.all_tenants.get_or_create(empresa=empresa, nombre="Principal")[0],
+        doc_tipo="SIN_DOCUMENTO",
+        igv_pct=18,
+        usuario=autor,
+    ).id
 
 
 @when(re_("{} desactiva a {}", "admin", "email"))
@@ -582,8 +601,10 @@ def desactiva(client, ctx, admin, email):
 
 
 @then(re_("la compra {} sigue mostrando a {} como autor", "compra", "email"))
-def compra_con_autor(compra, email):
+def compra_con_autor(client, ctx, compra, email):
     assert Usuario.objects.filter(email=email).exists()  # no se borró
+    pagina = contenido(como(client, "lucia@andina.pe").get(f"/compras/{ctx['compra']}/"))
+    assert compra in pagina and f"Registrada por {email}" in pagina
 
 
 @then("no existe la opción de eliminar usuarios")

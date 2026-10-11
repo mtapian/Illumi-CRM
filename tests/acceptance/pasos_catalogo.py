@@ -320,13 +320,12 @@ def lo_desactivo(client, ctx):
 
 
 @then("no aparece al registrar compras ni al editar recetas")
-def no_aparece(ctx):
+def no_aparece(client, ctx):
     with tenant_context(ctx["empresa"].id):
         ofrecidos = {p.sku for p in catalogo_query().activos(se_compra=True)}
     assert ctx["sku"] not in ofrecidos
-    ctx["pendientes"].append(
-        "las pantallas de compras (0004a) y recetas (0005a) usan CatalogoQuery.activos"
-    )
+    assert ctx["sku"] not in contenido(como(client, EMAIL).get("/compras/nueva/"))
+    ctx["pendientes"].append("la pantalla de recetas (0005a) usa CatalogoQuery.activos")
 
 
 @then("sigue visible en el kardex y en los reportes históricos")

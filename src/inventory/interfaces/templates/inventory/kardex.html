@@ -1,25 +1,27 @@
 {% extends "base.html" %}
 {% comment %}Kardex (RF-INV-06, 07): 50 filas por página por cursor; saldos solo con un producto
 elegido; costos solo con inventario.costo.ver (RF-TEN-51).{% endcomment %}
-{% block titulo %}Kardex{% endblock %}
+{% block titulo %}Kardex / Movimientos{% endblock %}
 {% block contenido %}
-<h1>Kardex</h1>
+<h1>Kardex / Movimientos</h1>
 {% include "catalog/_migas.html" %}
-<form method="get" class="tarjeta filtros dos-columnas">
-  <label>Producto<select name="producto"><option value="">Todos</option>{% for p in productos %}<option value="{{ p.id }}"{% if filtro.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }}</option>{% endfor %}</select></label>
-  <label>Almacén<select name="almacen"><option value="">Todos</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if filtro.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
-  <label>Lote<input name="lote" value="{{ filtro.lote }}"></label>
-  <label>Motivo<input name="motivo" value="{{ filtro.motivo }}" placeholder="COMPRA, MERMA…"></label>
-  <label>Desde<input type="date" name="desde" value="{{ filtro.desde }}"></label>
-  <label>Hasta<input type="date" name="hasta" value="{{ filtro.hasta }}"></label>
-  <p><button type="submit">Filtrar</button> <a class="boton secundario" href="?{{ consulta }}&formato=csv">Exportar CSV</a></p>
+<form method="get" class="filtros">
+  <select name="producto" aria-label="Producto"><option value="">Todos los productos</option>{% for p in productos %}<option value="{{ p.id }}"{% if filtro.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }}</option>{% endfor %}</select>
+  <select name="motivo" aria-label="Tipo de movimiento"><option value="">Todos los tipos</option>{% for valor, etiqueta in motivos %}<option value="{{ valor }}"{% if filtro.motivo == valor %} selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select>
+  <select name="almacen" aria-label="Almacén"><option value="">Todos los almacenes</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if filtro.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>
+  <input name="lote" value="{{ filtro.lote }}" placeholder="Lote" aria-label="Lote">
+  <input type="date" name="desde" value="{{ filtro.desde }}" aria-label="Desde">
+  <input type="date" name="hasta" value="{{ filtro.hasta }}" aria-label="Hasta">
+  <button type="submit" class="texto"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg> Filtrar</button>
+  <a class="texto" href="{{ request.path }}">Limpiar</a>
 </form>
+<p class="acciones-tabla"><a class="boton secundario" href="?{% if consulta %}{{ consulta }}&amp;{% endif %}formato=csv">Exportar CSV</a></p>
 <div class="tarjeta tabla">
 <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Motivo</th><th>Documento</th><th>Producto</th><th>Almacén</th><th>Lote</th><th>Cantidad</th>
   {% if ver_costos %}<th>Costo unit.</th><th>Costo total</th>{% endif %}{% if con_producto %}<th>Saldo</th>{% if ver_costos %}<th>Promedio</th>{% endif %}{% endif %}<th>Usuario</th></tr></thead><tbody>
 {% for m in movimientos %}<tr>
   <td>{{ m.fecha|date:"Y-m-d H:i" }}</td><td>{{ m.tipo }}</td><td>{{ m.motivo }}</td>
-  <td>{% if m.ref_tipo == "AJUSTE" and m.ref_id %}<a href="{% url 'ajuste' m.ref_id %}">Ajuste {{ m.ref_id }}</a>{% else %}{{ m.ref_tipo }}{% if m.ref_id %} {{ m.ref_id }}{% endif %}{% endif %}</td>
+  <td>{% if m.ref_tipo == "AJUSTE" and m.ref_id %}<a href="{% url 'ajuste' m.ref_id %}">Ajuste {{ m.ref_id }}</a>{% elif m.ref_tipo == "COMPRA" and m.ref_id %}<a href="{% url 'compra' m.ref_id %}">Compra {{ m.ref_id }}</a>{% else %}{{ m.ref_tipo }}{% if m.ref_id %} {{ m.ref_id }}{% endif %}{% endif %}</td>
   <td>{{ m.producto.sku }}</td><td>{{ m.almacen.nombre }}</td><td>{{ m.lote.codigo|default:"" }}</td><td>{{ m.cantidad|floatformat:"-4" }}</td>
   {% if ver_costos %}<td>{{ m.costo_unitario }}</td><td>{{ m.costo_total|floatformat:2 }}</td>{% endif %}
   {% if con_producto %}<td>{{ m.saldo_cantidad|floatformat:"-4" }}</td>{% if ver_costos %}<td>{{ m.saldo_promedio }}</td>{% endif %}{% endif %}
@@ -27,5 +29,5 @@ elegido; costos solo con inventario.costo.ver (RF-TEN-51).{% endcomment %}
 </tr>{% empty %}<tr><td colspan="13" class="subtitulo">Sin movimientos.</td></tr>{% endfor %}
 </tbody></table>
 </div>
-{% if siguiente %}<p><a class="boton secundario" href="?{{ consulta }}&despues={{ siguiente }}">Siguientes</a></p>{% endif %}
+{% if siguiente %}<p><a class="boton secundario" href="?{% if consulta %}{{ consulta }}&amp;{% endif %}despues={{ siguiente }}">Siguientes</a></p>{% endif %}
 {% endblock %}

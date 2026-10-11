@@ -3,6 +3,7 @@
 import csv
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.db.models import Count, Q
@@ -163,6 +164,17 @@ def ajuste(request, ajuste_id):
 STOCK, KARDEX, COSTO = "inventario.stock.ver", "inventario.kardex.ver", "inventario.costo.ver"
 FILTROS_STOCK = ("q", "casilla", "almacen", "categoria", "stock_bajo", "con_stock")
 FILTROS_KARDEX = ("producto", "almacen", "lote", "motivo", "desde", "hasta")
+MOTIVOS = [  # tipos de movimiento del kardex (0003a, 0003b; compras, OP y ventas después)
+    ("SALDO_INICIAL", "Saldo inicial"),
+    ("COMPRA", "Compra"),
+    ("CONSUMO_OP", "Consumo de OP"),
+    ("VENTA", "Venta"),
+    ("MERMA", "Merma"),
+    ("CONTEO", "Conteo"),
+    ("CORRECCION", "Corrección"),
+    ("TRANSFERENCIA", "Transferencia"),
+    ("ANULACION", "Anulación"),
+]
 
 
 @requiere(STOCK)
@@ -227,7 +239,8 @@ def kardex(request):
         "ver_costos": ver_costos,
         "con_producto": con_producto,
         "siguiente": movimientos[-1].id if len(movimientos) == 50 else None,
-        "consulta": "&".join(f"{k}={v}" for k, v in filtro.items() if v),
+        "consulta": urlencode({k: v for k, v in filtro.items() if v}),
+        "motivos": MOTIVOS,
         "productos": Producto.objects.filter(tipo="BIEN").order_by("nombre"),
         "almacenes": Almacen.objects.order_by("nombre"),
         "migas": MIGAS + [("Kardex", None)],

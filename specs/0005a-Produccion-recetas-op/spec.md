@@ -128,7 +128,7 @@ Receta   [IPA botella ▾] (opcional: copia sus componentes)  [Guardar como rece
 - RF-PRD-42: EL SISTEMA registra la **merma** de una OP como la diferencia entre lo consumido real y lo por consumir de cada componente; queda en el costo del producto y se informa en la pestaña Costos (reemplaza la merma de envasado de 0005b).
 - RF-PRD-43: CUANDO se planifica desde un pedido confirmado, EL SISTEMA sugiere una OP por cada producto fabricado con faltante = max(0, pedido − stock disponible sin comprometer), y para los componentes de su receta que también se fabrican, otra OP por su faltante (un nivel). Reemplaza RF-PRD-07.
 
-**Estados:** Borrador ▸ Confirmada ▸ Hecha (y Anulada fuera de la barra). Equivalen a PLANIFICADA, EN_PROCESO y TERMINADA. CERRADA desaparece: el saldo de un lote se ve en el stock. El lote perdido (Q10) pasa a ser "Hecha con 0" y se mantiene pendiente.
+**Estados:** *(PO, 2026-10-11: mismos nombres que la compra, 0004a)* **Creada ▸ En proceso ▸ Finalizada** (y Anulada fuera de la barra), antes Borrador ▸ Confirmada ▸ Hecha; el producto fabricado entra a stock al **finalizar**. [NECESITA ACLARACIÓN] ¿Los componentes se consumen al pasar a En proceso (como hoy dice RF-PRD-40) o también al finalizar, todo junto? Antes: Equivalen a PLANIFICADA, EN_PROCESO y TERMINADA. CERRADA desaparece: el saldo de un lote se ve en el stock. El lote perdido (Q10) pasa a ser "Hecha con 0" y se mantiene pendiente.
 
 **Impacto en 0005b:** el envasado de varias presentaciones a la vez se hace con una OP por presentación, que consumen el mismo lote de granel. 0005b se reduce al cierre y los reportes de costo, y se reescribe tras la aprobación.
 

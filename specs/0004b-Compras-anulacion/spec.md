@@ -27,6 +27,8 @@ El costo de producción nace en la compra de insumos y envases, y el costo de la
 
 - **Documento del proveedor y costo de la línea:** ver spec 0004a.
 
+*(Ajuste pendiente por 0004a, 2026-10-11)* La compra tiene estados Creada ▸ En proceso ▸ Finalizada. Anular una compra Creada o En proceso solo cambia su estado (no hay stock que revertir); lo que sigue aplica a las compras Finalizadas. Se revisa al aprobar 0004b.
+
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
 ### UC-COM-03 Anular compra

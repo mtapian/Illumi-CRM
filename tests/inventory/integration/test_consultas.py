@@ -144,3 +144,20 @@ def test_rendimiento_con_100000_movimientos(web, inv, ruta):
         assert web.get(url).status_code == 200
         tiempos.append(time.perf_counter() - inicio)
     assert sorted(tiempos)[18] < 0.8
+
+
+def test_filtros_del_kardex_en_una_fila_y_enlaces_codificados(web, inv):
+    """RF-INV-07 (captura del PO, 2026-10-11): producto, tipo de movimiento, almacén, lote y
+    fechas en una sola fila; "Filtrar" y "Limpiar"; los enlaces conservan el filtro."""
+    for _ in range(50):
+        entra(inv, "malta", "1", "2", lote="A & B")
+    html = web.get("/inventario/kardex/?lote=A+%26+B").content.decode()
+    filtros = html.split('<form method="get" class="filtros"')[1].split("</form>")[0]
+    assert "dos-columnas" not in filtros and "<label>" not in filtros
+    assert '<option value="">Todos los productos</option>' in filtros
+    assert '<option value="">Todos los tipos</option>' in filtros
+    assert '<option value="COMPRA">Compra</option>' in filtros
+    assert " Filtrar</button>" in filtros and ">Limpiar</a>" in filtros
+    assert "lote=A+%26+B&amp;despues=" in html  # "Siguientes" sin perder el lote
+    assert "lote=A+%26+B&amp;formato=csv" in html
+    assert "KARDEX / MOVIMIENTOS" in html.upper()

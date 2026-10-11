@@ -1,6 +1,7 @@
 """Adaptador de PostgreSQL del inventario (plan 0003a §2). Los locks siguen el orden del
 plan 0000 §5: primero `costo_producto` (mutex por producto), después el stock."""
 
+from datetime import datetime
 from decimal import Decimal
 
 from django.db.models import F, Sum
@@ -103,7 +104,11 @@ class InventarioOrm:
     def fijar_stock(self, stock_id, cantidad):
         Stock.objects.filter(pk=stock_id).update(cantidad=cantidad)
 
-    def insertar_movimiento(self, **campos):
+    def insertar_movimiento(self, fecha=None, **campos):
+        """`fecha` es el día de negocio: si no es hoy, ese día a la hora actual (RF-COM-27)."""
+        if fecha is not None and fecha != timezone.localdate():
+            hora = timezone.localtime().time()
+            campos["fecha"] = timezone.make_aware(datetime.combine(fecha, hora))
         return Movimiento.objects.create(**campos).id
 
     def por_revertir(self, ref_tipo, ref_id):

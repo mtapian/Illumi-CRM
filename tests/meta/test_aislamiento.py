@@ -47,12 +47,34 @@ def _ajeno_ajuste(otra):
     ).id
 
 
+def _ajeno_compra(otra):
+    from datetime import date
+
+    from inventory.infrastructure.models import Almacen
+    from purchasing.infrastructure.models import Compra, Proveedor
+
+    proveedor = Proveedor.all_tenants.create(
+        empresa=otra, tipo_doc="RUC", num_doc="20512345671", razon_social="Ajeno"
+    )
+    almacen = Almacen.all_tenants.create(empresa=otra, nombre="Ajeno")
+    return Compra.all_tenants.create(
+        empresa=otra,
+        numero=1,
+        proveedor=proveedor,
+        fecha=date.today(),
+        almacen=almacen,
+        doc_tipo="SIN_DOCUMENTO",
+        igv_pct=18,
+    ).id
+
+
 # ruta → función que crea un registro de la otra empresa y devuelve su id
 RUTAS = {
     "usuarios/<int:usuario_id>/": _ajeno_usuario,
     "roles/<int:rol_id>/": _ajeno_rol,
     "catalogo/productos/<int:producto_id>/": _ajeno_producto,
     "inventario/ajustes/<int:ajuste_id>/": _ajeno_ajuste,
+    "compras/<int:compra_id>/": _ajeno_compra,
 }
 
 

@@ -85,7 +85,7 @@ source_modules = ["tenancy", "catalog"]
 forbidden_modules = ["purchasing"]
 
 [[tool.importlinter.contracts]]
-name = "Compras usa tenancy y el catálogo solo por sus fachadas, sus registros y su capa web"
+name = "Compras usa tenancy, el catálogo y el inventario solo por sus fachadas, sus registros y su capa web"
 type = "forbidden"
 source_modules = ["purchasing.domain", "purchasing.application"]
 # Solo imports directos: la fachada del catálogo puede usar su propio dominio.
@@ -93,12 +93,14 @@ allow_indirect_imports = "True"
 forbidden_modules = [
     "tenancy.infrastructure", "tenancy.interfaces", "tenancy.domain",
     "catalog.infrastructure", "catalog.interfaces", "catalog.domain",
+    # Del inventario, solo su servicio (`inventory.application.servicio`; plan 0004a §6).
+    "inventory.infrastructure", "inventory.interfaces", "inventory.domain",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Tenancy, catálogo y compras no dependen del inventario (el inventario llena sus puertos)"
+name = "Tenancy y el catálogo no dependen del inventario (el inventario llena sus puertos)"
 type = "forbidden"
-source_modules = ["tenancy", "catalog", "purchasing"]
+source_modules = ["tenancy", "catalog"]
 forbidden_modules = ["inventory"]
 
 [[tool.importlinter.contracts]]
