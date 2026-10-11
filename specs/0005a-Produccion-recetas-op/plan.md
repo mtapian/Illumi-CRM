@@ -28,7 +28,7 @@ Contexto: `src/production`. Usa `CatalogoQuery` (recetas, presentaciones, materi
 |---|---|---|---|
 | `production_receta` | empresa_id, granel_id, nombre, version, volumen_base_l, activa | UNIQUE(empresa_id, granel_id, version); una activa por granel | RF-PRD-01 a 03 |
 | `production_receta_insumo` | receta_id, insumo_id, cantidad | UNIQUE(receta_id, insumo_id); `CHECK > 0` | RF-PRD-01, 05 |
-| `production_op` | empresa_id, numero, receta_id, litros_planificados, litros_reales null, estado, fecha_prevista, fecha_inicio, fecha_fin `DATE`, almacen_origen_id, almacen_destino_id, lote_id null, costo_insumos, costo_indirecto, costo_total, costo_por_litro `NUMERIC(14,6)`, perdida_produccion, motivo, anulado_por, anulado_en | UNIQUE(empresa_id, numero) | RF-PRD-04 a 19 |
+| `production_op` | empresa_id, numero, receta_id, responsable_id (RF-PRD-35), litros_planificados, litros_reales null, estado, fecha_prevista, fecha_inicio, fecha_fin `DATE`, almacen_origen_id, almacen_destino_id, lote_id null, costo_insumos, costo_indirecto, costo_total, costo_por_litro `NUMERIC(14,6)`, perdida_produccion, motivo, anulado_por, anulado_en | UNIQUE(empresa_id, numero) | RF-PRD-04 a 19 |
 | `production_op_pedido` | op_id, pedido_id | UNIQUE(op_id, pedido_id); varias OP por pedido y varios pedidos por OP | RF-PRD-04, 11, 19 |
 | `production_op_consumo` | op_id, insumo_id, cantidad_teorica null, cantidad_real, costo_unitario, costo_total, movimiento_id | — | RF-PRD-08, 10, 17 |
 
@@ -67,6 +67,27 @@ AnularOP(op, motivo):
 | `/produccion/op/<id>` | Acciones según el estado: iniciar (cantidades reales precargadas), consumo adicional, terminar (litros, indirecto, lote sugerido; advertencia > 100 %), anular, cerrar | RF-PRD-08 a 19 |
 
 Pensada para tablet en planta: botones grandes y una acción principal por pantalla (RNF-PRD-02).
+
+**Ficha de la OP (referencia visual: captura de Odoo de una orden de producción, 2026-10-10; patrón "ficha" del ADR-12).** *Con el ajuste por 0002a enmienda 4 (borrador), la ficha vigente es la de la spec (Borrador ▸ Confirmada ▸ Hecha, producto y cantidad, componentes con disponibilidad); este boceto queda como antecedente.*
+
+```
+[Iniciar]                    PLANIFICADA ▸ EN_PROCESO ▸ TERMINADA ▸ CERRADA    │ Historial
+OP-000012                                                                      │ Lucía · 10 oct 17:12
+Granel a producir  IPA a granel       Fecha programada  10/10/2026             │ Planificó la OP
+Litros             500.0000 L         Responsable       Mario (RF-PRD-35)      │ …
+Receta             IPA · versión 3
+┌ Componentes ┬ Pedidos vinculados ┬ Costos ┐
+│ Producto           Por consumir   Consumido   Unidad                   │
+│ Malta Pilsen        110.0000       —          KG                       │
+│ Lúpulo Cascade        2.5000       —          KG                       │
+│ + Agregar línea  (consumo adicional, solo EN_PROCESO; RF-PRD-10)       │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Encabezado:** un solo botón con la acción siguiente según el estado (Iniciar, Terminar, Cerrar); Anular va aparte con su motivo. La barra de estados resalta el estado actual (ANULADA se muestra en rojo, fuera de la barra).
+- **Componentes:** se precargan desde la receta ("Por consumir" = cantidad teórica de RF-PRD-05); al iniciar se confirman las cantidades reales (RF-PRD-08).
+- **Historial:** panel lateral de solo lectura con cada cambio de estado y de consumos (autor, fecha, antes → después), con el mismo componente que la ficha de producto (spec 0002a, RF-CAT-32).
+- **Fuera de alcance de la referencia:** centros de trabajo y tiempos por operación, mensajes y actividades.
 
 ## 6. Decisiones técnicas
 

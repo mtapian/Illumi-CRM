@@ -1,0 +1,9 @@
+{% extends "catalog/_maestro.html" %}
+{% block columnas %}<th>Abreviatura</th><th>Código SUNAT</th>{% endblock %}
+{% block celdas %}<td>{{ f.abreviatura }}</td><td>{{ f.codigo_sunat }}</td>{% endblock %}
+{% block campos %}
+<label>Nombre<input name="nombre" required value="{{ valores.nombre }}"></label>
+<label>Abreviatura<input name="abreviatura" required maxlength="10" value="{{ valores.abreviatura }}"
+  {% if editando and editando.n_productos %}readonly title="En uso: no se puede cambiar"{% endif %}></label>
+<label>Código SUNAT<input name="codigo_sunat" required maxlength="3" placeholder="NIU" value="{{ valores.codigo_sunat }}"></label>
+{% endblock %}

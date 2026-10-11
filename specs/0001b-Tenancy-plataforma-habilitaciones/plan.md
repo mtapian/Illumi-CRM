@@ -1,6 +1,6 @@
 # Plan 0001b — Plataforma: planes y habilitaciones
 
-Estado: borrador
+Estado: implementada (2026-10-10)
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 

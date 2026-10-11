@@ -1,0 +1,52 @@
+# Despliegue local para probar (plan 0000 §9): web (gunicorn), db (PostgreSQL 16) y cron.
+# `docker compose up -d --build` → http://localhost:8020. Base propia (puerto 54321),
+# separada de la de desarrollo (contenedor illumi-pg, puerto 54320; ver AGENTS.md §4).
+x-app: &app
+  build: .
+  environment:
+    DJANGO_DEBUG: "0"
+    DJANGO_HTTPS: "0"  # local por HTTP; en producción va detrás de HTTPS (art. 6.3)
+    DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-cambiar-en-produccion}
+    DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+    DJANGO_EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+    DJANGO_SERVIR_MEDIA: "1"
+    DB_HOST: db
+    DB_PORT: "5432"
+  depends_on:
+    db:
+      condition: service_healthy
+  volumes:
+    - media:/app/media
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: illumi
+      POSTGRES_PASSWORD: illumi
+      POSTGRES_DB: illumi
+    ports:
+      - "54321:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U illumi"]
+      interval: 2s
+      retries: 15
+
+  web:
+    <<: *app
+    ports:
+      - "8020:8000"
+
+  cron:
+    <<: *app
+    # ponytail: bucle simple en vez de cron real; envía correos cada minuto y vence suscripciones
+    # (idempotente) cada hora. Cambiar a cron/systemd si hacen falta horarios exactos.
+    command: >
+      sh -c "i=0; while sleep 60; do python manage.py enviar_correos;
+      [ $$((i % 60)) -eq 0 ] && python manage.py vencer_suscripciones; i=$$((i+1)); done"
+
+volumes:
+  media:
+  pgdata:

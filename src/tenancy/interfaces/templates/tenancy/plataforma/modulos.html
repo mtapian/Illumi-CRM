@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}Módulos de {{ empresa }}{% endblock %}
+{% block contenido %}
+<h1>Módulos y funcionalidades</h1>
+<p class="subtitulo"><a href="{% url 'plataforma_empresa' empresa.id %}">{{ empresa.razon_social }}</a> · plan {{ empresa.plan }}</p>
+{% if confirmar %}
+<form method="post" class="aviso" role="alert">{% csrf_token %}
+  {% for a in confirmar.advertencias %}<p>{{ a }}</p>{% endfor %}
+  {% for clave, valores in confirmar.datos.lists %}{% if clave != "csrfmiddlewaretoken" %}{% for v in valores %}<input type="hidden" name="{{ clave }}" value="{{ v }}">{% endfor %}{% endif %}{% endfor %}
+  <input type="hidden" name="confirmado" value="1"><button type="submit" class="peligro">Quitar de todos modos</button>
+</form>
+{% endif %}
+<section class="tarjeta">
+  <h2>Agregar o quitar</h2>
+  <form method="post" class="filtros">{% csrf_token %}
+    <label>Funcionalidad o módulo
+      <select name="objetivo" required>
+        <option value="">Elige…</option>
+        {% for m in modulos %}{% if m.codigo != "CORE" %}<optgroup label="{{ m.nombre }}"><option value="M:{{ m.codigo }}">Todo el módulo {{ m.nombre }}</option>
+          {% for f in m.filas %}<option value="{{ f.codigo }}">{{ f.nombre }}</option>{% endfor %}</optgroup>{% endif %}{% endfor %}
+      </select></label>
+    <label>Hasta (opcional)<input type="date" name="hasta"></label>
+    <label>Motivo<input name="motivo"></label>
+    <button type="submit" name="accion" value="agregar">Agregar</button>
+    <button type="submit" name="accion" value="quitar" class="peligro">Quitar</button>
+  </form>
+</section>
+<div class="tarjetas">
+{% for m in modulos %}
+<section class="tarjeta tabla">
+  <h2>{{ m.nombre }}{% if m.codigo == "CORE" %} <span class="chip">siempre activo</span>{% endif %}</h2>
+  <table><tbody>
+  {% for f in m.filas %}<tr><td>{{ f.nombre }}</td>
+    <td><span class="estado-func {{ f.estado|slugify }}">{{ f.estado }}</span>{% if f.hasta %} <small>hasta {{ f.hasta|date:"Y-m-d" }}</small>{% endif %}</td></tr>{% endfor %}
+  </tbody></table>
+</section>
+{% endfor %}
+</div>
+{% endblock %}

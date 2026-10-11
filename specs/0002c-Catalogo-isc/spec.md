@@ -1,6 +1,6 @@
 # Spec 0002c — Catálogo: categorías y tarifas de ISC
 
-Estado: borrador
+Estado: implementada (2026-10-10) · **las categorías se retiraron: el ISC está en la ficha del producto (0002a enmienda 4, RF-CAT-45 a 48, implementada 2026-10-10)**. Siguen vigentes RF-CAT-23 a 27; RF-CAT-22 y 28 (categorías) quedan reemplazados
 
 Épica E02 (Catálogo), parte 3 de 3. Depende de: 0002a. La usan: 0006, 0007.
 
@@ -66,4 +66,4 @@ Conversión de unidad de compra a unidad de uso, variantes, listas de precios po
 
 ## Dudas abiertas
 
-- [NECESITA ACLARACIÓN] **Código de tipo de sistema ISC:** el contador indicó `01`; el catálogo 08 de SUNAT indica `02` para monto fijo. Validar en el sandbox del PSE.
+- **Código de tipo de sistema ISC (el PO aprueba tratarlo como dato configurable de la categoría, 2026-10-10; se valida en el sandbox del PSE antes de 0007a):** el contador indicó `01`; el catálogo 08 de SUNAT indica `02` para monto fijo. Validar en el sandbox del PSE.

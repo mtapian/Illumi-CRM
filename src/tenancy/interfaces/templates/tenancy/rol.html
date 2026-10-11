@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block titulo %}{% if rol %}Rol {{ rol }}{% else %}Nuevo rol{% endif %}{% endblock %}
+{% block contenido %}
+<h1>{% if rol %}Rol {{ rol }}{% else %}Nuevo rol{% endif %}</h1>
+<p class="subtitulo"><a href="{% url 'roles' %}">Volver a roles</a>
+{% if rol.es_sistema %} · <span class="chip">El rol Administrador tiene siempre todos los permisos habilitados y no se edita.</span>{% endif %}</p>
+<form method="post" id="form-rol">{% csrf_token %}
+  {% if not rol.es_sistema %}<p><label>Nombre<input name="nombre" value="{{ rol.nombre|default:'' }}" required></label></p>{% endif %}
+  <div class="tarjetas">
+  {% for m in matriz %}
+    <section class="tarjeta">
+      <h2>{{ m.nombre }}</h2>
+      {% for f in m.funcionalidades %}
+      <div class="funcionalidad{% if not f.habilitada %} bloqueada{% endif %}">
+        <strong>{{ f.nombre }}</strong>{% if not f.habilitada %} <span class="chip">No incluido en tu plan</span>{% endif %}
+        {% for p in f.permisos %}
+        <label class="check"><input type="checkbox" name="permisos" value="{{ p.codigo }}" {% if p.marcado %}checked{% endif %} {% if not p.habilitado or rol.es_sistema %}disabled{% endif %}> <code>{{ p.codigo }}</code>{% if p.marcado and not p.habilitado %} <span class="chip error">No disponible en tu plan</span>{% endif %}</label>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </section>
+  {% endfor %}
+  </div>
+  {% if not rol.es_sistema %}<button type="submit" name="accion" value="guardar">Guardar</button>{% endif %}
+</form>
+{% if rol and not rol.es_sistema %}
+<section class="tarjeta" style="margin-top:1.25rem">
+  <h2>Acciones</h2>
+  <form method="post" class="filtros">{% csrf_token %}
+    <label>Nombre de la copia<input name="nombre_copia" placeholder="{{ rol }} (copia)"></label>
+    <button type="submit" name="accion" value="duplicar">Duplicar</button>
+    {% if rol.activo %}<button type="submit" name="accion" value="desactivar" class="peligro">Desactivar</button>
+    {% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
+    <button type="submit" name="accion" value="eliminar" class="peligro">Eliminar</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

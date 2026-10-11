@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block titulo %}Nuevo producto{% endblock %}
+{% block contenido %}
+<h1>Nuevo producto</h1>
+<nav class="migas" aria-label="Migas de pan"><a href="/">Inicio</a><span aria-hidden="true">/</span><a href="{% url 'productos' %}">Productos</a><span aria-hidden="true">/</span><span aria-current="page">Nuevo</span></nav>
+{% with boton="Crear producto" %}{% include "catalog/_pestanas.html" %}{% endwith %}
+{% endblock %}

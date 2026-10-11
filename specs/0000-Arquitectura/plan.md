@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | borrador |
+| Estado | aprobado (PO, 2026-10-10) |
 | Aplica a | Todas las épicas (E01–E08) |
 | PRD | `../../PRD.md` |
 
@@ -23,6 +23,7 @@
 | ADR-09 | Tests de aceptación con `pytest-bdd` sobre los `.feature` | `behave` | Integra con pytest y sus fixtures |
 | ADR-10 | **PL/pgSQL como red de seguridad**: las reglas viven en el dominio Python y la BD las refuerza con constraints, triggers, funciones atómicas y vistas de reporte (ver §5.1) | Lógica transaccional en stored procedures; ORM sin objetos de BD | Las reglas se prueban sin BD y la BD impide corrupción aunque haya un bug o un acceso directo |
 | ADR-11 | **Autorización por permisos con catálogo como código** (módulo → funcionalidad → permiso), habilitaciones por plan/empresa y roles por tenant; el caso de uso verifica el permiso con un `Actor` | Roles fijos con `if rol in (...)`; `django.contrib.auth` permissions/groups por modelo | Los permisos de Django son por modelo (CRUD), no por caso de uso, y no modelan las habilitaciones comerciales por empresa |
+| ADR-12 | **Guía visual** (cambiada por el PO el 2026-10-10 con capturas de referencia; antes era la imagen de `Referencia:html/`): **marco** con menú lateral celeste (degradado azul, cabecera con logo y nombre de la empresa en mayúsculas, grupos en mayúsculas plegables, un ícono SVG por opción con `menu.agregar(…, icono=…)` desde `shared/interfaces/iconos.py`), barra superior oscura con ☰ (pliega el menú solo con CSS), usuario y salir; títulos de página en mayúsculas en azul; tarjetas blancas y acento azul. Sin avisos ni notificaciones falsas: la campana se agrega cuando exista una spec de notificaciones. Los colores son variables CSS en `src/shared/interfaces/templates/base.html`; clases comunes `tarjeta`, `tarjetas`, `kpi`, `chip`, `aviso`, `error`, `panel` (páginas públicas). Menú lateral por registro: cada contexto llama a `menu.agregar(grupo, etiqueta, url, orden)` en su `urls.py` (`shared/interfaces/menu.py`); un grupo por módulo, plegable, con scroll propio. **Patrón "ficha"** (referencia Odoo, 2026-10-10): encabezado con nombre, estado y una acción principal (con barra de estados si el documento tiene flujo), pestañas solo con CSS y panel de historial de solo lectura a la derecha (antes → después con `shared/domain/auditoria.py::diferencias`). Lo usan producto (0002a), OP (0005a) y los documentos que vengan. **Patrón "listado de maestro"** (referencia del PO, 2026-10-10): migas de pan, buscador y botón verde "+ Nueva …", tabla con conteo de uso, chip de estado y acciones con íconos SVG en línea (lápiz, tacho o desactivar si está en uso); el formulario se abre en la misma página (`?nuevo=1`, `?editar=<id>`). Lo usan unidades, familias y marcas (0002a) y los maestros que vengan (proveedores, clientes…) | Bootstrap/Tailwind | CSS propio sin build ni dependencias; pedido del PO (2026-10-10) |
 
 ## 2. Capas y reglas de dependencia
 

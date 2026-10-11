@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% comment %}Listado de maestro (ADR-12; RF-CAT-36). Las hijas definen los bloques
+`columnas`, `celdas` (dentro del for de `filas`, con `f`) y `campos` (con `editando` y `valores`).{% endcomment %}
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block contenido %}
+<h1>{% if editando %}Editar {{ singular }}{% elif nuevo %}{{ boton }}{% else %}{{ titulo }}{% endif %}</h1>
+{% include "catalog/_migas.html" %}
+{% if nuevo or editando %}
+<section class="tarjeta formulario-maestro">
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
+    {% block campos %}{% endblock %}
+    <p><button type="submit">Guardar</button> <a class="boton secundario" href="{{ request.path }}">Cancelar</a></p>
+  </form>
+</section>
+{% else %}
+<div class="barra-listado">
+  <form method="get" class="buscador"><input type="search" name="q" value="{{ q }}" placeholder="Buscar {{ singular }}…" aria-label="Buscar {{ singular }}"></form>
+  <a class="boton exito" href="?nuevo=1">+ {{ boton }}</a>
+</div>
+<div class="tarjeta tabla">
+<table><thead><tr><th>Nombre</th>{% block columnas %}{% endblock %}<th>Productos</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for f in filas %}<tr>
+  <td><strong>{{ f.nombre }}</strong></td>{% block celdas %}{% endblock %}
+  <td><span class="chip neutro">{{ f.n_productos }}</span></td>
+  <td><span class="chip {% if f.activo %}ok{% else %}error{% endif %}">{% if f.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+  <td class="acciones"><form method="post">{% csrf_token %}<input type="hidden" name="id" value="{{ f.id }}">
+    <a class="btn-icono" href="?editar={{ f.id }}" title="Editar" aria-label="Editar {{ f.nombre }}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm17.7-10.2a1 1 0 0 0 0-1.42l-2.33-2.33a1 1 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></a>
+    {% if f.n_productos %}
+      {% if f.activo %}<button class="btn-icono peligro" name="accion" value="desactivar" title="En uso: desactivar">Desactivar</button>
+      {% else %}<button class="btn-icono" name="accion" value="activar">Activar</button>{% endif %}
+    {% else %}
+      {% if not f.activo %}<button class="btn-icono" name="accion" value="activar">Activar</button>{% endif %}
+      <button class="btn-icono peligro" name="accion" value="eliminar" title="Eliminar" aria-label="Eliminar {{ f.nombre }}" onclick="return confirm('¿Eliminar {{ f.nombre|escapejs }}?')"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+    {% endif %}</form></td>
+</tr>{% empty %}<tr><td colspan="9" class="subtitulo">{% if q %}Sin resultados para "{{ q }}".{% else %}Aún no hay registros.{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endif %}
+{% endblock %}

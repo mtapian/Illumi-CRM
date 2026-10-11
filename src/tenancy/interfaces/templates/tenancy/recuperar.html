@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Recuperar contraseña{% endblock %}
+{% block contenido %}
+<div class="panel">
+<h1>{% if nueva %}Nueva contraseña{% else %}Recuperar contraseña{% endif %}</h1>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% else %}
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">{% if nueva %}Guardar{% else %}Enviar enlace{% endif %}</button>
+</form>
+{% endif %}
+<p><a href="/login/">Volver a iniciar sesión</a></p>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 # Plan 0001a — Registro, sesión y suscripción
 
-Estado: borrador
+Estado: implementado (2026-10-10)
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 

@@ -1,6 +1,6 @@
 # Spec 0002b — Catálogo: presentaciones y materiales
 
-Estado: borrador
+Estado: implementada (2026-10-10) · **reformulada como "receta" opcional por 0002a enmienda 4 (implementada 2026-10-10); sus escenarios están en `features/`**
 
 Épica E02 (Catálogo), parte 2 de 3. Depende de: 0002a. La usan: 0005.
 

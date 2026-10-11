@@ -1,6 +1,6 @@
 # Spec 0001c — Usuarios, roles y permisos
 
-Estado: borrador
+Estado: implementada (2026-10-10)
 
 Épica E01 (Tenancy y accesos), parte 3 de 4. Depende de: 0001a, 0001b. La usan: 0001d y 002–008 (cada caso de uso declara su permiso).
 

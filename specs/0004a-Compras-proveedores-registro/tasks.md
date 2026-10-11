@@ -22,13 +22,13 @@ Reglas (constitución, art. 8):
 
 ## Persistencia
 
-- [ ] **T4. Crear los modelos de proveedor, compra y línea de compra, con el índice único parcial del documento.** — RF-COM-01, RF-COM-04, RF-COM-11
+- [ ] **T4. Crear los modelos de compra y línea de compra, con el índice único parcial del documento.** — RF-COM-04, RF-COM-11
   - Hecho cuando: un test comprueba que el mismo documento no se repite entre compras activas, salvo `SIN_DOCUMENTO`.
 
 ## Casos de uso
 
-- [ ] **T5. Crear el CRUD de proveedores.** — RF-COM-01 a RF-COM-03
-  - Hecho cuando: "Proveedor con compras se desactiva en vez de eliminarse" está en verde y un proveedor desactivado no aparece en el selector.
+- [ ] **T5. Implementar `ComprasPort.tiene_compras()` de 0002d.** — RF-COM-02
+  - Hecho cuando: un proveedor con compras no se puede eliminar (escenario de 0002d con el puerto real) y un proveedor desactivado no aparece en el selector de compras (RF-COM-03).
 
 - [ ] **T6. Crear `RegistrarCompra` con la entrada de inventario.** — RF-COM-04, RF-COM-05, RF-COM-08 a RF-COM-10
   - Hecho cuando: "Compra con factura separa el IGV del costo", "Compra con boleta no separa IGV", "No se compran productos que se producen" y "Bonificación del proveedor con costo cero" están en verde.
@@ -52,5 +52,5 @@ Reglas (constitución, art. 8):
 
 ## Cierre
 
-- [ ] **T12. Verificar la spec completa.** — RF-COM-01 a RF-COM-14, RF-COM-19, RF-COM-20
+- [ ] **T12. Verificar la spec completa.** — RF-COM-04 a RF-COM-14, RF-COM-19, RF-COM-20
   - Hecho cuando: `pytest tests/purchasing tests/acceptance -k E04a` en verde; lint en verde; `MEMORY.md` actualizado.

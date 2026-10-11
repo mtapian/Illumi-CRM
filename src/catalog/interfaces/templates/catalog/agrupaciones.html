@@ -1,0 +1,8 @@
+{% extends "catalog/_maestro.html" %}
+{% block campos %}
+<label>Nombre<input name="nombre" required maxlength="80" value="{{ valores.nombre }}"></label>
+{% if tipo == "categoria" %}
+<label>Descripción<textarea name="descripcion" rows="3" placeholder="Descripción opcional">{{ valores.descripcion }}</textarea></label>
+<label class="check"><input type="checkbox" name="activo" {% if valores.activo or not editando and not valores.nombre %}checked{% endif %}> Categoría activa</label>
+{% endif %}
+{% endblock %}

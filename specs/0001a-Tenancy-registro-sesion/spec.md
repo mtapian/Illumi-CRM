@@ -1,6 +1,6 @@
 # Spec 0001a — Registro, sesión y suscripción
 
-Estado: borrador
+Estado: implementada (2026-10-10; "Registro exitoso" y "El cambio de IGV…" quedan parciales hasta 0001c, 0002a, 0003a, 0006b y 0008a)
 
 Épica E01 (Tenancy y accesos), parte 1 de 4. Depende de: ninguna. La usan: 0001b, 0001c, 0001d y 002–008.
 
@@ -85,4 +85,4 @@ Cada cervecera (empresa) necesita un espacio propio, con sus datos aislados de l
 
 ## Dudas abiertas
 
-- [NECESITA ACLARACIÓN] **PRD Q6:** tiempo de expiración de la sesión y política de contraseñas; confirmar 5 intentos / 15 minutos de bloqueo (RF-TEN-08).
+- **PRD Q6 (resuelta por el PO con los valores por defecto, 2026-10-10):** 5 intentos fallidos ⇒ 15 minutos de bloqueo; la sesión expira tras 8 horas de inactividad; contraseñas con los validadores estándar (mínimo 8 caracteres, no comunes, no solo números).

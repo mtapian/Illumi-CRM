@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block titulo %}{{ ficha.nombre }}{% endblock %}
+{% block contenido %}
+<h1>{{ ficha.nombre }}</h1>
+<p class="subtitulo">{{ ficha.email }} · <span class="chip {% if ficha.is_active %}ok{% else %}error{% endif %}">{% if ficha.is_active %}Activo{% else %}Inactivo{% endif %}</span> · <a href="{% url 'usuarios' %}">Volver a usuarios</a></p>
+<div class="tarjetas">
+  <section class="tarjeta">
+    <h2>Datos</h2>
+    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="datos">
+      <p><label>Nombre<input name="nombre" value="{{ ficha.nombre }}" required></label></p>
+      <button type="submit">Guardar</button>
+    </form>
+    <form method="post" style="margin-top:1rem">{% csrf_token %}<input type="hidden" name="accion" value="estado">
+      {% if ficha.is_active %}<input type="hidden" name="activo" value="0"><button type="submit" class="peligro">Desactivar</button>
+      {% else %}<input type="hidden" name="activo" value="1"><button type="submit">Reactivar</button>{% endif %}
+    </form>
+  </section>
+  <section class="tarjeta">
+    <h2>Roles</h2>
+    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="roles">
+      {% for r in roles %}{% if r.activo or r.id in asignados %}<label class="check"><input type="checkbox" name="roles" value="{{ r.id }}" {% if r.id in asignados %}checked{% endif %}> {{ r }}{% if not r.activo %} <span class="chip error">inactivo</span>{% endif %}</label>{% endif %}{% endfor %}
+      <button type="submit">Guardar roles</button>
+    </form>
+  </section>
+</div>
+<section class="tarjeta tabla">
+  <h2>Permisos efectivos</h2>
+  {% for modulo, filas in efectivos.items %}
+  <h3>{{ modulo }}</h3>
+  <table><tbody>{% for permiso, origen in filas %}<tr><td><code>{{ permiso }}</code></td><td>{{ origen }}</td></tr>{% endfor %}</tbody></table>
+  {% empty %}<p>No tiene permisos efectivos.</p>{% endfor %}
+  {% if no_disponibles %}<h3>No disponibles en tu plan</h3>
+  <p>{% for p in no_disponibles %}<code>{{ p }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+</section>
+{% endblock %}

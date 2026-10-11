@@ -1,6 +1,6 @@
 # Tareas 0002b — Catálogo: presentaciones y materiales
 
-Estado: borrador (ejemplo). **No ejecutar:** `spec.md` y `plan.md` siguen en borrador (constitución, art. 2.1).
+Estado: **implementada** (2026-10-10). 8/8 tareas hechas; escenarios en verde salvo 1 parcial anotado.
 
 Spec: `./spec.md` · Plan: `./plan.md`
 
@@ -11,32 +11,35 @@ Reglas (constitución, art. 8):
 
 ## Dominio puro
 
-- [ ] **T1. Implementar `validar_presentacion()`.** — RF-CAT-15, RF-CAT-16
+- [x] **T1. Implementar `validar_presentacion()`.** — RF-CAT-15, RF-CAT-16
   - Hecho cuando: `test_presentacion.py` rechaza contenido 0, granel inactivo, ningún material, un material que no es `ENVASE` y una cantidad 0; acepta 0,0417.
 
-- [ ] **T2. Implementar `materiales_para(presentacion, unidades)`.** — RF-CAT-16, RNF-CAT-02
+- [x] **T2. Implementar `materiales_para(presentacion, unidades)`.** — RF-CAT-16, RNF-CAT-02
   - Hecho cuando: un test comprueba que 240 unidades piden 240 botellas y 10,0080 cajas (4 decimales).
 
 ## Persistencia y casos de uso
 
-- [ ] **T3. Crear los modelos de presentación y material de presentación.** — RF-CAT-15, RF-CAT-16, RF-CAT-17
+- [x] **T3. Crear los modelos de presentación y material de presentación.** — RF-CAT-15, RF-CAT-16, RF-CAT-17
   - Hecho cuando: la migración se aplica y un test comprueba los `CHECK > 0` y `UNIQUE(presentacion_id, material_id)`.
 
-- [ ] **T4. Crear `DefinirPresentacion`.** — RF-CAT-15 a RF-CAT-17
+- [x] **T4. Crear `DefinirPresentacion`.** — RF-CAT-15 a RF-CAT-17
   - Hecho cuando: "Crear presentación en botella con materiales fraccionados", "Un granel con varias presentaciones", "Terminado sin materiales" y "Datos de presentación inválidos" están en verde.
+  - Nota: un `TERMINADO` se crea junto con su presentación en la misma transacción (`CrearProducto(datos, presentacion)`), porque RF-CAT-05 la exige; no hay un caso de uso `DefinirPresentacion` aparte.
 
-- [ ] **T5. Permitir editar materiales y bloquear el contenido con movimientos.** — RF-CAT-18
+- [x] **T5. Permitir editar materiales y bloquear el contenido con movimientos.** — RF-CAT-18
   - Hecho cuando: "Cambiar materiales aplica solo a envasados futuros" está en verde y cambiar el contenido de una presentación con movimientos lanza `ContenidoInmutable`.
+  - Nota: "Cambiar materiales aplica solo a envasados futuros" queda parcial: el costo promedio del stock lo lleva inventario (0003a).
 
-- [ ] **T6. Exponer `presentacion()` y `materiales_para()` en `CatalogoQuery`.** — RF-CAT-16
+- [x] **T6. Exponer `presentacion()` y `materiales_para()` en `CatalogoQuery`.** — RF-CAT-16
   - Hecho cuando: un test de la fachada devuelve los materiales de una presentación para N unidades; es lo que usará la spec 0005b.
 
 ## Pantalla
 
-- [ ] **T7. Agregar el formset de materiales al formulario de `TERMINADO`.** — RF-CAT-15, RF-CAT-16
+- [x] **T7. Agregar el formset de materiales al formulario de `TERMINADO`.** — RF-CAT-15, RF-CAT-16
   - Hecho cuando: un test de vista guarda una presentación con 5 materiales y muestra el error junto al material inválido.
+  - Nota: el formulario tiene 8 filas fijas de materiales (sin JavaScript); el granel y los materiales se eligen de listas que solo ofrecen GRANEL y ENVASE.
 
 ## Cierre
 
-- [ ] **T8. Verificar la spec completa.** — RF-CAT-15 a RF-CAT-18
+- [x] **T8. Verificar la spec completa.** — RF-CAT-15 a RF-CAT-18
   - Hecho cuando: `pytest tests/catalog tests/acceptance -k E02b` en verde; lint en verde; cada RF con escenario o test; `MEMORY.md` actualizado.

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Registrar empresa{% endblock %}
+{% block contenido %}
+<div class="panel">
+<h1>Registra tu empresa</h1>
+<p class="subtitulo">Prueba gratis durante 14 días.</p>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Crear cuenta</button>
+</form>
+<p>¿Ya tienes cuenta? <a href="/login/">Inicia sesión</a></p>
+</div>
+{% endblock %}

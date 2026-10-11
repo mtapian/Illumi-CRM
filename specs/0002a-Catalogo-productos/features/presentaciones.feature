@@ -1,23 +1,21 @@
 # language: es
 @E02 @E02a @mvp
-Característica: Presentaciones de producto terminado
+Característica: Desactivar o eliminar un producto usado en recetas
   Como maestro cervecero
-  Quiero definir cada presentación con su granel, contenido y materiales
-  Para que el envasado descuente lo correcto y calcule el costo unitario
+  Quiero desactivar productos que ya no uso aunque estén en una receta
+  Para no ofrecerlos más, sin perder la receta ni su historial
 
   Antecedentes:
     Dado que soy usuario "produccion" de "Cervecería Andina"
-    Y existe el granel "GRA-IPA" (IPA a granel)
-    Y existen los envases:
+    Y existe el bien que se fabrica "GRA-IPA" (IPA a granel)
+    Y existen los bienes que se compran:
       | sku         | nombre                |
       | ENV-BOT330  | Botella ámbar 330 ml  |
-      | ENV-TAPA    | Tapa corona           |
-      | ENV-ETQ-IPA | Etiqueta IPA          |
-      | ENV-CAJA24  | Caja x24              |
-      | ENV-PREC    | Precinto de barril    |
 
-  @UC-CAT-04 @borde @RF-CAT-20
-  Escenario: No se desactiva un granel con presentaciones activas
-    Dado que "GRA-IPA" tiene presentaciones activas
+  @UC-CAT-04 @borde @RF-CAT-20 @RF-CAT-21
+  Escenario: Un componente de una receta se desactiva pero no se elimina
+    Dado que existe el bien "TER-IPA-330" con "GRA-IPA" en su receta
+    Cuando intento eliminar "GRA-IPA"
+    Entonces la operación es rechazada con el mensaje "El producto tiene historial; solo puede desactivarse"
     Cuando intento desactivar "GRA-IPA"
-    Entonces la operación es rechazada con el mensaje "Desactiva primero las presentaciones de este granel"
+    Entonces "GRA-IPA" queda inactivo y sigue en la receta de "TER-IPA-330"

@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+src/illumi_crm.egg-info/PKG-INFO
+src/illumi_crm.egg-info/SOURCES.txt
+src/illumi_crm.egg-info/dependency_links.txt
+src/illumi_crm.egg-info/requires.txt
+src/illumi_crm.egg-info/top_level.txt
+src/shared/__init__.py
+src/shared/application/__init__.py
+src/shared/domain/__init__.py
+src/shared/infrastructure/__init__.py
+src/shared/interfaces/__init__.py
+src/tenancy/__init__.py
+src/tenancy/application/__init__.py
+src/tenancy/domain/__init__.py
+src/tenancy/infrastructure/__init__.py
+src/tenancy/interfaces/__init__.py

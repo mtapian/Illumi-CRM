@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titulo %}Planes{% endblock %}
+{% block contenido %}
+<h1>Planes</h1>
+<p class="subtitulo">Qué funcionalidades incluye cada plan y sus límites.</p>
+<div class="tarjeta tabla">
+<table><thead><tr><th>Plan</th><th>Usuarios</th><th>Productos</th><th>Empresas</th><th></th></tr></thead><tbody>
+{% for p in planes %}<tr>
+  <td><a href="{% url 'plataforma_plan' p.id %}">{{ p }}</a>{% if p.es_plan_prueba %} <span class="chip">prueba: incluye todo</span>{% endif %}</td>
+  <td>{{ p.limite_usuarios|default:"ilimitados" }}</td><td>{{ p.limite_productos|default:"ilimitados" }}</td><td>{{ p.n_empresas }}</td>
+  <td>{% if not p.activo %}<span class="chip error">inactivo</span>{% endif %}</td></tr>
+{% endfor %}
+</tbody></table>
+</div>
+<section class="tarjeta">
+  <h2>Nuevo plan</h2>
+  <form method="post" class="filtros">{% csrf_token %}
+    <label>Nombre<input name="nombre" required></label>
+    <label>Código<input name="slug" placeholder="negocio"></label>
+    <button type="submit">Crear</button>
+  </form>
+</section>
+{% endblock %}

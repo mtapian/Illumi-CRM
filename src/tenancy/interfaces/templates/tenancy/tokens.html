@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block titulo %}Tokens de API{% endblock %}
+{% block contenido %}
+<h1>Tokens de API</h1>
+<p class="subtitulo">Para integraciones como n8n. Cada token usa los permisos de su usuario técnico y solo lee datos de tu empresa.</p>
+{% if sin_api %}
+<p class="error" role="alert">{{ sin_api }}</p>
+{% else %}
+{% if nuevo %}
+<section class="aviso" role="status">
+  <p>Copia el token ahora: no se volverá a mostrar.</p>
+  <p><code id="token-nuevo">{{ nuevo }}</code></p>
+  <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('token-nuevo').textContent)">Copiar</button>
+</section>
+{% endif %}
+<div class="tarjeta tabla">
+<table><thead><tr><th>Nombre</th><th>Prefijo</th><th>Usuario técnico</th><th>Creado</th><th>Último uso</th><th></th></tr></thead><tbody>
+{% for t in tokens %}<tr>
+  <td>{{ t.nombre }}</td><td><code>{{ t.prefijo }}…</code></td><td>{{ t.usuario.nombre }}</td>
+  <td>{{ t.creado_en|date:"Y-m-d H:i" }}</td><td>{{ t.ultimo_uso_en|date:"Y-m-d H:i"|default:"—" }}</td>
+  <td>{% if t.revocado_en %}<span class="chip error">revocado</span>{% else %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="revocar"><input type="hidden" name="token" value="{{ t.id }}"><button type="submit" class="peligro">Revocar</button></form>{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="6">No hay tokens.</td></tr>{% endfor %}
+</tbody></table>
+</div>
+<div class="tarjetas">
+<section class="tarjeta">
+  <h2>Nuevo token</h2>
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="crear">
+    <p><label>Nombre<input name="nombre" required placeholder="n8n-stock"></label></p>
+    <p><label>Usuario técnico<input name="tecnico" required placeholder="n8n"></label></p>
+    <p><strong>Roles del usuario técnico</strong> (solo si es nuevo)</p>
+    {% for r in roles %}<label class="check"><input type="checkbox" name="roles" value="{{ r.id }}"> {{ r }}</label>{% endfor %}
+    <button type="submit">Crear token</button>
+  </form>
+</section>
+<section class="tarjeta tabla">
+  <h2>Usuarios técnicos</h2>
+  <table><tbody>{% for u in tecnicos %}<tr><td>{{ u.nombre }}</td>
+    <td>{% if u.is_active %}<form method="post">{% csrf_token %}<input type="hidden" name="accion" value="desactivar_tecnico"><input type="hidden" name="usuario" value="{{ u.id }}"><button type="submit" class="peligro">Desactivar y revocar sus tokens</button></form>{% else %}<span class="chip error">inactivo</span>{% endif %}</td></tr>
+  {% empty %}<tr><td>No hay usuarios técnicos.</td></tr>{% endfor %}</tbody></table>
+</section>
+</div>
+{% endif %}
+{% endblock %}

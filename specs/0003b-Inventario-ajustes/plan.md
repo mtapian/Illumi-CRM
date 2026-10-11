@@ -39,6 +39,8 @@ Sin algoritmos no triviales: la lógica está en las funciones puras de §3.
 
 ## 5. Interfaz
 
+**Referencia visual del PO (2026-10-10):** "Ajustes de stock" en dos tarjetas: a la izquierda "Nuevo ajuste" (producto con su stock actual, tipo de ajuste —p. ej. fijar stock exacto por conteo físico—, cantidad y motivo; botón "Aplicar ajuste"); a la derecha "Últimos ajustes" (fecha, producto, motivo, antes, después).
+
 | Ruta | Qué se pinta | RF |
 |---|---|---|
 | `/inventario/ajustes/nuevo` | Formulario por tipo: costo obligatorio en saldo inicial; cantidad contada en conteo; almacén destino en transferencia; lote si aplica | RF-INV-08 a 12, 25 |

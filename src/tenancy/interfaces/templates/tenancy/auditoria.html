@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titulo %}Auditoría de accesos{% endblock %}
+{% block contenido %}
+<h1>Auditoría de accesos</h1>
+<p class="subtitulo">Cambios de roles, permisos, usuarios y tokens de API: quién, cuándo, antes y después.</p>
+<form method="get" class="filtros">
+  <label>Desde<input type="date" name="desde" value="{{ filtro.desde }}"></label>
+  <label>Hasta<input type="date" name="hasta" value="{{ filtro.hasta }}"></label>
+  <label>Entidad<select name="entidad"><option value="">Todas</option>
+    {% for e in entidades %}<option value="{{ e }}" {% if filtro.entidad == e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></label>
+  <label>Autor<input name="autor" value="{{ filtro.autor }}" placeholder="email"></label>
+  <button type="submit">Filtrar</button>
+</form>
+{% include "tenancy/_tabla_auditoria.html" %}
+{% endblock %}

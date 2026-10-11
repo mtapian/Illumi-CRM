@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block titulo %}{{ empresa }}<h2>Auditoría de accesos de la empresa</h2>
+{% include "tenancy/_tabla_auditoria.html" %}
+{% endblock %}
+{% block contenido %}
+<h1>{{ empresa.razon_social }}</h1>
+<p class="subtitulo">RUC {{ empresa.ruc }} · Plan {{ empresa.plan }} ·
+  <span class="chip {% if empresa.estado == 'SUSPENDIDA' or empresa.estado == 'VENCIDA' %}error{% else %}ok{% endif %}">{{ empresa.estado }}</span>
+  · vence {{ empresa.fecha_termino|default:"sin fecha" }} · <a href="{% url 'plataforma_modulos' empresa.id %}">Módulos y funcionalidades</a></p>
+<div class="tarjetas">
+  <section class="tarjeta">
+    <h2>Activar plan</h2>
+    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="activar">
+      <p><label>Plan<select name="plan">{% for p in planes %}<option value="{{ p.id }}" {% if p.id == empresa.plan_id %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label></p>
+      <p><label>Hasta<input type="date" name="hasta"></label></p>
+      <p><label>Motivo<input name="motivo" required></label></p>
+      <button type="submit">Activar</button>
+    </form>
+  </section>
+  <section class="tarjeta">
+    <h2>Cambiar de plan</h2>
+    <p class="subtitulo">Conserva el estado y los ajustes propios de la empresa.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="cambiar_plan">
+      <p><label>Plan<select name="plan">{% for p in planes %}<option value="{{ p.id }}" {% if p.id == empresa.plan_id %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label></p>
+      <p><label>Motivo<input name="motivo" required></label></p>
+      <button type="submit">Cambiar plan</button>
+    </form>
+  </section>
+  <section class="tarjeta">
+    {% if empresa.estado == "SUSPENDIDA" %}
+    <h2>Reactivar</h2>
+    <p class="subtitulo">Vuelve al estado anterior a la suspensión.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="reactivar">
+      <p><label>Motivo<input name="motivo" required></label></p>
+      <button type="submit">Reactivar</button>
+    </form>
+    {% else %}
+    <h2>Suspender</h2>
+    <p class="subtitulo">Sus usuarios no podrán operar. No se borra ningún dato.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="suspender">
+      <p><label>Motivo<input name="motivo" required></label></p>
+      <button type="submit" class="peligro">Suspender</button>
+    </form>
+    {% endif %}
+  </section>
+</div>
+<section class="tarjeta tabla">
+  <h2>Actividad de plataforma (plan, estado y habilitaciones)</h2>
+  <table><thead><tr><th>Fecha</th><th>Acción</th><th>Por</th><th>Motivo</th><th>Detalle</th></tr></thead><tbody>
+  {% for a in actividad %}<tr><td>{{ a.created_at|date:"Y-m-d H:i" }}</td><td>{{ a.accion }}</td><td>{{ a.actor|default:"Sistema" }}</td><td>{{ a.motivo }}</td><td><small>{{ a.detalle }}</small></td></tr>
+  {% empty %}<tr><td colspan="5">Sin actividad.</td></tr>{% endfor %}
+  </tbody></table>
+</section>
+<h2>Auditoría de accesos de la empresa</h2>
+{% include "tenancy/_tabla_auditoria.html" %}
+{% endblock %}
