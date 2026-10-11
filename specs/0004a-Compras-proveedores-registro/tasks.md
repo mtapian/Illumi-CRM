@@ -13,7 +13,7 @@ Reglas (constitución, art. 8): una tarea a la vez, test primero, y `ruff check`
 - [x] **T3. `IgvPort`, `CrearCompra`, `EditarCompra` y `PasarAEnProceso` (sin stock).** — RF-COM-04, RF-COM-05, RF-COM-08, RF-COM-23, RF-COM-25
   - Hecho cuando: crear y editar una compra no generan movimientos, "No se compra un bien que no se compra" y "No se compra a un proveedor desactivado" están en verde, y una compra no vuelve de En proceso a Creada.
 
-- [x] **T3b. `FinalizarCompra` con revalidación y entrada de inventario.** — RF-COM-10, RF-COM-12, RF-COM-26, RF-COM-27
+- [x] **T3b. `FinalizarCompra` con revalidación y entrada de inventario.** — RF-COM-10, RF-COM-12, RF-COM-26, RF-COM-27, RF-COM-30
   - Hecho cuando: "Compra con factura separa el IGV del costo", "Compra con boleta no separa IGV" y "Solo al finalizar entra el stock" y "La fecha de la compra es referencia y no impide finalizar" , "Se finaliza con la fecha de recepción" y "Al confirmar la recepción se cambia el almacén y se registra la guía" están en verde, y una compra Finalizada no se edita ni se finaliza dos veces.
 - [x] **T4. Lotes, documento duplicado y bonificación en la compra.** — RF-COM-06, RF-COM-07, RF-COM-11, RF-COM-19
   - Hecho cuando: los escenarios de lote, documento duplicado y bonificación están en verde.
@@ -23,5 +23,5 @@ Reglas (constitución, art. 8): una tarea a la vez, test primero, y `ruff check`
   - Hecho cuando: un test de vista crea una compra de 3 líneas, la edita, la pasa a en proceso y la finaliza; si se rechaza, las líneas vuelven.
 - [x] **T7. Listado y detalle de compras; enlace desde el kardex.** — RF-COM-13, RF-COM-14
   - Hecho cuando: los filtros funcionan, el detalle de otra empresa da 404 (ruta en la prueba de aislamiento) y el kardex enlaza cada entrada `COMPRA`.
-- [x] **T8. Verificar la spec completa.** — RF-COM-04 a RF-COM-14, RF-COM-19, RF-COM-20, RF-COM-23 a RF-COM-27
+- [x] **T8. Verificar la spec completa.** — RF-COM-04 a RF-COM-14, RF-COM-19, RF-COM-20, RF-COM-23 a RF-COM-27, RF-COM-30
   - Hecho cuando: suite, lint, contratos y migraciones en verde; cada RF con escenario o test; `MEMORY.md` actualizado.

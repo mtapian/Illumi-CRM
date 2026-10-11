@@ -7,12 +7,12 @@ almacén vacío se desactiva.{% endcomment %}
 {% include "catalog/_migas.html" %}
 {% if nuevo or editando %}
 <section class="tarjeta formulario-maestro">
-  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+  <form method="post" id="form-maestro" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
     {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
     <label>Nombre<input name="nombre" required maxlength="80" value="{{ nombre }}"></label>
-    <p><button type="submit">Guardar</button> <a class="boton secundario" href="{{ request.path }}">Cancelar</a></p>
   </form>
 </section>
+<div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-maestro" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{{ request.path }}" data-descartar>Cancelar</a> <button type="submit" form="form-maestro" data-con-cambios disabled>Guardar</button></div>
 {% else %}
 <div class="barra-listado">
   <form method="get" class="buscador"><input type="search" name="q" value="{{ q }}" placeholder="Buscar almacén…" aria-label="Buscar almacén"></form>

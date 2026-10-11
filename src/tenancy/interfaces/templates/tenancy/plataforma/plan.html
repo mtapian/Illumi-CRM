@@ -3,7 +3,7 @@
 {% block contenido %}
 <h1>Plan {{ plan }}</h1>
 <p class="subtitulo">{% if plan.es_plan_prueba %}Plan de prueba: incluye todas las funcionalidades sin importar lo que se marque aquí.{% else %}CORE siempre está incluido.{% endif %}</p>
-<form method="post">{% csrf_token %}
+<form method="post" id="form-plan" data-cambios>{% csrf_token %}
   {% if confirmar is not None %}
   <div class="aviso" role="alert">Este cambio afecta a {{ confirmar }} empresa{{ confirmar|pluralize }}.
     <input type="hidden" name="confirmado" value="1"> <button type="submit">Confirmar</button></div>
@@ -23,6 +23,6 @@
     </section>
     {% endfor %}
   </div>
-  {% if confirmar is None %}<button type="submit">Guardar</button>{% endif %}
 </form>
+{% if confirmar is None %}<div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-plan" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{% url 'plataforma_planes' %}" data-descartar>Volver a planes</a> <button type="submit" form="form-plan" data-con-cambios disabled>Guardar cambios</button></div>{% endif %}
 {% endblock %}

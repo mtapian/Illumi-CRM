@@ -1,97 +1,152 @@
 {% extends "base.html" %}
-{% comment %}Compra (plan 0004a §5): nueva o en edición mientras no esté Finalizada, con la barra
-Creada ▸ En proceso ▸ Finalizada; "Finalizar" confirma la recepción (almacén, fecha y guía;
-RF-COM-27). Finalizada o Anulada: detalle de solo lectura con sus movimientos de kardex.{% endcomment %}
+{% comment %}Compra (plan 0004a §5; reglas de docs/ux.md y prototipo del PO): datos, productos y
+totales en tarjetas; barra de acciones abajo con la acción principal según el estado (Creada:
+"Pasar a en proceso"; En proceso: "Finalizar y recibir stock", que confirma la recepción en un
+diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% endcomment %}
 {% block titulo %}{% if compra %}Compra {{ numero }}{% else %}Nueva compra{% endif %}{% endblock %}
 {% block contenido %}
-<h1>{% if compra %}Compra {{ numero }}{% else %}Nueva compra{% endif %}</h1>
 {% include "catalog/_migas.html" %}
-{% if compra %}
-<ol class="barra-estados" aria-label="Estado de la compra">{% for v, n in estados %}<li{% if compra.estado == v %} aria-current="step" class="actual"{% endif %}>{{ n }}</li>{% endfor %}</ol>
-<p class="subtitulo">Registrada por {{ compra.usuario.email|default:"—" }}{% if compra.finalizada_por %} · finalizada por {{ compra.finalizada_por.email }}{% endif %}{% if compra.estado == "ANULADA" %} · <span class="chip error">Anulada</span>{% endif %}</p>
-{% endif %}
+<div class="encabezado-documento">
+  <div>
+    <h1>{% if compra %}Compra {{ numero }}{% else %}Nueva compra{% endif %}</h1>
+    {% if compra %}<p class="subtitulo">Registrada por {{ compra.usuario.email|default:"—" }}{% if compra.finalizada_por %} · finalizada por {{ compra.finalizada_por.email }}{% endif %}</p>{% endif %}
+  </div>
+  {% if compra %}<span class="chip {% if compra.estado == 'FINALIZADA' %}ok{% elif compra.estado == 'ANULADA' %}error{% endif %}">{{ estado_texto }}</span>{% endif %}
+</div>
+{% if compra %}<ol class="barra-estados" aria-label="Secuencia de estados">{% for v, n in estados %}<li{% if compra.estado == v %} aria-current="step" class="actual"{% endif %}>{{ n }}</li>{% endfor %}</ol>{% endif %}
+
 {% if editable or not compra %}
-<section class="tarjeta">
-  <form method="post" id="form-compra">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
-    <div class="dos-columnas">
-      <label>Proveedor<select name="proveedor" required><option value="">—</option>{% for p in proveedores %}<option value="{{ p.id }}"{% if valores.proveedor == p.id|stringformat:"s" %} selected{% endif %}>{{ p.razon_social }} ({{ p.tipo_doc }} {{ p.num_doc }})</option>{% endfor %}</select></label>
-      <label>Fecha (referencia)<input type="date" name="fecha" required value="{{ valores.fecha }}"></label>
-      <label>Almacén de destino<select name="almacen" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
-      <label>Documento<select name="doc_tipo" id="doc_tipo">{% for v, n in documentos %}<option value="{{ v }}"{% if valores.doc_tipo == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
-      <label>Serie y número<input name="doc_serie_numero" maxlength="20" placeholder="F001-000845" value="{{ valores.doc_serie_numero|default:'' }}"></label>
-      <label>Observación<input name="observacion" maxlength="250" value="{{ valores.observacion|default:'' }}"></label>
+<form method="post" id="form-compra" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+  <section class="tarjeta">
+    <h2>Datos de la compra</h2>
+    <div class="tres-columnas">
+      <label>Proveedor *<select name="proveedor" required><option value="">Elige un proveedor</option>{% for p in proveedores %}<option value="{{ p.id }}"{% if valores.proveedor == p.id|stringformat:"s" %} selected{% endif %}>{{ p.razon_social }} · {{ p.tipo_doc }} {{ p.num_doc }}</option>{% endfor %}</select></label>
+      <label>Almacén de destino *<select name="almacen" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
+      <label>Fecha de referencia *<input type="date" name="fecha" required value="{{ valores.fecha }}"></label>
+      <label>Tipo de documento<select name="doc_tipo" id="doc_tipo">{% for v, n in documentos %}<option value="{{ v }}"{% if valores.doc_tipo == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+      <label>Serie y número<input name="doc_serie_numero" maxlength="20" placeholder="Ej. F001-000845" value="{{ valores.doc_serie_numero|default:'' }}"></label>
+      <div><span class="etiqueta">Moneda</span><p>Soles · PEN (S/)</p></div>
     </div>
-    <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Costo unit.</th><th>Bonificación</th><th>Lote</th><th>Vence</th><th>Subtotal</th><th></th></tr></thead>
+  </section>
+  <section class="tarjeta">
+    <h2>Productos</h2>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad</th><th id="etiqueta-costo">Costo unitario</th><th>Bonificación</th><th>Lote</th><th>Vence</th><th class="num">Subtotal</th><th><span class="oculto">Quitar</span></th></tr></thead>
     <tbody id="lineas">{% for f in filas %}{% include "purchasing/_linea_compra.html" %}{% endfor %}</tbody></table></div>
     <template id="linea-vacia">{% include "purchasing/_linea_compra.html" with f=None %}</template>
     <p><button type="button" class="secundario" onclick="agregarLinea()">+ Agregar producto</button></p>
-    <dl class="totales" data-igv="{{ igv }}"><dt>Subtotal</dt><dd id="subtotal">—</dd><dt>IGV</dt><dd id="igv">—</dd><dt>Total</dt><dd id="total">—</dd></dl>
-    <p class="subtitulo">Con factura, el costo es sin IGV; con otro documento, el total pagado por unidad. El sistema recalcula al guardar.</p>
-    <p>{% if compra %}<button type="submit" class="exito">Guardar</button>
-      {% if compra.estado == "CREADA" %}<button type="submit" name="accion" value="en_proceso" class="secundario" formnovalidate>Pasar a en proceso</button>{% endif %}
-      <button type="button" onclick="document.getElementById('recepcion').showModal()">Finalizar</button>
-      {% else %}<button type="submit" class="exito">Registrar compra</button>{% endif %}
-      <a class="boton secundario" href="{% url 'compras' %}">Cancelar</a></p>
-  </form>
-</section>
-{% if compra %}
-<dialog id="recepcion" class="tarjeta">
+    <p class="subtitulo" id="ayuda-costo">Ingresa el total pagado por unidad.</p>
+    <div class="pie-productos">
+      <label>Observaciones<textarea name="observacion" maxlength="250" placeholder="Agrega una referencia o indicación para esta compra">{{ valores.observacion|default:'' }}</textarea></label>
+      <div class="caja-totales" data-igv="{{ igv }}" aria-live="polite">
+        <dl><dt>Subtotal</dt><dd id="subtotal">S/ 0.00</dd><dt>IGV <span id="tasa-igv"></span></dt><dd id="igv">S/ 0.00</dd>
+          <dt class="total">Total</dt><dd class="total" id="total">S/ 0.00</dd></dl>
+        <small class="subtitulo">Cálculo provisional: el sistema recalcula al guardar.</small>
+      </div>
+    </div>
+  </section>
+</form>
+
+<div class="acciones-documento">
+  <span class="estado-cambios" data-aviso-cambios="form-compra" role="status">Sin cambios pendientes</span>
+  {% if not compra %}
+    <a class="boton secundario" href="{% url 'compras' %}" data-descartar>Cancelar</a>
+    <button type="submit" form="form-compra">Crear compra</button>
+  {% else %}
+    <button type="submit" form="form-compra" class="secundario" data-con-cambios disabled>Guardar cambios</button>
+    {% if compra.estado == "CREADA" %}
+      <button type="submit" form="form-compra" name="accion" value="en_proceso">Pasar a en proceso</button>
+    {% else %}
+      <button type="button" data-sin-cambios onclick="document.getElementById('confirmar-recepcion').showModal()">Finalizar y recibir stock</button>
+    {% endif %}
+    <details class="mas-acciones">
+      <summary>Más acciones ▾</summary>
+      <div class="menu">
+        <a href="{{ request.path }}" data-descartar>Descartar cambios</a>
+      </div>
+    </details>
+  {% endif %}
+</div>
+
+{% if compra and compra.estado == "EN_PROCESO" %}
+<dialog id="confirmar-recepcion" class="tarjeta" aria-labelledby="titulo-recepcion">
   <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="finalizar">
-    <h2>Confirmar recepción de {{ numero }}</h2>
-    <label>Almacén de ingreso<select name="almacen_recepcion" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if compra.almacen_id == a.id %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
-    <label>Fecha de recepción<input type="date" name="fecha_recepcion" required max="{{ hoy }}" value="{{ hoy }}"></label>
+    <h2 id="titulo-recepcion">Finalizar y recibir stock</h2>
+    <p>Se generará la recepción de los productos de la compra <strong>{{ numero }}</strong> de <strong>{{ compra.proveedor.razon_social }}</strong> en el almacén que elijas. Revisa las cantidades y el almacén antes de continuar: la compra ya no se podrá editar.</p>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th>Lote</th></tr></thead><tbody>
+    {% for l in lineas %}<tr><td>{{ l.producto.sku }} · {{ l.producto.nombre }}{% if l.es_bonificacion %} <span class="chip neutro">Bonificación</span>{% endif %}</td><td class="num">{{ l.cantidad.normalize }} {{ l.producto.unidad.abreviatura }}</td><td>{{ l.lote_codigo|default:"—" }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    <label>Almacén de ingreso *<select name="almacen_recepcion" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if compra.almacen_id == a.id %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
+    <label>Fecha de recepción *<input type="date" name="fecha_recepcion" required max="{{ hoy }}" value="{{ hoy }}"></label>
     <label>Guía de remisión (opcional)<input name="guia" maxlength="13" placeholder="T001-00004521"></label>
-    <p class="subtitulo">Al finalizar entra el stock y la compra ya no se puede editar. Se finaliza lo guardado.</p>
-    <p><button type="submit" class="exito">Finalizar</button> <button type="button" class="secundario" onclick="this.closest('dialog').close()">Cancelar</button></p>
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver a revisar</button> <button type="submit">Confirmar recepción</button></p>
   </form>
 </dialog>
 {% endif %}
 <script>
-  // Una línea por producto, sin límite (como en ajustes); totales solo informativos.
+  // Una línea por producto, sin límite; etiqueta del costo y totales según el documento (docs/ux.md §4).
   function agregarLinea() {
     document.getElementById("lineas").appendChild(document.getElementById("linea-vacia").content.cloneNode(true));
   }
   function quitarLinea(boton) {
     if (document.getElementById("lineas").rows.length > 1) boton.closest("tr").remove();
-    recalcular();
+    document.getElementById("form-compra").dispatchEvent(new Event("input"));
   }
+  const soles = (n) => "S/ " + n.toFixed(2);
   function recalcular() {
-    const pct = document.getElementById("doc_tipo").value === "FACTURA" ? Number(document.querySelector(".totales").dataset.igv) : 0;
+    const factura = document.getElementById("doc_tipo").value === "FACTURA";
+    const pct = factura ? Number(document.querySelector(".caja-totales").dataset.igv) : 0;
+    document.getElementById("etiqueta-costo").textContent = factura ? "Costo sin IGV" : "Total por unidad";
+    document.getElementById("ayuda-costo").textContent = factura
+      ? "Ingresa el costo unitario sin IGV. El IGV se calcula sobre el subtotal."
+      : "Ingresa el total pagado por unidad.";
+    document.getElementById("tasa-igv").textContent = factura ? `(${pct} %)` : "";
     let subtotal = 0, igv = 0;
     for (const fila of document.getElementById("lineas").rows) {
       const sub = Math.round(Number(fila.querySelector("[name=cantidad]").value) * Number(fila.querySelector("[name=costo]").value) * 100) / 100;
-      fila.querySelector(".subtotal").textContent = sub.toFixed(2);
+      fila.querySelector(".subtotal").textContent = soles(sub);
       subtotal += sub; igv += Math.round(sub * pct) / 100;
     }
-    document.getElementById("subtotal").textContent = subtotal.toFixed(2);
-    document.getElementById("igv").textContent = igv.toFixed(2);
-    document.getElementById("total").textContent = (subtotal + igv).toFixed(2);
+    document.getElementById("subtotal").textContent = soles(subtotal);
+    document.getElementById("igv").textContent = soles(igv);
+    document.getElementById("total").textContent = soles(subtotal + igv);
   }
   document.getElementById("form-compra").addEventListener("input", recalcular);
+  document.getElementById("form-compra").addEventListener("change", recalcular);
   recalcular();
 </script>
 {% else %}
 <section class="tarjeta">
+  <h2>Datos de la compra</h2>
   <dl>
-    <dt>Proveedor</dt><dd>{{ compra.proveedor.razon_social }}</dd>
-    <dt>Fecha</dt><dd>{{ compra.fecha|date:"Y-m-d" }}</dd>
+    <dt>Proveedor</dt><dd>{{ compra.proveedor.razon_social }} · {{ compra.proveedor.tipo_doc }} {{ compra.proveedor.num_doc }}</dd>
+    <dt>Fecha de referencia</dt><dd>{{ compra.fecha|date:"Y-m-d" }}</dd>
     <dt>Documento</dt><dd>{{ compra.doc_tipo }} {{ compra.doc_serie_numero }}</dd>
     <dt>Almacén de ingreso</dt><dd>{{ compra.almacen.nombre }}</dd>
-    {% if compra.fecha_recepcion %}<dt>Fecha de recepción</dt><dd>{{ compra.fecha_recepcion|date:"Y-m-d" }}</dd>{% endif %}
-    {% if compra.guia_remision %}<dt>Guía de remisión</dt><dd>{{ compra.guia_remision }}</dd>{% endif %}
-    {% if compra.observacion %}<dt>Observación</dt><dd>{{ compra.observacion }}</dd>{% endif %}
+    {% if compra.observacion %}<dt>Observaciones</dt><dd>{{ compra.observacion }}</dd>{% endif %}
   </dl>
-  <h2>Líneas</h2>
-  <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Costo unit.</th><th>Lote</th><th>Vence</th><th>Subtotal</th></tr></thead><tbody>
-  {% for l in lineas %}<tr><td>{{ l.producto.sku }} · {{ l.producto.nombre }}{% if l.es_bonificacion %} <span class="chip neutro">Bonificación</span>{% endif %}</td><td>{{ l.cantidad }} {{ l.producto.unidad.abreviatura }}</td><td>{{ l.costo_unitario }}</td><td>{{ l.lote_codigo }}</td><td>{{ l.vencimiento|date:"Y-m-d" }}</td><td>{{ l.subtotal }}</td></tr>{% endfor %}
-  </tbody></table></div>
-  <dl class="totales"><dt>Subtotal</dt><dd>{{ compra.subtotal }}</dd><dt>IGV ({{ compra.igv_pct }} %)</dt><dd>{{ compra.igv }}</dd><dt>Total</dt><dd>{{ compra.total }}</dd></dl>
-  <h2>Movimientos de kardex</h2>
-  <div class="tabla"><table><thead><tr><th>Fecha</th><th>Motivo</th><th>Producto</th><th>Almacén</th><th>Lote</th><th>Cantidad</th><th>Costo unit.</th></tr></thead><tbody>
-  {% for m in movimientos %}<tr><td>{{ m.fecha|date:"Y-m-d H:i" }}</td><td>{{ m.motivo }}</td><td>{{ m.producto.sku }}</td><td>{{ m.almacen.nombre }}</td><td>{{ m.lote.codigo|default:"" }}</td><td>{{ m.cantidad }}</td><td>{{ m.costo_unitario }}</td></tr>
-  {% empty %}<tr><td colspan="7" class="subtitulo">Sin movimientos: la compra no está finalizada.</td></tr>{% endfor %}
-  </tbody></table></div>
-  <p><a class="boton secundario" href="{% url 'compras' %}">Volver</a></p>
 </section>
+<section class="tarjeta">
+  <h2>Productos</h2>
+  <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Costo unit.</th><th>Lote</th><th>Vence</th><th class="num">Subtotal</th></tr></thead><tbody>
+  {% for l in lineas %}<tr><td>{{ l.producto.sku }} · {{ l.producto.nombre }}{% if l.es_bonificacion %} <span class="chip neutro">Bonificación</span>{% endif %}</td><td class="num">{{ l.cantidad.normalize }} {{ l.producto.unidad.abreviatura }}</td><td class="num">S/ {{ l.costo_unitario }}</td><td>{{ l.lote_codigo }}</td><td>{{ l.vencimiento|date:"Y-m-d" }}</td><td class="num">S/ {{ l.subtotal }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <div class="pie-productos"><span></span>
+    <div class="caja-totales"><dl><dt>Subtotal</dt><dd>S/ {{ compra.subtotal }}</dd><dt>IGV{% if compra.igv %} ({{ compra.igv_pct.normalize }} %){% endif %}</dt><dd>S/ {{ compra.igv }}</dd>
+      <dt class="total">Total</dt><dd class="total">S/ {{ compra.total }}</dd></dl></div>
+  </div>
+</section>
+{% if compra.estado == "FINALIZADA" or movimientos %}
+<section class="tarjeta" id="recepcion">
+  <h2>Recepción de stock</h2>
+  <p class="subtitulo">{% if compra.fecha_recepcion %}Recibida el {{ compra.fecha_recepcion|date:"Y-m-d" }} en {{ compra.almacen.nombre }}{% if compra.guia_remision %} · guía de remisión {{ compra.guia_remision }}{% endif %}{% endif %}</p>
+  <div class="tabla"><table><thead><tr><th>Fecha</th><th>Motivo</th><th>Producto</th><th>Almacén</th><th>Lote</th><th class="num">Cantidad</th><th class="num">Costo unit.</th></tr></thead><tbody>
+  {% for m in movimientos %}<tr><td>{{ m.fecha|date:"Y-m-d H:i" }}</td><td>{{ m.motivo }}</td><td>{{ m.producto.sku }}</td><td>{{ m.almacen.nombre }}</td><td>{{ m.lote.codigo|default:"" }}</td><td class="num">{{ m.cantidad.normalize }}</td><td class="num">S/ {{ m.costo_unitario }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+<div class="acciones-documento">
+  <a class="boton secundario" href="{% url 'compras' %}">Volver al listado</a>
+  {% if compra.estado == "FINALIZADA" %}<a class="boton principal" href="#recepcion">Ver recepción</a>{% endif %}
+</div>
 {% endif %}
 {% endblock %}

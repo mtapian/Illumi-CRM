@@ -83,8 +83,14 @@ def finalizar(ctx, alm=None, recepcion="hoy", guia=""):
     intentar(ctx, hacer)
 
 
+def en_proceso(ctx):
+    intentar(ctx, lambda: caso_de_compra(uc.PasarAEnProceso).ejecutar(actor(EMAIL), ctx["compra"]))
+
+
 def registrar(ctx, filas, **kw):
+    """Crear, pasar a en proceso y finalizar (RF-COM-30: sin saltos)."""
     if crear(ctx, filas, **kw):
+        en_proceso(ctx)
         finalizar(ctx)
 
 
@@ -239,9 +245,10 @@ def creo_compra(ctx, prov, serie, n, sku, c):
     crear(ctx, [malta(n, c)], prov=prov, doc="FACTURA", serie=serie)
 
 
-@when(re_("creo una compra a {} con fecha {}", "prov", "fecha"))
+@when(re_('creo una compra a {} con fecha {} y la paso a "EN_PROCESO"', "prov", "fecha"))
 def creo_con_fecha(ctx, prov, fecha):
     crear(ctx, [malta()], prov=prov, fecha=dia(fecha))
+    en_proceso(ctx)
 
 
 @when(re_(r"cambio la cantidad a (?P<n>\d+) KG y la paso a {}", "estado"))
@@ -278,6 +285,7 @@ def finalizo_con_todo(ctx, alm, fecha, guia):
 @when(re_("intento finalizar otra compra con (?:fecha de recepción {}|guía {})", "fecha", "guia"))
 def intento_finalizar_otra(ctx, fecha, guia):
     crear(ctx, [malta()])
+    en_proceso(ctx)
     finalizar(ctx, recepcion=fecha or "hoy", guia=guia or "")
 
 

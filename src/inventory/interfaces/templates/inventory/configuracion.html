@@ -4,10 +4,10 @@
 <h1>Configuración de inventario</h1>
 {% include "catalog/_migas.html" %}
 <section class="tarjeta formulario-maestro">
-  <form method="post">{% csrf_token %}
+  <form method="post" id="form-config" data-cambios>{% csrf_token %}
     <label>Días de alerta de vencimiento<input name="dias" type="number" min="1" max="365" required value="{{ dias }}"></label>
     <p class="subtitulo">Los lotes con stock que vencen dentro de estos días aparecen en el aviso "Por vencer" del inicio.</p>
-    <p><button type="submit">Guardar</button></p>
   </form>
 </section>
+<div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-config" role="status">Sin cambios pendientes</span><button type="submit" form="form-config" data-con-cambios disabled>Guardar</button></div>
 {% endblock %}

@@ -6,7 +6,7 @@
 {% include "catalog/_migas.html" %}
 {% if nuevo or editando %}
 <section class="tarjeta formulario-maestro">
-  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+  <form method="post" id="form-maestro" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
     {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
     <div class="dos-columnas">
     <label>Tipo de documento<select name="tipo_doc">
@@ -19,9 +19,9 @@
     <label>Email<input name="email" type="email" maxlength="120" value="{{ valores.email }}"></label>
     <label>Dirección<input name="direccion" maxlength="250" value="{{ valores.direccion }}"></label>
     </div>
-    <p><button type="submit">Guardar</button> <a class="boton secundario" href="{{ request.path }}">Cancelar</a></p>
   </form>
 </section>
+<div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-maestro" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{{ request.path }}" data-descartar>Cancelar</a> <button type="submit" form="form-maestro" data-con-cambios disabled>Guardar</button></div>
 {% else %}
 <div class="barra-listado">
   <form method="get" class="buscador"><input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre o documento…" aria-label="Buscar proveedor"></form>

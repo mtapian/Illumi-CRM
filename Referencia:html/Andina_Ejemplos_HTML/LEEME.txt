@@ -1,0 +1,9 @@
+ANDINA - Ejemplos UX/UI
+
+productos.html: grilla de productos.
+compra-creada.html: compra creada con acciones de estado.
+compra-en-proceso.html: compra con confirmación de recepción.
+
+Abre los HTML en un navegador. Son prototipos, no guardan datos ni generan stock real.
+Los ejemplos sirven de referencia visual para Claude junto con el prompt de la conversación.
+Las pantallas adicionales productos-detalle y compras-listado están definidas en el prompt, pero no forman parte de estos ejemplos.

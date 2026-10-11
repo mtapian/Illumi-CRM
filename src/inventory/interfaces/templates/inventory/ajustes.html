@@ -9,7 +9,7 @@ costo solo se pide en entradas (obligatorio en SALDO_INICIAL).{% endcomment %}
 <div class="dos-columnas">
 <section class="tarjeta">
   <h2>Nuevo ajuste</h2>
-  <form method="post">{% csrf_token %}
+  <form method="post" id="form-ajuste">{% csrf_token %}
     <div class="dos-columnas">
       <label>Tipo<select name="tipo">{% for t in tipos %}<option value="{{ t }}"{% if valores.tipo == t %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
       <label>Almacén<select name="almacen">{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
@@ -20,7 +20,6 @@ costo solo se pide en entradas (obligatorio en SALDO_INICIAL).{% endcomment %}
     <tbody id="lineas">{% for f in filas %}{% include "inventory/_linea_ajuste.html" %}{% endfor %}</tbody></table></div>
     <template id="linea-vacia">{% include "inventory/_linea_ajuste.html" with f=None %}</template>
     <p><button type="button" class="secundario" onclick="agregarLinea()">+ Agregar producto</button></p>
-    <p><button type="submit" class="exito">Aplicar ajuste</button></p>
   </form>
 </section>
 <section class="tarjeta">
@@ -32,6 +31,7 @@ costo solo se pide en entradas (obligatorio en SALDO_INICIAL).{% endcomment %}
   </tbody></table></div>
 </section>
 </div>
+<div class="acciones-documento"><button type="submit" form="form-ajuste">Aplicar ajuste</button></div>
 <script>
   // Una línea por producto, sin límite (plan 0003b §6): copia la plantilla y quita filas.
   function agregarLinea() {

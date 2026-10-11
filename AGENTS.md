@@ -17,6 +17,7 @@ Antes de cualquier tarea, lee y respeta:
 
 ```
 docs/constitution.md              ← principios (fase 1 de SDD)
+docs/ux.md                        ← reglas de UX/UI del PO para todas las pantallas (completan el ADR-12)
 AGENTS.md                         ← esta guía
 CLAUDE.md                         ← importa docs/constitution.md, AGENTS.md y MEMORY.md
 MEMORY.md                         ← estado y decisiones

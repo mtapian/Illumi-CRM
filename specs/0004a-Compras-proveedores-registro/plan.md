@@ -51,6 +51,7 @@ CrearCompra / EditarCompra(actor, cmd):             # Creada o En proceso; sin s
 FinalizarCompra(actor, compra_id, almacen_id, recepcion, guia, hoy):  # RF-COM-26, 27
   en una transacción, con la compra bloqueada:
      si ya está Finalizada o Anulada → "La compra ya está finalizada" / "…anulada"
+     si está Creada → "Pasa la compra a en proceso antes de finalizarla"   # RF-COM-30
      recepcion ≤ hoy, si no → "La fecha de recepción no puede ser futura"
      validar_guia(guia) si viene; almacén activo
      repetir las validaciones de Crear (proveedor, productos, documento duplicado)

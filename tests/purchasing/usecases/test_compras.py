@@ -49,6 +49,9 @@ def crear(b, **kw):
 
 
 def finalizar(b, compra_id, almacen=None, recepcion=HOY, guia=""):
+    """Pasa a en proceso si hace falta (RF-COM-30) y finaliza."""
+    if Compra.objects.get(pk=compra_id).estado == "CREADA":
+        caso_de_compra(uc.PasarAEnProceso).ejecutar(b["actor"], compra_id)
     caso = caso_de_compra(uc.FinalizarCompra)
     caso.ejecutar(b["actor"], compra_id, almacen or b["principal"], recepcion, guia, HOY)
 
@@ -128,7 +131,7 @@ def test_lote_con_vencimiento_sugerido_desde_la_recepcion(base):
     compra = crear(base, lineas=[otro], serie="F001-9")
     with pytest.raises(LoteConOtroVencimiento, match="El lote M-01 ya existe con vencimiento"):
         finalizar(base, compra)
-    assert Compra.objects.get(pk=compra).estado == "CREADA"  # no cambia nada
+    assert Compra.objects.get(pk=compra).estado == "EN_PROCESO"  # no cambia nada
 
 
 @pytest.mark.parametrize("caso", ["no_se_compra", "inactivo", "servicio"])
@@ -176,3 +179,12 @@ def test_tiene_compras_cuenta_las_no_anuladas(base):
     assert puertos.compras.tiene_compras(base["proveedor"])
     Compra.objects.filter(pk=compra).update(estado="ANULADA")
     assert not puertos.compras.tiene_compras(base["proveedor"])
+
+
+def test_una_compra_creada_no_se_finaliza(base):
+    """RF-COM-30: Creada ▸ En proceso ▸ Finalizada, sin saltos."""
+    compra = crear(base)
+    caso = caso_de_compra(uc.FinalizarCompra)
+    with pytest.raises(CompraInvalida, match="Pasa la compra a en proceso antes de finalizarla"):
+        caso.ejecutar(base["actor"], compra, base["principal"], HOY, "", HOY)
+    assert not Movimiento.objects.exists()

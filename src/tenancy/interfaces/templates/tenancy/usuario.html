@@ -2,17 +2,13 @@
 {% block titulo %}{{ ficha.nombre }}{% endblock %}
 {% block contenido %}
 <h1>{{ ficha.nombre }}</h1>
-<p class="subtitulo">{{ ficha.email }} · <span class="chip {% if ficha.is_active %}ok{% else %}error{% endif %}">{% if ficha.is_active %}Activo{% else %}Inactivo{% endif %}</span> · <a href="{% url 'usuarios' %}">Volver a usuarios</a></p>
+<p class="subtitulo">{{ ficha.email }} · <span class="chip {% if ficha.is_active %}ok{% else %}error{% endif %}">{% if ficha.is_active %}Activo{% else %}Inactivo{% endif %}</span></p>
 <div class="tarjetas">
   <section class="tarjeta">
     <h2>Datos</h2>
     <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="datos">
       <p><label>Nombre<input name="nombre" value="{{ ficha.nombre }}" required></label></p>
       <button type="submit">Guardar</button>
-    </form>
-    <form method="post" style="margin-top:1rem">{% csrf_token %}<input type="hidden" name="accion" value="estado">
-      {% if ficha.is_active %}<input type="hidden" name="activo" value="0"><button type="submit" class="peligro">Desactivar</button>
-      {% else %}<input type="hidden" name="activo" value="1"><button type="submit">Reactivar</button>{% endif %}
     </form>
   </section>
   <section class="tarjeta">
@@ -32,4 +28,14 @@
   {% if no_disponibles %}<h3>No disponibles en tu plan</h3>
   <p>{% for p in no_disponibles %}<code>{{ p }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
 </section>
+<div class="acciones-documento">
+  <a class="boton secundario" href="{% url 'usuarios' %}">Volver a usuarios</a>
+  <details class="mas-acciones">
+    <summary>Más acciones ▾</summary>
+    <form method="post" class="menu">{% csrf_token %}<input type="hidden" name="accion" value="estado">
+      {% if ficha.is_active %}<input type="hidden" name="activo" value="0"><button type="submit" class="peligro" onclick="return confirm('{{ ficha.email|escapejs }} ya no podrá iniciar sesión. Sus registros se conservan y se puede reactivar.')">Desactivar usuario</button>
+      {% else %}<input type="hidden" name="activo" value="1"><button type="submit">Reactivar usuario</button>{% endif %}
+    </form>
+  </details>
+</div>
 {% endblock %}

@@ -59,7 +59,9 @@ def test_crear_editar_pasar_y_finalizar_desde_la_pantalla(client, e):
     assert r.status_code == 302 and r.url == f"/compras/{compra.id}/"
     assert (compra.estado, compra.total, compra.lineas.count()) == ("CREADA", D("1640.20"), 3)
     pagina = client.get(f"/compras/{compra.id}/").content.decode()
-    assert 'aria-current="step" class="actual">Creada' in pagina and 'id="recepcion"' in pagina
+    # Reglas de UX: la acción principal es el siguiente paso; Guardar solo con cambios.
+    assert 'aria-current="step" class="actual">Creada' in pagina and "Pasar a en proceso" in pagina
+    assert "Finalizar y recibir stock" not in pagina and "data-con-cambios disabled" in pagina
     datos = formulario(e, ("40", "1200"), ("5", "0.85"), accion="en_proceso")
     client.post(f"/compras/{compra.id}/", datos)
     compra.refresh_from_db()
@@ -68,13 +70,17 @@ def test_crear_editar_pasar_y_finalizar_desde_la_pantalla(client, e):
         2,
         D("1220.00"),
     )
+    pagina = client.get(f"/compras/{compra.id}/").content.decode()
+    assert "Finalizar y recibir stock" in pagina and "Pasar a en proceso" not in pagina
+    assert 'id="confirmar-recepcion"' in pagina and "Maltería del Sur" in pagina  # qué se recibe
     recepcion = {"accion": "finalizar", "almacen_recepcion": e["almacen"]}
     client.post(f"/compras/{compra.id}/", recepcion | {"fecha_recepcion": HOY, "guia": "T001-1"})
     compra.refresh_from_db()
     assert (compra.estado, compra.guia_remision) == ("FINALIZADA", "T001-1")
     assert CostoProducto.objects.get(producto_id=e["productos"][0]).cantidad_total == D("40")
     detalle = client.get(f"/compras/{compra.id}/").content.decode()
-    assert "Movimientos de kardex" in detalle and 'id="recepcion"' not in detalle
+    assert 'id="recepcion"' in detalle and "Ver recepción" in detalle
+    assert "confirmar-recepcion" not in detalle and "Guardar cambios" not in detalle
     kardex = client.get("/inventario/kardex/").content.decode()
     assert f'href="/compras/{compra.id}/"' in kardex
 

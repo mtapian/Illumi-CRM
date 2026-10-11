@@ -179,7 +179,9 @@ class FinalizarCompra(_Base):
             raise CompraInvalida("La fecha de recepción no puede ser futura")
         guia = validar_guia(guia)
         with self._atomic():
-            _, datos = self._editable(compra_id)
+            estado, datos = self._editable(compra_id)
+            if estado == CREADA:  # RF-COM-30: sin saltos
+                raise CompraInvalida("Pasa la compra a en proceso antes de finalizarla")
             datos = self._validar(replace(datos, almacen_id=almacen_id), excluir=compra_id)
             self._repo.finalizar(compra_id, almacen_id, recepcion, guia, actor.usuario_id)
             lineas = [

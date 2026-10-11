@@ -4,4 +4,5 @@
 <h1>Nuevo producto</h1>
 <nav class="migas" aria-label="Migas de pan"><a href="/">Inicio</a><span aria-hidden="true">/</span><a href="{% url 'productos' %}">Productos</a><span aria-hidden="true">/</span><span aria-current="page">Nuevo</span></nav>
 {% with boton="Crear producto" %}{% include "catalog/_pestanas.html" %}{% endwith %}
+<div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="ficha" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{% url 'productos' %}" data-descartar>Cancelar</a> <button type="submit" form="ficha">Crear producto</button></div>
 {% endblock %}

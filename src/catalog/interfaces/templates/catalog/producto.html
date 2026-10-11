@@ -11,13 +11,6 @@
      · stock {{ stock }} {{ producto.unidad }}
      · <a href="{% url 'productos' %}">Volver a productos</a></p>
   </div>
-  {% if gestiona in permisos %}
-  <form method="post" class="filtros">{% csrf_token %}
-    {% if producto.activo %}<button type="submit" name="accion" value="desactivar" class="peligro">Desactivar</button>
-    {% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
-    <button type="submit" name="accion" value="eliminar" class="peligro">Eliminar</button>
-  </form>
-  {% endif %}
 </header>
 {% if movimientos %}<p class="aviso">Tiene movimientos de inventario: el SKU, el tipo y la unidad ya no se pueden cambiar.</p>{% endif %}
 <div class="ficha">
@@ -31,6 +24,23 @@
         {% if h.cambios %}<ul>{% for c in h.cambios %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}</li>
     {% empty %}<li class="subtitulo">Sin registros.</li>{% endfor %}</ol>
   </aside>
+</div>
+<div class="acciones-documento">
+  <span class="estado-cambios" data-aviso-cambios="ficha" role="status">Sin cambios pendientes</span>
+  <a class="boton secundario" href="{% url 'productos' %}" data-descartar>Volver al listado</a>
+  {% if boton %}<button type="submit" form="ficha" data-con-cambios disabled>Guardar cambios</button>{% endif %}
+  {% if gestiona in permisos %}
+  <details class="mas-acciones">
+    <summary>Más acciones ▾</summary>
+    <form method="post" class="menu">{% csrf_token %}
+      <a href="{{ request.path }}" data-descartar>Descartar cambios</a>
+      {% if producto.activo %}<button type="submit" name="accion" value="desactivar">Desactivar producto</button>
+      {% else %}<button type="submit" name="accion" value="activar">Activar producto</button>{% endif %}
+      <hr>
+      <button type="submit" name="accion" value="eliminar" class="peligro" onclick="return confirm('Se eliminará el producto {{ producto.sku|escapejs }} de forma definitiva. Solo es posible si nunca tuvo movimientos ni se usa en otros registros.')">Eliminar producto</button>
+    </form>
+  </details>
+  {% endif %}
 </div>
 {% endwith %}
 {% endblock %}

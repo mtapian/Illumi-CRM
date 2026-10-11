@@ -287,13 +287,17 @@ def compra(request, compra_id):
             ),
         }
         if _intentar(request, acciones.get(p.get("accion"), acciones["guardar"])):
-            final = p.get("accion") == "finalizar"
-            messages.success(request, "Compra finalizada." if final else "Cambio guardado.")
+            resultado = {
+                "finalizar": "Compra finalizada: el stock ya ingresó al almacén.",
+                "en_proceso": "La compra pasó a en proceso.",
+            }
+            messages.success(request, resultado.get(p.get("accion"), "Cambios guardados."))
             return redirect("compra", compra_id=compra_id)
     editable = fila.estado in (CREADA, EN_PROCESO) and request.actor.puede(cc.REGISTRAR)
     contexto = (_formulario(request, fila) if editable else {}) | {
         "compra": fila,
         "numero": numero_compra(fila.numero),
+        "estado_texto": dict(ESTADOS)[fila.estado],
         "editable": editable,
         "estados": ESTADOS[:3],
         "hoy": timezone.localdate().isoformat(),

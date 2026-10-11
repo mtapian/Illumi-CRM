@@ -2,9 +2,8 @@
 {% block titulo %}{% if rol %}Rol {{ rol }}{% else %}Nuevo rol{% endif %}{% endblock %}
 {% block contenido %}
 <h1>{% if rol %}Rol {{ rol }}{% else %}Nuevo rol{% endif %}</h1>
-<p class="subtitulo"><a href="{% url 'roles' %}">Volver a roles</a>
-{% if rol.es_sistema %} · <span class="chip">El rol Administrador tiene siempre todos los permisos habilitados y no se edita.</span>{% endif %}</p>
-<form method="post" id="form-rol">{% csrf_token %}
+{% if rol.es_sistema %}<p class="subtitulo"><span class="chip">El rol Administrador tiene siempre todos los permisos habilitados y no se edita.</span></p>{% endif %}
+<form method="post" id="form-rol" data-cambios>{% csrf_token %}
   {% if not rol.es_sistema %}<p><label>Nombre<input name="nombre" value="{{ rol.nombre|default:'' }}" required></label></p>{% endif %}
   <div class="tarjetas">
   {% for m in matriz %}
@@ -21,18 +20,30 @@
     </section>
   {% endfor %}
   </div>
-  {% if not rol.es_sistema %}<button type="submit" name="accion" value="guardar">Guardar</button>{% endif %}
 </form>
 {% if rol and not rol.es_sistema %}
 <section class="tarjeta" style="margin-top:1.25rem">
-  <h2>Acciones</h2>
+  <h2>Duplicar</h2>
   <form method="post" class="filtros">{% csrf_token %}
     <label>Nombre de la copia<input name="nombre_copia" placeholder="{{ rol }} (copia)"></label>
     <button type="submit" name="accion" value="duplicar">Duplicar</button>
-    {% if rol.activo %}<button type="submit" name="accion" value="desactivar" class="peligro">Desactivar</button>
-    {% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
-    <button type="submit" name="accion" value="eliminar" class="peligro">Eliminar</button>
   </form>
 </section>
 {% endif %}
+<div class="acciones-documento">
+  {% if not rol.es_sistema %}<span class="estado-cambios" data-aviso-cambios="form-rol" role="status">Sin cambios pendientes</span>{% endif %}
+  <a class="boton secundario" href="{% url 'roles' %}" data-descartar>Volver a roles</a>
+  {% if not rol.es_sistema %}<button type="submit" form="form-rol" name="accion" value="guardar"{% if rol %} data-con-cambios disabled{% endif %}>{% if rol %}Guardar cambios{% else %}Crear rol{% endif %}</button>{% endif %}
+  {% if rol and not rol.es_sistema %}
+  <details class="mas-acciones">
+    <summary>Más acciones ▾</summary>
+    <form method="post" class="menu">{% csrf_token %}
+      {% if rol.activo %}<button type="submit" name="accion" value="desactivar">Desactivar rol</button>
+      {% else %}<button type="submit" name="accion" value="activar">Activar rol</button>{% endif %}
+      <hr>
+      <button type="submit" name="accion" value="eliminar" class="peligro" onclick="return confirm('Se eliminará el rol {{ rol|escapejs }}. Solo es posible si ningún usuario lo tiene asignado.')">Eliminar rol</button>
+    </form>
+  </details>
+  {% endif %}
+</div>
 {% endblock %}

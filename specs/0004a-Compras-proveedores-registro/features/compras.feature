@@ -5,7 +5,7 @@ Característica: Registro de compras
   Quiero registrar las compras de los bienes que compro
   Para aumentar el stock al costo real y sin IGV recuperable
 
-  Salvo que el escenario diga otra cosa, "registro una compra" es crearla y finalizarla.
+  Salvo que el escenario diga otra cosa, "registro una compra" es crearla, pasarla a en proceso y finalizarla.
 
   Antecedentes:
     Dado que soy usuario "almacen" de "Cervecería Andina" con IGV 18 %
@@ -131,15 +131,15 @@ Característica: Registro de compras
 
   @UC-COM-02 @borde @RF-COM-12 @RF-COM-26
   Escenario: La fecha de la compra es referencia y no impide finalizar
-    Cuando creo una compra a "Maltería del Sur" con fecha "mañana"
-    Entonces la compra queda "CREADA"
+    Cuando creo una compra a "Maltería del Sur" con fecha "mañana" y la paso a "EN_PROCESO"
+    Entonces la compra queda "EN_PROCESO"
     Cuando finalizo la compra con fecha de recepción "hoy"
     Entonces la compra queda "FINALIZADA" con fecha "mañana"
     Y el movimiento de kardex tiene la fecha de hoy
 
   @UC-COM-02 @borde @RF-COM-27
   Escenario: Se finaliza con la fecha de recepción
-    Dado una compra "CREADA" a "Maltería del Sur" de 40 KG de "INS-MALTA" con lote "M-01"
+    Dado una compra "EN_PROCESO" a "Maltería del Sur" de 40 KG de "INS-MALTA" con lote "M-01"
     Cuando finalizo la compra con fecha de recepción "hace 3 días"
     Entonces el movimiento de kardex y el ingreso del lote "M-01" tienen la fecha de hace 3 días
     Cuando intento finalizar otra compra con fecha de recepción "mañana"
@@ -154,3 +154,10 @@ Característica: Registro de compras
     Y la compra muestra el almacén "Cámara fría" y la guía "T001-00004521"
     Cuando intento finalizar otra compra con guía "T1-ABC"
     Entonces la operación es rechazada con el mensaje "Guía de remisión inválida"
+
+  @UC-COM-02 @borde @RF-COM-30
+  Escenario: Una compra creada no se finaliza sin pasar por en proceso
+    Dado una compra "CREADA" a "Maltería del Sur" de 40 KG de "INS-MALTA"
+    Cuando finalizo la compra
+    Entonces la operación es rechazada con el mensaje "Pasa la compra a en proceso antes de finalizarla"
+    Y la compra queda "CREADA" y "INS-MALTA" sigue con stock 100 KG
