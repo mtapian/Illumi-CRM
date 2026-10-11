@@ -1,6 +1,6 @@
 # Tareas 0003a — Inventario: almacenes, movimientos y costo promedio
 
-Estado: borrador (ejemplo). **No ejecutar:** `spec.md` y `plan.md` siguen en borrador (constitución, art. 2.1). Depende de Q12.
+Estado: borrador (ejemplo). `spec.md` y `plan.md` siguen en borrador; depende de Q12 y de alinear los lotes con la enmienda 4 de 0002a (el lote no es dato del producto). **El PO autorizó solo T1 y T2 (2026-10-10, "sigue con 2 tareas")**: dominio puro del costo promedio, que no depende de esas dudas y aplica la constitución, art. 4.1 y 4.2. El resto no se ejecuta hasta aprobar spec y plan.
 
 Spec: `./spec.md` · Plan: `./plan.md`
 
@@ -11,10 +11,10 @@ Reglas (constitución, art. 8):
 
 ## Dominio puro
 
-- [ ] **T1. Implementar `CostoProducto` con `entrada()`.** — RF-INV-18
+- [x] **T1. Implementar `CostoProducto` con `entrada()`.** — RF-INV-18
   - Hecho cuando: `test_costo.py` reproduce las dos primeras filas del ejemplo de la spec: 100 × 4,00 y +50 × 5,00 ⇒ 150 KG, 650,00, 4,333333.
 
-- [ ] **T2. Implementar `salida_al_promedio()`, incluida la salida que vacía.** — RF-INV-24
+- [x] **T2. Implementar `salida_al_promedio()`, incluida la salida que vacía.** — RF-INV-24
   - Hecho cuando: un test comprueba que −30 sale por 130,00 sin cambiar el promedio y que la salida que deja 0 sale por el valor restante y deja 0,00.
 
 - [ ] **T3. Implementar `reversion_de_entrada()`.** — RF-INV-20

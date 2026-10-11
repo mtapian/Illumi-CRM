@@ -43,7 +43,7 @@ select = ["E", "F", "I", "B", "UP", "DJ"]
 where = ["src"]
 
 [tool.importlinter]
-root_packages = ["shared", "tenancy", "catalog", "purchasing"]
+root_packages = ["shared", "tenancy", "catalog", "purchasing", "inventory"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -55,14 +55,16 @@ containers = ["shared", "tenancy", "catalog", "purchasing"]
 [[tool.importlinter.contracts]]
 name = "El dominio es Python puro: no importa Django"
 type = "forbidden"
-source_modules = ["shared.domain", "tenancy.domain", "catalog.domain", "purchasing.domain"]
+source_modules = [
+    "shared.domain", "tenancy.domain", "catalog.domain", "purchasing.domain", "inventory.domain",
+]
 forbidden_modules = ["django"]
 
 [[tool.importlinter.contracts]]
 name = "El shared kernel no depende de ningún contexto"
 type = "forbidden"
 source_modules = ["shared"]
-forbidden_modules = ["tenancy", "catalog", "purchasing"]
+forbidden_modules = ["tenancy", "catalog", "purchasing", "inventory"]
 
 [[tool.importlinter.contracts]]
 name = "Tenancy no depende del catálogo (los contextos de abajo no conocen a los de arriba)"
@@ -86,6 +88,8 @@ forbidden_modules = ["purchasing"]
 name = "Compras usa tenancy y el catálogo solo por sus fachadas, sus registros y su capa web"
 type = "forbidden"
 source_modules = ["purchasing.domain", "purchasing.application"]
+# Solo imports directos: la fachada del catálogo puede usar su propio dominio.
+allow_indirect_imports = "True"
 forbidden_modules = [
     "tenancy.infrastructure", "tenancy.interfaces", "tenancy.domain",
     "catalog.infrastructure", "catalog.interfaces", "catalog.domain",
