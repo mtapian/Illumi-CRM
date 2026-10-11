@@ -1,6 +1,6 @@
 # Spec 0004b — Compras: anulación
 
-Estado: borrador. Propuesta del 2026-10-11, alineada con 0004a implementada; pendiente de aprobación del PO
+Estado: implementada (aprobada por el PO el 2026-10-11)
 
 Épica E04 (Compras), parte 2 de 2. Depende de: 0004a, 0003a.
 

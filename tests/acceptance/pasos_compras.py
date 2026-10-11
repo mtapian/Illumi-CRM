@@ -1,5 +1,5 @@
-"""Pasos de los escenarios de compras (spec 0004a). Usan los casos de uso, como los de ajustes;
-"registro una compra" es crearla y finalizarla."""
+"""Pasos de los escenarios de compras (specs 0004a y 0004b). Usan los casos de uso, como los
+de ajustes; "registro una compra" es crearla, pasarla a en proceso y finalizarla."""
 
 from dataclasses import replace
 from datetime import date, timedelta
@@ -17,11 +17,13 @@ from purchasing.infrastructure.models import Compra, Proveedor
 from shared.domain.errores import DomainError
 from shared.domain.tenant import tenant_context
 from tenancy.infrastructure.contenedor import tenancy_service
+from tenancy.infrastructure.models import ParametroVigencia
 from tests.acceptance.conftest import contenido
 from tests.acceptance.pasos_accesos import actor, como, re_
-from tests.acceptance.pasos_catalogo import EMAIL, crear_directo, producto, soy_usuario
+from tests.acceptance.pasos_catalogo import EMAIL, ROLES, crear_directo, producto, soy_usuario
 from tests.acceptance.pasos_inventario import almacen, mover
 from tests.acceptance.pasos_proveedores import proveedor
+from tests.acceptance.pasos_sesion import crear_usuario
 
 DOC = {"factura": "FACTURA", "boleta": "BOLETA"}
 PROV = r'"(?P<prov>[^"]+)"'
@@ -119,6 +121,11 @@ def malta(cantidad="1", costo="5", **kw):
 @given(re_(r"que soy usuario {} de {} con IGV (?P<igv>\d+) %", "rol", "nombre"))
 def soy_usuario_con_igv(client, ctx, inventario, rol, nombre, igv):
     soy_usuario(client, ctx, inventario, rol, nombre)
+    # IGV propio de la empresa: no depende del valor de plataforma que siembra la migración
+    # (un test con transacciones reales vacía la base al terminar).
+    ParametroVigencia.objects.create(
+        empresa=ctx["empresa"], clave="igv_pct", valor=D(igv), vigente_desde=date(2000, 1, 1)
+    )
     with tenant_context(ctx["empresa"].id):
         assert tenancy_service().igv_vigente(date.today()) == D(igv)
 
@@ -373,6 +380,12 @@ def lote_con(ctx, lote, n):
     assert Stock.all_tenants.get(empresa=ctx["empresa"], lote__codigo=lote).cantidad == D(n)
 
 
+@given(
+    re_(
+        r"{} queda con stock (?P<n>\d+) KG, valor (?P<v>[\d.]+) y costo promedio (?P<p>[\d.]+)",
+        "sku",
+    )
+)
 @then(
     re_(
         r"{} queda con stock (?P<n>\d+) KG, valor (?P<v>[\d.]+) y costo promedio (?P<p>[\d.]+)",
@@ -414,3 +427,122 @@ def stock_por_almacen(ctx, sku, a, alm, b, alm2):
 def muestra(client, ctx, alm, guia):
     html = contenido(como(client, EMAIL).get(f"/compras/{ctx['finalizada']}/"))
     assert alm in html and guia in html
+
+
+# --- Anulación (0004b) ---
+
+
+@given(
+    re_(
+        r"una compra registrada a {} con factura {} de (?P<n>\d+) (?P<u>\w+) de {} a (?P<c>[\d.]+)",
+        "prov",
+        "serie",
+        "sku",
+    )
+)
+def compra_registrada_con(ctx, prov, serie, n, u, sku, c):
+    fila = {"producto": sku, "cantidad": n, "costo_unitario": c}
+    registrar(ctx, [fila], prov=prov, doc="FACTURA", serie=serie)
+    assert "textos" not in ctx
+
+
+def anular(ctx, motivo, email=EMAIL):
+    ctx.pop("textos", None)
+    caso = caso_de_compra(uc.AnularCompra)
+    intentar(ctx, lambda: caso.ejecutar(actor(email), ctx["compra"], motivo))
+
+
+@when(parsers.re(r'anulo la compra con motivo "(?P<motivo>[^"]*)"'))
+def anulo(ctx, motivo):
+    anular(ctx, motivo)
+
+
+@then(
+    re_(r"se registra una salida {} de (?P<n>\d+) KG de {} a costo (?P<c>[\d.]+)", "motivo", "sku")
+)
+def salida_de_anulacion(ctx, motivo, n, sku, c):
+    [m] = Movimiento.all_tenants.filter(ref_tipo="COMPRA", ref_id=ctx["compra"], motivo=motivo)
+    assert (m.tipo, m.producto.sku, m.cantidad, m.costo_unitario) == ("SALIDA", sku, D(n), D(c))
+
+
+@then(re_("la compra queda {} con usuario, fecha y motivo {}", "estado", "motivo"))
+def anulada_con(ctx, estado, motivo):
+    c = compra(ctx)
+    assert (c.estado, c.motivo_anulacion) == (estado, motivo)
+    assert c.anulada_por.email == EMAIL and c.anulada_en is not None
+
+
+@then(re_("puedo registrar otra compra a {} con factura {}", "prov", "serie"))
+def puedo_registrar_otra(ctx, prov, serie):
+    registrar(ctx, [malta()], prov=prov, doc="FACTURA", serie=serie)
+    assert "textos" not in ctx and compra(ctx).estado == "FINALIZADA"
+
+
+@then("no hay movimientos de la compra en el kardex")
+def sin_movimientos(ctx):
+    assert not Movimiento.all_tenants.filter(ref_tipo="COMPRA", ref_id=ctx["compra"]).exists()
+
+
+@when(re_("dos usuarios {} anulan la compra al mismo tiempo", "rol"))
+def dos_anulan(ctx, rol):
+    import threading
+
+    from django.db import connection
+
+    barrera, ctx["resultados"] = threading.Barrier(2), []
+
+    def anular_en_hilo():
+        try:
+            with tenant_context(ctx["empresa"].id):
+                barrera.wait(timeout=5)
+                caso_de_compra(uc.AnularCompra).ejecutar(actor(EMAIL), ctx["compra"], "Duplicada")
+            ctx["resultados"].append("ok")
+        except DomainError as e:
+            ctx["resultados"].append(e.mensaje)
+        finally:
+            connection.close()
+
+    hilos = [threading.Thread(target=anular_en_hilo) for _ in range(2)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join(timeout=15)
+
+
+@then("solo una anulación tiene éxito")
+def una_anulacion(ctx):
+    assert ctx["resultados"].count("ok") == 1
+
+
+@then(re_("la otra recibe el mensaje {}", "mensaje"))
+def la_otra_recibe(ctx, mensaje):
+    assert [r for r in ctx["resultados"] if r != "ok"] == [mensaje]
+
+
+@then(re_("existe una sola salida {} de la compra", "motivo"))
+def una_sola_salida(ctx, motivo):
+    movs = Movimiento.all_tenants.filter(ref_tipo="COMPRA", ref_id=ctx["compra"], motivo=motivo)
+    assert movs.count() == 1
+
+
+@given(re_(r"después salieron (?P<n>\d+) UND de {}", "sku"))
+def salieron(ctx, n, sku):
+    mover(ctx, "SALIDA", "MERMA", sku, n)
+
+
+@then(re_("la compra sigue {}", "estado"))
+def sigue(ctx, estado):
+    assert compra(ctx).estado == estado
+
+
+@when(re_("un usuario {} intenta anular la compra", "rol"))
+def otro_intenta_anular(ctx, rol):
+    email = f"{rol}@andina.pe"
+    crear_usuario(email, ctx["empresa"], ROLES[rol])
+    anular(ctx, "Sin permiso", email)
+    ctx["denegado"] = ctx["textos"][0]
+
+
+@then('recibe "Acceso denegado"')
+def acceso_denegado(ctx):
+    assert ctx["denegado"] == "Acceso denegado"

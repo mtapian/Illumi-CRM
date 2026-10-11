@@ -1,39 +1,70 @@
 {% extends "base.html" %}
+{% comment %}Grilla estándar (docs/ux.md §3; prototipo productos.html): "+ Nuevo producto" arriba,
+filtros frecuentes con etiqueta y el resto en "Más filtros", chips aplicados, el nombre abre la
+ficha, "Editar" visible y el resto en ⋯, cantidad y paginación (RF-CAT-14).{% endcomment %}
 {% block titulo %}Productos{% endblock %}
 {% block contenido %}
-<h1>Productos</h1>
-<nav class="migas" aria-label="Migas de pan"><a href="/">Inicio</a><span aria-hidden="true">/</span><span aria-current="page">Productos</span></nav>
-<p class="subtitulo">Insumos, envases, graneles, terminados y mercadería de reventa.
-{% if "catalogo.producto.gestionar" in permisos %} <a href="{% url 'producto_nuevo' %}">Nuevo bien</a> · <a href="{% url 'producto_nuevo' %}?tipo=SERVICIO">Nuevo servicio</a>{% endif %}</p>
-<form method="get" class="filtros">
-  <label>Buscar<input name="q" value="{{ filtro.q }}" placeholder="SKU o nombre"></label>
-  <label>Tipo<select name="tipo"><option value="">Todos</option>
-    {% for t in tipos %}<option value="{{ t }}" {% if filtro.tipo == t %}selected{% endif %}>{{ t|lower|capfirst }}</option>{% endfor %}</select></label>
-  <label>Gestión<select name="casilla"><option value="">Todas</option>
-    {% for c, etiqueta in casillas %}<option value="{{ c }}" {% if filtro.casilla == c %}selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select></label>
-  <label>Categoría<select name="categoria"><option value="">Todas</option>
-    {% for c in categorias %}<option value="{{ c.id }}" {% if filtro.categoria == c.id|stringformat:"s" %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
-  <label>Marca<select name="marca"><option value="">Todas</option>
-    {% for m in marcas %}<option value="{{ m.id }}" {% if filtro.marca == m.id|stringformat:"s" %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></label>
-  <label>Estado<select name="estado">
-    <option value="activos" {% if filtro.estado == "activos" %}selected{% endif %}>Activos</option>
-    <option value="inactivos" {% if filtro.estado == "inactivos" %}selected{% endif %}>Inactivos</option>
-    <option value="todos" {% if filtro.estado == "todos" %}selected{% endif %}>Todos</option></select></label>
-  <label class="check"><input type="checkbox" name="stock_bajo" value="1" {% if filtro.stock_bajo %}checked{% endif %}> Stock bajo</label>
-  <button type="submit">Filtrar</button>
-</form>
-<div class="tarjeta tabla">
-<table><thead><tr><th>SKU</th><th>Nombre</th><th>Tipo</th><th>Unidad</th><th>Categoría</th><th>Marca</th><th>Precio</th><th>Estado</th></tr></thead><tbody>
-{% for p in pagina %}<tr>
-  <td><a href="{% url 'producto' p.id %}"><code>{{ p.sku }}</code></a></td><td>{{ p.nombre }}</td><td>{{ p.tipo|lower|capfirst }}{% if p.se_vende %} <span class="chip ok">V</span>{% endif %}{% if p.se_compra %} <span class="chip neutro">C</span>{% endif %}{% if p.se_fabrica %} <span class="chip">F</span>{% endif %}</td>
-  <td>{{ p.unidad }}</td><td>{{ p.categoria|default:"—" }}</td><td>{{ p.marca|default:"—" }}</td><td>{{ p.precio_venta|default:"—" }}</td>
-  <td><span class="chip {% if p.activo %}ok{% else %}error{% endif %}">{% if p.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
-</tr>{% empty %}<tr><td colspan="7">No hay productos con esos filtros.</td></tr>{% endfor %}
-</tbody></table>
+{% with gestiona="catalogo.producto.gestionar" %}
+{% include "catalog/_migas.html" with migas=migas_productos %}
+<div class="encabezado-listado">
+  <div><h1>Productos</h1><p class="subtitulo">Administra tus bienes y servicios.</p></div>
+  {% if gestiona in permisos %}
+  <div class="acciones-listado">
+    <details class="mas-acciones abajo">
+      <summary class="principal">+ Nuevo producto ▾</summary>
+      <div class="menu"><a href="{% url 'producto_nuevo' %}">Nuevo bien</a><a href="{% url 'producto_nuevo' %}?tipo=SERVICIO">Nuevo servicio</a></div>
+    </details>
+  </div>
+  {% endif %}
 </div>
-{% if pagina.has_other_pages %}<p class="filtros">
-  {% if pagina.has_previous %}<a href="?{{ consulta }}&pagina={{ pagina.previous_page_number }}">← Anterior</a>{% endif %}
-  <span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }} · {{ pagina.paginator.count }} productos</span>
-  {% if pagina.has_next %}<a href="?{{ consulta }}&pagina={{ pagina.next_page_number }}">Siguiente →</a>{% endif %}
-</p>{% endif %}
+<form method="get" class="tarjeta barra-filtros">
+  <label class="buscar">Buscar producto<input type="search" name="q" value="{{ filtro.q }}" placeholder="SKU o nombre"></label>
+  <label>Tipo<select name="tipo"><option value="">Todos</option>
+    {% for t in tipos %}<option value="{{ t }}"{% if filtro.tipo == t %} selected{% endif %}>{{ t|lower|capfirst }}</option>{% endfor %}</select></label>
+  <label>Estado<select name="estado">
+    <option value="activos"{% if filtro.estado == "activos" %} selected{% endif %}>Activos</option>
+    <option value="todos"{% if filtro.estado == "todos" %} selected{% endif %}>Todos</option>
+    <option value="inactivos"{% if filtro.estado == "inactivos" %} selected{% endif %}>Inactivos</option></select></label>
+  <div class="acciones-filtro">
+    <details class="mas-filtros"{% if filtro.casilla or filtro.categoria or filtro.marca or filtro.stock_bajo %} data-activos{% endif %}>
+      <summary>Más filtros</summary>
+      <div class="panel-filtros">
+        <label>Gestión<select name="casilla"><option value="">Todas</option>
+          {% for c, etiqueta in casillas %}<option value="{{ c }}"{% if filtro.casilla == c %} selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select></label>
+        <label>Categoría<select name="categoria"><option value="">Todas</option>
+          {% for c in categorias %}<option value="{{ c.id }}"{% if filtro.categoria == c.id|stringformat:"s" %} selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+        <label>Marca<select name="marca"><option value="">Todas</option>
+          {% for m in marcas %}<option value="{{ m.id }}"{% if filtro.marca == m.id|stringformat:"s" %} selected{% endif %}>{{ m }}</option>{% endfor %}</select></label>
+        <label class="check"><input type="checkbox" name="stock_bajo" value="1"{% if filtro.stock_bajo %} checked{% endif %}> Solo stock bajo</label>
+      </div>
+    </details>
+    <button type="submit">Filtrar</button>
+  </div>
+</form>
+{% include "listados/_aplicados.html" %}
+<div class="tarjeta tabla">
+<table><thead><tr><th>Producto</th><th>Tipo</th><th>Categoría / Marca</th><th class="num">Precio</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for p in pagina %}<tr>
+  <td class="celda-principal"><a href="{% url 'producto' p.id %}">{{ p.nombre }}</a><small>SKU <code>{{ p.sku }}</code> · {{ p.unidad }}</small></td>
+  <td class="celda-principal">{{ p.tipo|lower|capfirst }}<small>{% if p.se_vende %}<span title="Se vende">V</span>{% endif %}{% if p.se_compra %}{% if p.se_vende %} · {% endif %}<span title="Se compra">C</span>{% endif %}{% if p.se_fabrica %}{% if p.se_vende or p.se_compra %} · {% endif %}<span title="Se fabrica">F</span>{% endif %}</small></td>
+  <td class="celda-principal">{{ p.categoria|default:"—" }}<small>{{ p.marca|default:"" }}</small></td>
+  <td class="num">{% if p.precio_venta is not None %}S/ {{ p.precio_venta|floatformat:2 }}{% else %}—{% endif %}</td>
+  <td><span class="chip {% if p.activo %}ok{% else %}error{% endif %}">{% if p.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+  <td class="acciones"><a class="boton secundario chico" href="{% url 'producto' p.id %}">{% if gestiona in permisos %}Editar{% else %}Ver{% endif %}</a>
+    <details class="mas-acciones abajo"><summary aria-label="Más acciones de {{ p.sku }}">⋯</summary>
+      <div class="menu">
+        <a href="{% url 'stock' %}?q={{ p.sku|urlencode }}">Consultar stock</a>
+        <a href="{% url 'kardex' %}?producto={{ p.id }}">Ver kardex</a>
+        {% if gestiona in permisos %}<hr>
+        <form method="post" action="{% url 'producto' p.id %}">{% csrf_token %}
+          {% if p.activo %}<button type="submit" name="accion" value="desactivar" class="peligro" onclick="return confirm('El producto {{ p.sku|escapejs }} dejará de ofrecerse en operaciones nuevas; se conserva su historia y se puede reactivar.')">Desactivar producto</button>
+          {% else %}<button type="submit" name="accion" value="activar">Activar producto</button>{% endif %}
+        </form>{% endif %}
+      </div>
+    </details></td>
+</tr>{% empty %}<tr><td colspan="6" class="subtitulo">{% if aplicados %}No hay productos con esos filtros.{% else %}Aún no hay productos.{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+{% include "listados/_pie.html" with nombres="producto,productos" %}
+</div>
+{% endwith %}
 {% endblock %}

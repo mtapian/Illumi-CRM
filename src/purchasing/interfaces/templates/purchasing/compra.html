@@ -62,6 +62,7 @@ diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% e
       <summary>Más acciones ▾</summary>
       <div class="menu">
         <a href="{{ request.path }}" data-descartar>Descartar cambios</a>
+        {% if puede_anular %}<hr><button type="button" class="peligro" onclick="document.getElementById('anular-compra').showModal()">Anular compra</button>{% endif %}
       </div>
     </details>
   {% endif %}
@@ -135,9 +136,10 @@ diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% e
       <dt class="total">Total</dt><dd class="total">S/ {{ compra.total }}</dd></dl></div>
   </div>
 </section>
+{% if compra.estado == "ANULADA" %}<p class="aviso">Anulada por {{ compra.anulada_por.email|default:"—" }} el {{ compra.anulada_en|date:"Y-m-d H:i" }}. Motivo: {{ compra.motivo_anulacion }}</p>{% endif %}
 {% if compra.estado == "FINALIZADA" or movimientos %}
 <section class="tarjeta" id="recepcion">
-  <h2>Recepción de stock</h2>
+  <h2>{% if compra.estado == "ANULADA" %}Movimientos de kardex{% else %}Recepción de stock{% endif %}</h2>
   <p class="subtitulo">{% if compra.fecha_recepcion %}Recibida el {{ compra.fecha_recepcion|date:"Y-m-d" }} en {{ compra.almacen.nombre }}{% if compra.guia_remision %} · guía de remisión {{ compra.guia_remision }}{% endif %}{% endif %}</p>
   <div class="tabla"><table><thead><tr><th>Fecha</th><th>Motivo</th><th>Producto</th><th>Almacén</th><th>Lote</th><th class="num">Cantidad</th><th class="num">Costo unit.</th></tr></thead><tbody>
   {% for m in movimientos %}<tr><td>{{ m.fecha|date:"Y-m-d H:i" }}</td><td>{{ m.motivo }}</td><td>{{ m.producto.sku }}</td><td>{{ m.almacen.nombre }}</td><td>{{ m.lote.codigo|default:"" }}</td><td class="num">{{ m.cantidad.normalize }}</td><td class="num">S/ {{ m.costo_unitario }}</td></tr>{% endfor %}
@@ -146,7 +148,28 @@ diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% e
 {% endif %}
 <div class="acciones-documento">
   <a class="boton secundario" href="{% url 'compras' %}">Volver al listado</a>
+  {% if puede_anular %}
+  <details class="mas-acciones">
+    <summary>Más acciones ▾</summary>
+    <div class="menu"><button type="button" class="peligro" onclick="document.getElementById('anular-compra').showModal()">Anular compra</button></div>
+  </details>
+  {% endif %}
   {% if compra.estado == "FINALIZADA" %}<a class="boton principal" href="#recepcion">Ver recepción</a>{% endif %}
 </div>
+{% endif %}
+{% if puede_anular %}
+<dialog id="anular-compra" class="tarjeta" aria-labelledby="titulo-anular">
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="anular">
+    <h2 id="titulo-anular">Anular compra {{ numero }}</h2>
+    {% if compra.estado == "FINALIZADA" %}
+    <p>Se revertirán las entradas de stock de la compra <strong>{{ numero }}</strong> de <strong>{{ compra.proveedor.razon_social }}</strong> al mismo costo con que ingresaron, y la compra quedará anulada. Si algún producto ya tuvo salidas, no se podrá anular: corrígelo con un ajuste.</p>
+    {% else %}
+    <p>La compra <strong>{{ numero }}</strong> de <strong>{{ compra.proveedor.razon_social }}</strong> quedará anulada. Aún no ingresó stock, así que no se mueve el inventario.</p>
+    {% endif %}
+    <p class="subtitulo">Su documento podrá registrarse de nuevo. La anulación no se puede deshacer.</p>
+    <label>Motivo *<input name="motivo" required maxlength="200"></label>
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit" class="peligro">Confirmar anulación</button></p>
+  </form>
+</dialog>
 {% endif %}
 {% endblock %}

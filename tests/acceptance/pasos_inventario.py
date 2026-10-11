@@ -626,7 +626,7 @@ def detalle_lotes(ctx, a, b, c, alm):
 
 @then(re_(r"la categoría {} suma (?P<v>[\d.]+)", "cat"))
 def categoria_suma(ctx, cat, v):
-    assert f"<td>{cat}</td><td>{v}</td>" in ctx["html"]
+    assert f'<td>{cat}</td><td class="num">S/ {v}</td>' in ctx["html"]
 
 
 @given(re_('que soy usuario "ventas" de la misma empresa'))

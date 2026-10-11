@@ -12,6 +12,10 @@ class LoteVencido(DomainError):
 class AnulacionConConsumoPosterior(DomainError):
     codigo = "ANULACION_CON_CONSUMO_POSTERIOR"
 
+    def __init__(self, mensaje: str, producto_id: int | None = None):
+        super().__init__(mensaje)
+        self.producto_id = producto_id  # para que quien anula nombre el producto (RF-COM-16)
+
 
 class ServicioSinStock(DomainError):
     codigo = "SERVICIO_SIN_STOCK"

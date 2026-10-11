@@ -2,9 +2,9 @@
 {% comment %}Listado de maestro (ADR-12) de proveedores (RF-COM-01 a 03).{% endcomment %}
 {% block titulo %}Proveedores{% endblock %}
 {% block contenido %}
-<h1>{% if editando %}Editar proveedor{% elif nuevo %}Nuevo proveedor{% else %}Proveedores{% endif %}</h1>
 {% include "catalog/_migas.html" %}
 {% if nuevo or editando %}
+<h1>{% if editando %}Editar proveedor{% else %}Nuevo proveedor{% endif %}</h1>
 <section class="tarjeta formulario-maestro">
   <form method="post" id="form-maestro" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
     {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
@@ -23,24 +23,25 @@
 </section>
 <div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-maestro" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{{ request.path }}" data-descartar>Cancelar</a> <button type="submit" form="form-maestro" data-con-cambios disabled>Guardar</button></div>
 {% else %}
-<div class="barra-listado">
-  <form method="get" class="buscador"><input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre o documento…" aria-label="Buscar proveedor"></form>
-  <a class="boton exito" href="?nuevo=1">+ Nuevo proveedor</a>
-</div>
+<div class="encabezado-listado"><div><h1>Proveedores</h1><p class="subtitulo">Un proveedor con compras no se elimina: se desactiva.</p></div>
+  <div class="acciones-listado"><a class="boton principal" href="?nuevo=1">+ Nuevo proveedor</a></div></div>
+{% include "listados/_buscar.html" with etiqueta="Buscar proveedor" placeholder="Razón social o documento" %}
 <div class="tarjeta tabla">
-<table><thead><tr><th>Razón social</th><th>Documento</th><th>Contacto</th><th>Teléfono</th><th>Productos</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+<table><thead><tr><th>Razón social</th><th>Documento</th><th>Contacto</th><th>Teléfono</th><th class="num">Productos</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
 {% for f, con_compras in filas %}<tr>
-  <td><strong>{{ f.razon_social }}</strong></td><td>{{ f.tipo_doc }} {{ f.num_doc }}</td><td>{{ f.contacto }}</td><td>{{ f.telefono }}</td>
-  <td><span class="chip neutro">{{ f.n_productos }}</span></td>
+  <td><a href="?editar={{ f.id }}"><strong>{{ f.razon_social }}</strong></a></td><td>{{ f.tipo_doc }} {{ f.num_doc }}</td><td>{{ f.contacto }}</td><td>{{ f.telefono }}</td>
+  <td class="num">{{ f.n_productos }}</td>
   <td><span class="chip {% if f.activo %}ok{% else %}error{% endif %}">{% if f.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
-  <td class="acciones"><form method="post">{% csrf_token %}<input type="hidden" name="id" value="{{ f.id }}">
-    <a class="btn-icono" href="?editar={{ f.id }}" title="Editar" aria-label="Editar {{ f.razon_social }}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm17.7-10.2a1 1 0 0 0 0-1.42l-2.33-2.33a1 1 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></a>
-    {% if f.activo %}{% if con_compras %}<button class="btn-icono peligro" name="accion" value="desactivar" title="Tiene compras: desactivar">Desactivar</button>{% else %}<button class="btn-icono" name="accion" value="desactivar">Desactivar</button>{% endif %}
-    {% else %}<button class="btn-icono" name="accion" value="activar">Activar</button>{% endif %}
-    {% if not con_compras %}<button class="btn-icono peligro" name="accion" value="eliminar" title="Eliminar" aria-label="Eliminar {{ f.razon_social }}" onclick="return confirm('¿Eliminar {{ f.razon_social|escapejs }}?')"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>{% endif %}
-  </form></td>
+  <td class="acciones"><a class="boton secundario chico" href="?editar={{ f.id }}">Editar</a>
+    <details class="mas-acciones abajo"><summary aria-label="Más acciones">⋯</summary>
+      <form method="post" class="menu">{% csrf_token %}<input type="hidden" name="id" value="{{ f.id }}">
+        {% if f.activo %}<button type="submit" name="accion" value="desactivar">Desactivar</button>{% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
+        {% if not con_compras %}<hr><button type="submit" name="accion" value="eliminar" class="peligro" onclick="return confirm('Se eliminará el proveedor {{ f.razon_social|escapejs }} de forma definitiva. No tiene compras.')">Eliminar</button>{% endif %}
+      </form>
+    </details></td>
 </tr>{% empty %}<tr><td colspan="7" class="subtitulo">{% if q %}Sin resultados para "{{ q }}".{% else %}Aún no hay proveedores.{% endif %}</td></tr>{% endfor %}
 </tbody></table>
+<div class="pie-tabla"><span>{{ filas|length }} proveedor{{ filas|length|pluralize:"es" }}</span></div>
 </div>
 {% endif %}
 {% endblock %}

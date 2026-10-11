@@ -1,5 +1,5 @@
 # language: es
-@E04 @E04b @mvp @borrador
+@E04 @E04b @mvp
 Característica: Anulación de compras
   Como gerente
   Quiero anular una compra mal registrada

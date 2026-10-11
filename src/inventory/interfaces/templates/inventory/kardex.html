@@ -3,31 +3,41 @@
 elegido; costos solo con inventario.costo.ver (RF-TEN-51).{% endcomment %}
 {% block titulo %}Kardex / Movimientos{% endblock %}
 {% block contenido %}
-<h1>Kardex / Movimientos</h1>
 {% include "catalog/_migas.html" %}
-<form method="get" class="filtros">
-  <select name="producto" aria-label="Producto"><option value="">Todos los productos</option>{% for p in productos %}<option value="{{ p.id }}"{% if filtro.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }}</option>{% endfor %}</select>
-  <select name="motivo" aria-label="Tipo de movimiento"><option value="">Todos los tipos</option>{% for valor, etiqueta in motivos %}<option value="{{ valor }}"{% if filtro.motivo == valor %} selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select>
-  <select name="almacen" aria-label="Almacén"><option value="">Todos los almacenes</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if filtro.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>
-  <input name="lote" value="{{ filtro.lote }}" placeholder="Lote" aria-label="Lote">
-  <input type="date" name="desde" value="{{ filtro.desde }}" aria-label="Desde">
-  <input type="date" name="hasta" value="{{ filtro.hasta }}" aria-label="Hasta">
-  <button type="submit" class="texto"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg> Filtrar</button>
-  <a class="texto" href="{{ request.path }}">Limpiar</a>
+<div class="encabezado-listado">
+  <div><h1>Kardex / Movimientos</h1><p class="subtitulo">Cada entrada y salida de stock, con su costo y su documento.</p></div>
+  <div class="acciones-listado"><a class="boton secundario" href="?{% if consulta %}{{ consulta }}&amp;{% endif %}formato=csv">Exportar CSV</a></div>
+</div>
+<form method="get" class="tarjeta barra-filtros">
+  <label class="buscar">Producto<select name="producto"><option value="">Todos los productos</option>{% for p in productos %}<option value="{{ p.id }}"{% if filtro.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }}</option>{% endfor %}</select></label>
+  <label>Tipo<select name="motivo"><option value="">Todos los tipos</option>{% for valor, etiqueta in motivos %}<option value="{{ valor }}"{% if filtro.motivo == valor %} selected{% endif %}>{{ etiqueta }}</option>{% endfor %}</select></label>
+  <label>Desde<input type="date" name="desde" value="{{ filtro.desde }}"></label>
+  <label>Hasta<input type="date" name="hasta" value="{{ filtro.hasta }}"></label>
+  <div class="acciones-filtro">
+    <details class="mas-filtros"{% if filtro.almacen or filtro.lote %} data-activos{% endif %}>
+      <summary>Más filtros</summary>
+      <div class="panel-filtros">
+        <label>Almacén<select name="almacen"><option value="">Todos</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if filtro.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
+        <label>Lote<input name="lote" value="{{ filtro.lote }}" placeholder="Código de lote"></label>
+      </div>
+    </details>
+    <button type="submit">Filtrar</button>
+  </div>
 </form>
-<p class="acciones-tabla"><a class="boton secundario" href="?{% if consulta %}{{ consulta }}&amp;{% endif %}formato=csv">Exportar CSV</a></p>
+{% include "listados/_aplicados.html" %}
 <div class="tarjeta tabla">
-<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Motivo</th><th>Documento</th><th>Producto</th><th>Almacén</th><th>Lote</th><th>Cantidad</th>
-  {% if ver_costos %}<th>Costo unit.</th><th>Costo total</th>{% endif %}{% if con_producto %}<th>Saldo</th>{% if ver_costos %}<th>Promedio</th>{% endif %}{% endif %}<th>Usuario</th></tr></thead><tbody>
+<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Motivo</th><th>Documento</th><th>Producto</th><th>Almacén</th><th>Lote</th><th class="num">Cantidad</th>
+  {% if ver_costos %}<th class="num">Costo unit.</th><th class="num">Costo total</th>{% endif %}{% if con_producto %}<th class="num">Saldo</th>{% if ver_costos %}<th class="num">Promedio</th>{% endif %}{% endif %}<th>Usuario</th></tr></thead><tbody>
 {% for m in movimientos %}<tr>
   <td>{{ m.fecha|date:"Y-m-d H:i" }}</td><td>{{ m.tipo }}</td><td>{{ m.motivo }}</td>
   <td>{% if m.ref_tipo == "AJUSTE" and m.ref_id %}<a href="{% url 'ajuste' m.ref_id %}">Ajuste {{ m.ref_id }}</a>{% elif m.ref_tipo == "COMPRA" and m.ref_id %}<a href="{% url 'compra' m.ref_id %}">Compra {{ m.ref_id }}</a>{% else %}{{ m.ref_tipo }}{% if m.ref_id %} {{ m.ref_id }}{% endif %}{% endif %}</td>
-  <td>{{ m.producto.sku }}</td><td>{{ m.almacen.nombre }}</td><td>{{ m.lote.codigo|default:"" }}</td><td>{{ m.cantidad|floatformat:"-4" }}</td>
-  {% if ver_costos %}<td>{{ m.costo_unitario }}</td><td>{{ m.costo_total|floatformat:2 }}</td>{% endif %}
-  {% if con_producto %}<td>{{ m.saldo_cantidad|floatformat:"-4" }}</td>{% if ver_costos %}<td>{{ m.saldo_promedio }}</td>{% endif %}{% endif %}
+  <td>{{ m.producto.sku }}</td><td>{{ m.almacen.nombre }}</td><td>{{ m.lote.codigo|default:"" }}</td><td class="num">{{ m.cantidad|floatformat:"-4" }}</td>
+  {% if ver_costos %}<td class="num">S/ {{ m.costo_unitario }}</td><td class="num">S/ {{ m.costo_total|floatformat:2 }}</td>{% endif %}
+  {% if con_producto %}<td class="num">{{ m.saldo_cantidad|floatformat:"-4" }}</td>{% if ver_costos %}<td class="num">S/ {{ m.saldo_promedio }}</td>{% endif %}{% endif %}
   <td>{{ m.usuario.nombre|default:"" }}</td>
 </tr>{% empty %}<tr><td colspan="13" class="subtitulo">Sin movimientos.</td></tr>{% endfor %}
 </tbody></table>
+<div class="pie-tabla"><span>{{ movimientos|length }} movimiento{{ movimientos|length|pluralize }} en esta página{% if not con_producto %} · elige un producto para ver los saldos{% endif %}</span>
+{% if siguiente %}<span><a href="?{% if consulta %}{{ consulta }}&amp;{% endif %}despues={{ siguiente }}">Siguientes ›</a></span>{% endif %}</div>
 </div>
-{% if siguiente %}<p><a class="boton secundario" href="?{% if consulta %}{{ consulta }}&amp;{% endif %}despues={{ siguiente }}">Siguientes</a></p>{% endif %}
 {% endblock %}

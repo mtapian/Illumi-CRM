@@ -19,7 +19,7 @@ def validar_reversion(movimientos: list[Movimiento], a_revertir: list[Movimiento
     """RF-INV-21 (Q12 = A): una entrada ya consumida no se anula; se corrige por ajuste."""
     for m in a_revertir:
         if m.tipo == ENTRADA and hubo_salidas_posteriores(movimientos, m):
-            raise AnulacionConConsumoPosterior(CORREGIR)
+            raise AnulacionConConsumoPosterior(CORREGIR, m.producto_id)
 
 
 def inversos_de(movimientos: list[Movimiento]) -> list[Movimiento]:

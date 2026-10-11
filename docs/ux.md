@@ -65,3 +65,9 @@ Antes de generar la recepción se muestran la compra, el proveedor, el almacén 
 - **Cambios sin guardar, envío único y "Procesando…":** un script corto y común en `base.html`.
 - **Éxito y error:** mensajes de Django después de la respuesta del servidor; si falla, el formulario vuelve con lo enviado.
 - La unicidad (p. ej. no recibir dos veces) la garantiza el servidor; la interfaz solo la refuerza.
+- **Grillas (piezas comunes):**
+  - Encabezado `.encabezado-listado`: título, descripción y la acción general a la derecha ("+ Nuevo …" en azul; "Exportar CSV" en secundario).
+  - Filtros `<form class="tarjeta barra-filtros">`: buscador `label.buscar` con etiqueta y Enter, 2 o 3 filtros frecuentes con etiqueta, el resto en `<details class="mas-filtros">` (resaltado con `data-activos` si tiene alguno aplicado) y "Filtrar".
+  - Chips de filtros aplicados: `shared/interfaces/listados.py::aplicados` + `listados/_aplicados.html` (cada chip quita su filtro; "Limpiar filtros" quita todos). En un maestro con solo buscador: `listados/_buscar.html`.
+  - Tabla `.tarjeta.tabla`: el nombre o código abre el registro; importes con `S/` y `class="num"`; última columna `td.acciones` con una acción visible (`a.boton.secundario.chico`) y el resto en `<details class="mas-acciones abajo">` ⋯, lo destructivo al final y en rojo.
+  - Pie `listados/_pie.html` con `listados.paginar` (25 por página): cantidad de registros y "1–25 de N" con Anterior/Siguiente; el kardex usa cursor ("Siguientes ›").

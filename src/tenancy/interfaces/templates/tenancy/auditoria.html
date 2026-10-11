@@ -1,15 +1,18 @@
 {% extends "base.html" %}
 {% block titulo %}Auditoría de accesos{% endblock %}
 {% block contenido %}
-<h1>Auditoría de accesos</h1>
-<p class="subtitulo">Cambios de roles, permisos, usuarios y tokens de API: quién, cuándo, antes y después.</p>
-<form method="get" class="filtros">
+<nav class="migas" aria-label="Migas de pan"><a href="/">Inicio</a><span aria-hidden="true">/</span><span aria-current="page">Auditoría de accesos</span></nav>
+<div class="encabezado-listado">
+  <div><h1>Auditoría de accesos</h1><p class="subtitulo">Cambios de roles, permisos, usuarios y tokens de API: quién, cuándo, antes y después.</p></div>
+</div>
+<form method="get" class="tarjeta barra-filtros">
+  <label class="buscar">Autor<input type="search" name="autor" value="{{ filtro.autor }}" placeholder="Email del autor"></label>
+  <label>Entidad<select name="entidad"><option value="">Todas</option>
+    {% for e in entidades %}<option value="{{ e }}"{% if filtro.entidad == e %} selected{% endif %}>{{ e }}</option>{% endfor %}</select></label>
   <label>Desde<input type="date" name="desde" value="{{ filtro.desde }}"></label>
   <label>Hasta<input type="date" name="hasta" value="{{ filtro.hasta }}"></label>
-  <label>Entidad<select name="entidad"><option value="">Todas</option>
-    {% for e in entidades %}<option value="{{ e }}" {% if filtro.entidad == e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></label>
-  <label>Autor<input name="autor" value="{{ filtro.autor }}" placeholder="email"></label>
-  <button type="submit">Filtrar</button>
+  <div class="acciones-filtro"><button type="submit">Filtrar</button></div>
 </form>
+{% include "listados/_aplicados.html" %}
 {% include "tenancy/_tabla_auditoria.html" %}
 {% endblock %}

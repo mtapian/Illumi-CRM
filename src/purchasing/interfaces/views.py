@@ -21,6 +21,7 @@ from purchasing.domain.errores import CompraInvalida, ProveedorInvalido
 from purchasing.domain.proveedor import DatosProveedor
 from purchasing.infrastructure.contenedor import caso_de_compra, caso_de_uso
 from purchasing.infrastructure.models import Compra, Proveedor, ProveedorProducto
+from shared.interfaces import listados
 from tenancy.infrastructure.contenedor import tenancy_service
 from tenancy.interfaces.acceso import requiere
 from tenancy.interfaces.views.accesos import _intentar
@@ -232,11 +233,21 @@ def compras(request):
         if (n := q.removeprefix("C-")).isdigit():
             busca |= Q(numero=int(n))
         filas = filas.filter(busca)
+    proveedores = Proveedor.objects.order_by("razon_social")
+    campos = {  # chips de filtros aplicados (docs/ux.md §3)
+        "q": ("Búsqueda", None),
+        "estado": ("Estado", dict(ESTADOS)),
+        "proveedor": ("Proveedor", {str(p.id): p.razon_social for p in proveedores}),
+        "desde": ("Desde", None),
+        "hasta": ("Hasta", None),
+    }
     contexto = {
-        "filas": filas[:200],
+        "pagina": listados.paginar(request, filas),
+        "consulta": listados.consulta(request),
+        "aplicados": listados.aplicados(request, campos),
         "filtro": filtro,
         "estados": ESTADOS,
-        "proveedores": Proveedor.objects.order_by("razon_social"),
+        "proveedores": proveedores,
         "puede_registrar": request.actor.puede(cc.REGISTRAR),
         "migas": MIGAS,
     }
@@ -265,7 +276,7 @@ def nueva_compra(request):
 def compra(request, compra_id):
     """Edición mientras no esté Finalizada, con la barra de estados (RF-COM-25 a 27); si no,
     detalle de solo lectura con sus movimientos de kardex (RF-COM-13, 14)."""
-    relacionados = ("proveedor", "almacen", "usuario", "finalizada_por")
+    relacionados = ("proveedor", "almacen", "usuario", "finalizada_por", "anulada_por")
     fila = get_object_or_404(Compra.objects.select_related(*relacionados), pk=compra_id)
     if request.method == "POST":
         p, actor = request.POST, request.actor
@@ -285,11 +296,15 @@ def compra(request, compra_id):
                 p.get("guia", ""),
                 timezone.localdate(),
             ),
+            "anular": lambda: caso_de_compra(cc.AnularCompra).ejecutar(
+                actor, compra_id, p.get("motivo", "")
+            ),
         }
         if _intentar(request, acciones.get(p.get("accion"), acciones["guardar"])):
             resultado = {
                 "finalizar": "Compra finalizada: el stock ya ingresó al almacén.",
                 "en_proceso": "La compra pasó a en proceso.",
+                "anular": "Compra anulada.",
             }
             messages.success(request, resultado.get(p.get("accion"), "Cambios guardados."))
             return redirect("compra", compra_id=compra_id)
@@ -299,6 +314,7 @@ def compra(request, compra_id):
         "numero": numero_compra(fila.numero),
         "estado_texto": dict(ESTADOS)[fila.estado],
         "editable": editable,
+        "puede_anular": fila.estado != "ANULADA" and request.actor.puede(cc.ANULAR),
         "estados": ESTADOS[:3],
         "hoy": timezone.localdate().isoformat(),
         "lineas": fila.lineas.select_related("producto__unidad").order_by("id"),

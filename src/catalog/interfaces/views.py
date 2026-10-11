@@ -5,7 +5,6 @@ from dataclasses import asdict
 from decimal import Decimal
 
 from django.contrib import messages
-from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -22,6 +21,7 @@ from catalog.infrastructure.models import Categoria, Marca, Producto, Unidad
 from catalog.infrastructure.repositorios import CatalogoOrm
 from catalog.interfaces.forms import ProductoForm
 from catalog.interfaces.pestanas import pestanas
+from shared.interfaces import listados
 from tenancy.infrastructure.contenedor import tenancy_service
 from tenancy.interfaces.acceso import requiere
 from tenancy.interfaces.views.accesos import _intentar
@@ -79,20 +79,31 @@ def productos(request):
             if puertos.inventario.stock(p.id) <= p.stock_minimo  # RF-INV-14
         ]
         filas = filas.filter(pk__in=bajos)
-    pagina = Paginator(filas, POR_PAGINA).get_page(g.get("pagina"))
+    categorias = Categoria.objects.order_by("nombre")
+    marcas = Marca.objects.order_by("nombre")
+    casillas = [(c, c.replace("_", " ").capitalize()) for c in CASILLAS]
+    campos = {  # chips de filtros aplicados (docs/ux.md §3)
+        "q": ("Búsqueda", None),
+        "tipo": ("Tipo", {t: t.lower().capitalize() for t in TipoProducto}),
+        "estado": ("Estado", {"inactivos": "Inactivos", "todos": "Todos"}),
+        "casilla": ("Gestión", dict(casillas)),
+        "categoria": ("Categoría", {str(c.id): c.nombre for c in categorias}),
+        "marca": ("Marca", {str(m.id): m.nombre for m in marcas}),
+        "stock_bajo": ("Solo stock bajo", None),
+    }
     contexto = {
-        "pagina": pagina,
+        "pagina": listados.paginar(request, filas, POR_PAGINA),
         "tipos": list(TipoProducto),
-        "categorias": Categoria.objects.order_by("nombre"),
-        "marcas": Marca.objects.order_by("nombre"),
-        "casillas": [(c, c.replace("_", " ").capitalize()) for c in CASILLAS],
+        "categorias": categorias,
+        "marcas": marcas,
+        "casillas": casillas,
         "filtro": {
             k: g.get(k, "") for k in ("q", "tipo", "casilla", "categoria", "marca", "stock_bajo")
         }
         | {"estado": estado},
-        "consulta": g.copy().urlencode()
-        if "pagina" not in g
-        else "&".join(f"{k}={v}" for k, v in g.items() if k != "pagina"),
+        "consulta": listados.consulta(request),
+        "aplicados": listados.aplicados(request, campos, {"estado": "activos"}),
+        "migas_productos": [("Inicio", "/"), ("Productos", None)],
     }
     return render(request, "catalog/productos.html", contexto)
 

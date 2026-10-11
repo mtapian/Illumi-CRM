@@ -59,9 +59,9 @@ def test_stock_con_detalle_valorizacion_y_filtros(web, inv):
     ipa = fila(html, "TER-IPA-330")
     assert "30 UND" in ipa and "4.000000" in ipa and "120.00" in ipa
     assert "Principal · lote V" in ipa and "Vencido" in ipa and "Taproom · lote B" in ipa
-    assert 'id="categoria-cervezas"><td>Cervezas</td><td>120.00' in html
-    assert 'id="categoria-sin-categoria"><td>Sin categoría</td><td>10.00' in html
-    assert "<strong>130.00</strong>" in html
+    assert 'id="categoria-cervezas"><td>Cervezas</td><td class="num">S/ 120.00' in html
+    assert 'id="categoria-sin-categoria"><td>Sin categoría</td><td class="num">S/ 10.00' in html
+    assert "<strong>S/ 130.00</strong>" in html
     solo_taproom = web.get(f"/inventario/stock/?almacen={taproom}").content.decode()
     assert "20 UND" in fila(solo_taproom, "TER-IPA-330") and "80.00" in solo_taproom
     fabricados = web.get("/inventario/stock/?casilla=se_fabrica").content.decode()
@@ -84,9 +84,9 @@ def test_kardex_filtros_saldos_cursor_y_csv(web, inv):
         entra(inv, "malta", "1", "2")
     entra(inv, "ipa", "3", "4")
     todos = web.get("/inventario/kardex/").content.decode()
-    assert "<th>Saldo</th>" not in todos and "Siguientes" in todos
+    assert '<th class="num">Saldo</th>' not in todos and "Siguientes" in todos
     malta = web.get(f"/inventario/kardex/?producto={inv['malta']}").content.decode()
-    assert "<th>Saldo</th>" in malta and "<td>TER-IPA-330</td>" not in malta
+    assert '<th class="num">Saldo</th>' in malta and "<td>TER-IPA-330</td>" not in malta
     with tenant_context(inv["empresa"].id):
         corte = Movimiento.objects.filter(producto_id=inv["malta"]).order_by("id")[49].id
     resto = web.get(f"/inventario/kardex/?producto={inv['malta']}&despues={corte}")
@@ -146,18 +146,19 @@ def test_rendimiento_con_100000_movimientos(web, inv, ruta):
     assert sorted(tiempos)[18] < 0.8
 
 
-def test_filtros_del_kardex_en_una_fila_y_enlaces_codificados(web, inv):
-    """RF-INV-07 (captura del PO, 2026-10-11): producto, tipo de movimiento, almacén, lote y
-    fechas en una sola fila; "Filtrar" y "Limpiar"; los enlaces conservan el filtro."""
+def test_filtros_del_kardex_estandar_y_enlaces_codificados(web, inv):
+    """RF-INV-07 y docs/ux.md §3: filtros frecuentes con etiqueta (producto, tipo, fechas), el
+    resto en "Más filtros", chips de los aplicados y enlaces que conservan el filtro."""
     for _ in range(50):
         entra(inv, "malta", "1", "2", lote="A & B")
     html = web.get("/inventario/kardex/?lote=A+%26+B").content.decode()
-    filtros = html.split('<form method="get" class="filtros"')[1].split("</form>")[0]
-    assert "dos-columnas" not in filtros and "<label>" not in filtros
+    filtros = html.split('<form method="get" class="tarjeta barra-filtros"')[1].split("</form>")[0]
     assert '<option value="">Todos los productos</option>' in filtros
-    assert '<option value="">Todos los tipos</option>' in filtros
     assert '<option value="COMPRA">Compra</option>' in filtros
-    assert " Filtrar</button>" in filtros and ">Limpiar</a>" in filtros
+    mas = filtros.split('<details class="mas-filtros" data-activos>')[1]  # resaltado: hay uno
+    assert 'name="lote"' in mas and 'name="almacen"' in mas
+    assert "Filtrar</button>" in filtros
+    assert "Lote: A &amp; B" in html and "Limpiar filtros" in html  # chip del filtro aplicado
     assert "lote=A+%26+B&amp;despues=" in html  # "Siguientes" sin perder el lote
     assert "lote=A+%26+B&amp;formato=csv" in html
     assert "KARDEX / MOVIMIENTOS" in html.upper()

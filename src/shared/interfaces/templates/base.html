@@ -133,9 +133,11 @@
       display: flex; flex-direction: column; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--radio);
       box-shadow: 0 8px 24px rgba(15, 27, 51, .12); }
     .mas-acciones.abajo .menu { bottom: auto; top: calc(100% + .35rem); }
-    .mas-acciones .menu > :is(a, button) { display: block; width: 100%; background: none; border: 0; color: var(--texto); text-align: left;
+    .mas-acciones .menu form { display: contents; }
+    .mas-acciones > summary.principal { background: var(--acento); color: #fff; border-color: var(--acento); }
+    .mas-acciones .menu :is(a, button) { display: block; width: 100%; background: none; border: 0; color: var(--texto); text-align: left;
       padding: .55rem .75rem; border-radius: 6px; font-weight: 500; }
-    .mas-acciones .menu > :is(a, button):hover { background: var(--fondo); }
+    .mas-acciones .menu :is(a, button):hover { background: var(--fondo); }
     .mas-acciones .menu .peligro { color: var(--error); }
     .mas-acciones .menu hr { border: 0; border-top: 1px solid var(--borde); margin: .3rem 0; width: 100%; }
     /* Encabezado de documento: título, autor y estado en texto; la secuencia es informativa, no son pestañas */
@@ -153,6 +155,38 @@
     .pie-productos { display: flex; flex-wrap: wrap; gap: 1.25rem; justify-content: space-between; align-items: start; margin-top: 1rem; }
     .pie-productos > label { flex: 1 1 320px; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    /* Grillas estándar (docs/ux.md §3; prototipo productos.html): encabezado con la acción
+       general, barra de filtros con etiquetas, "Más filtros", chips aplicados, acciones por fila y pie */
+    .encabezado-listado { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: .75rem 1rem; margin-bottom: 1rem; }
+    .encabezado-listado h1 { margin-bottom: .15rem; }
+    .encabezado-listado .acciones-listado { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .barra-filtros { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: flex-end; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .barra-filtros label { margin: 0; font-size: .85rem; flex: 0 1 180px; }
+    .barra-filtros label.buscar { flex: 1 1 260px; }
+    .barra-filtros label.check { flex: 0 0 auto; display: flex; gap: .5rem; align-items: center; font-weight: 500; }
+    .barra-filtros .acciones-filtro { display: flex; gap: .5rem; align-items: center; margin-left: auto; }
+    .mas-filtros { position: relative; }
+    .mas-filtros > summary { list-style: none; cursor: pointer; border-radius: 8px; padding: .6rem 1rem; font-weight: 600;
+      background: var(--tarjeta); border: 1px solid var(--borde); white-space: nowrap; }
+    .mas-filtros > summary::-webkit-details-marker { display: none; }
+    .mas-filtros .panel-filtros { position: absolute; right: 0; top: calc(100% + .35rem); z-index: 20; width: min(420px, 90vw);
+      display: grid; gap: .75rem; padding: 1rem; background: var(--tarjeta); border: 1px solid var(--borde);
+      border-radius: var(--radio); box-shadow: 0 8px 24px rgba(15, 27, 51, .12); }
+    .mas-filtros .panel-filtros label { flex: none; }
+    .filtros-aplicados { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: -.25rem 0 1rem; }
+    .filtros-aplicados .chip { font-weight: 500; background: var(--tarjeta); border: 1px solid var(--borde); padding: .2rem .6rem; }
+    .filtros-aplicados .chip:hover { border-color: var(--acento); color: var(--acento); }
+    .filtros-aplicados .subtitulo { margin: 0; }
+    .mas-filtros[data-activos] > summary { border-color: var(--acento); color: var(--acento); }
+    .mas-filtros[data-activos] > summary::after { content: " •"; }
+    .filtros-aplicados .texto, a.texto { font-weight: 600; }
+    td.acciones .mas-acciones { display: inline-block; }
+    td.acciones .mas-acciones > summary { padding: .35rem .7rem; }
+    a.boton.chico, button.chico { padding: .35rem .8rem; font-size: .9rem; }
+    .celda-principal small { display: block; color: var(--tenue); font-size: .8rem; font-weight: 400; }
+    .pie-tabla { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; padding: .75rem .5rem 0;
+      color: var(--tenue); font-size: .85rem; border-top: 1px solid var(--borde); margin-top: .25rem; }
+    .pie-tabla a { margin-left: .75rem; }
     textarea { min-height: 5rem; resize: vertical; }
     dialog.tarjeta { max-width: 560px; width: calc(100% - 32px); margin: auto; } /* .tarjeta fija el margen inferior y lo bajaba */ dialog::backdrop { background: rgba(15, 27, 51, .4); }
     label.check { display: flex; gap: .5rem; align-items: center; font-weight: 500; margin: .35rem 0; }

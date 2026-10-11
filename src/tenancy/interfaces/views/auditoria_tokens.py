@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from shared.domain.auditoria import diferencias
 from shared.domain.errores import AccesoDenegado
+from shared.interfaces import listados
 from tenancy.application import tokens as uc_tokens
 from tenancy.domain.tokens import API
 from tenancy.infrastructure.contenedor import caso_de_tokens, tenancy_service
@@ -48,6 +49,10 @@ def auditoria(request):
         "filas": filas_auditoria(consulta),
         "filtro": filtro,
         "entidades": [e for e, _ in AuditoriaAcceso.ENTIDADES],
+        "aplicados": listados.aplicados(
+            request,
+            {k: (k.capitalize(), None) for k in ("autor", "entidad", "desde", "hasta")},
+        ),
     }
     return render(request, "tenancy/auditoria.html", contexto)
 

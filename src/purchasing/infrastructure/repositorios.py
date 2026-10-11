@@ -135,6 +135,14 @@ class ComprasOrm:
             finalizada_en=timezone.now(),
         )
 
+    def anular(self, compra_id, usuario_id, motivo):
+        Compra.objects.filter(pk=compra_id).update(
+            estado=ANULADA,
+            anulada_por_id=usuario_id,
+            anulada_en=timezone.now(),
+            motivo_anulacion=motivo,
+        )
+
     def tiene_compras(self, proveedor_id):
         """RF-COM-24: una compra no anulada, en cualquier estado."""
         return Compra.objects.filter(proveedor_id=proveedor_id).exclude(estado=ANULADA).exists()

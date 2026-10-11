@@ -1,0 +1,6 @@
+{% comment %}Pie de la grilla (docs/ux.md §3): cantidad de registros y paginación. Recibe `pagina`,
+`consulta` y `nombres` ("producto,productos").{% endcomment %}
+<div class="pie-tabla"><span>{{ pagina.paginator.count }} {{ pagina.paginator.count|pluralize:nombres }}</span>
+{% if pagina.paginator.count %}<span>{{ pagina.start_index }}–{{ pagina.end_index }} de {{ pagina.paginator.count }}
+{% if pagina.has_previous %}<a href="?{% if consulta %}{{ consulta }}&amp;{% endif %}pagina={{ pagina.previous_page_number }}">‹ Anterior</a>{% endif %}
+{% if pagina.has_next %}<a href="?{% if consulta %}{{ consulta }}&amp;{% endif %}pagina={{ pagina.next_page_number }}">Siguiente ›</a>{% endif %}</span>{% endif %}</div>

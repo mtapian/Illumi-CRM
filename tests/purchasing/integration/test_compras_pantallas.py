@@ -113,3 +113,24 @@ def test_sin_permiso_de_compras_no_entra(client, e):
     client.force_login(ventas, BACKEND)
     assert client.get("/compras/").status_code == 403
     assert client.get("/compras/nueva/").status_code == 403
+
+
+def test_anular_desde_la_pantalla(client, e):
+    """0004b, T5 (RF-COM-15, 16, 28): en "Más acciones", con motivo; Almacén no lo ve."""
+    client.post("/compras/nueva/", formulario(e))
+    compra = Compra.objects.get()
+    url = f"/compras/{compra.id}/"
+    assert "Anular compra" in client.get(url).content.decode()
+    rosa = Usuario.objects.create_user("rosa@andina.pe", "x", empresa=e["empresa"])
+    asignar_rol(rosa, "Almacén")
+    client.force_login(rosa, BACKEND)
+    assert "Anular compra" not in client.get(url).content.decode()
+    r = client.post(url, {"accion": "anular", "motivo": "x"}, follow=True)
+    assert "Acceso denegado" in r.content.decode()
+    client.force_login(Usuario.objects.get(email="lucia@andina.pe"), BACKEND)
+    r = client.post(url, {"accion": "anular", "motivo": "Pedido cancelado"}, follow=True)
+    pagina = r.content.decode()
+    assert "Compra anulada." in pagina and "Motivo: Pedido cancelado" in pagina
+    assert "Anular compra" not in pagina
+    compra.refresh_from_db()
+    assert compra.estado == "ANULADA"

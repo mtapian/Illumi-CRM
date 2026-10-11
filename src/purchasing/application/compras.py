@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from catalog.application.fachada import CatalogoQuery
-from inventory.application.servicio import InventarioService, Linea
+from inventory.application.servicio import AnulacionConConsumoPosterior, InventarioService, Linea
 from purchasing.application.puertos import IgvPort
 from purchasing.domain.compra import (
     ANULADA,
@@ -32,7 +32,7 @@ from shared.application.autorizacion import Actor, CasoDeUso
 from shared.application.puertos import SequencePort
 from shared.domain.errores import NoEncontrado
 
-VER, REGISTRAR = "compras.compra.ver", "compras.compra.registrar"
+VER, REGISTRAR, ANULAR = "compras.compra.ver", "compras.compra.registrar", "compras.compra.anular"
 REF = "COMPRA"
 NO_COMPRABLE = "Solo se pueden comprar bienes activos que se compran"
 
@@ -65,6 +65,7 @@ class ComprasRepo(Protocol):
     def bloquear(self, compra_id: int) -> tuple[str, DatosCompra] | None: ...  # FOR UPDATE
     def cambiar_estado(self, compra_id: int, estado: str) -> None: ...
     def finalizar(self, compra_id, almacen_id, recepcion, guia, usuario_id) -> None: ...
+    def anular(self, compra_id: int, usuario_id, motivo: str) -> None: ...
 
 
 class _Base(CasoDeUso):
@@ -191,3 +192,32 @@ class FinalizarCompra(_Base):
                 for x in datos.lineas
             ]
             self._inv.registrar_entrada(REF, REF, compra_id, lineas, actor.usuario_id, recepcion)
+
+
+class AnularCompra(_Base):
+    """RF-COM-15 a 18, 28 y 29 (spec 0004b): una Finalizada revierte sus entradas al mismo
+    costo; una Creada o En proceso solo cambia de estado. Una sola vez."""
+
+    permiso_requerido = ANULAR
+
+    def ejecutar(self, actor: Actor, compra_id: int, motivo: str) -> None:
+        motivo = motivo.strip()
+        if not motivo:
+            raise CompraInvalida("El motivo es obligatorio")
+        with self._atomic():
+            fila = self._repo.bloquear(compra_id)  # el segundo espera y ve ANULADA (RF-COM-17)
+            if fila is None:
+                raise NoEncontrado("La compra no existe")
+            if fila[0] == ANULADA:
+                raise CompraInvalida("La compra ya está anulada")
+            if fila[0] == FINALIZADA:
+                try:
+                    self._inv.revertir(REF, compra_id, actor.usuario_id)
+                except AnulacionConConsumoPosterior as e:
+                    producto = self._catalogo.producto(e.producto_id)
+                    sku = producto.sku if producto else "un producto"
+                    raise CompraInvalida(
+                        f"No se puede anular: {sku} tuvo salidas posteriores a la compra. "
+                        "Corrígela con un ajuste CORRECCION"
+                    ) from None
+            self._repo.anular(compra_id, actor.usuario_id, motivo)

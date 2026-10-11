@@ -1,19 +1,24 @@
 {% extends "base.html" %}
 {% block titulo %}Usuarios{% endblock %}
 {% block contenido %}
-<h1>Usuarios</h1>
-<p class="subtitulo">Los usuarios no se borran: se desactivan y conservan la autoría de sus documentos.</p>
+<nav class="migas" aria-label="Migas de pan"><a href="/">Inicio</a><span aria-hidden="true">/</span><span aria-current="page">Usuarios</span></nav>
+<div class="encabezado-listado">
+  <div><h1>Usuarios</h1><p class="subtitulo">Los usuarios no se borran: se desactivan y conservan la autoría de sus documentos.</p></div>
+  <div class="acciones-listado"><a class="boton principal" href="#nuevo-usuario">+ Nuevo usuario</a></div>
+</div>
 <div class="tarjeta tabla">
-<table><thead><tr><th>Nombre</th><th>Email</th><th>Roles</th><th>Estado</th></tr></thead><tbody>
+<table><thead><tr><th>Nombre</th><th>Email</th><th>Roles</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
 {% for u in usuarios %}<tr>
   <td><a href="{% url 'usuario' u.id %}">{{ u.nombre }}</a>{% if u.es_tecnico %} <span class="chip">técnico</span>{% endif %}</td>
   <td>{{ u.email }}</td>
   <td>{% for r in u.roles.all %}{{ r }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
   <td><span class="chip {% if u.is_active %}ok{% else %}error{% endif %}">{% if u.is_active %}Activo{% else %}Inactivo{% endif %}</span></td>
+  <td class="acciones"><a class="boton secundario chico" href="{% url 'usuario' u.id %}">Editar</a></td>
 </tr>{% endfor %}
 </tbody></table>
+<div class="pie-tabla"><span>{{ usuarios|length }} usuario{{ usuarios|length|pluralize }}</span></div>
 </div>
-<section class="tarjeta">
+<section class="tarjeta" id="nuevo-usuario">
   <h2>Nuevo usuario</h2>
   <form method="post">{% csrf_token %}
     <div class="filtros">

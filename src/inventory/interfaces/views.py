@@ -21,6 +21,7 @@ from inventory.domain.errores import AjusteInvalido
 from inventory.infrastructure import consultas
 from inventory.infrastructure.contenedor import caso_de_ajuste, caso_de_uso
 from inventory.infrastructure.models import Ajuste, Almacen, Movimiento
+from shared.interfaces import listados
 from tenancy.interfaces.acceso import requiere
 from tenancy.interfaces.views.accesos import _intentar
 
@@ -182,16 +183,28 @@ def stock(request):
     """Stock por producto con detalle por almacén y lote (RF-INV-04, 05, 16)."""
     filtro = {k: request.GET.get(k, "") for k in FILTROS_STOCK}
     filas, por_categoria, total = consultas.stock(filtro)
+    casillas = [(c, c.replace("_", " ").capitalize()) for c in consultas.CASILLAS]
+    almacenes, categorias = Almacen.objects.order_by("nombre"), Categoria.objects.order_by("nombre")
+    campos = {  # chips de filtros aplicados (docs/ux.md §3)
+        "q": ("Búsqueda", None),
+        "almacen": ("Almacén", {str(a.id): a.nombre for a in almacenes}),
+        "categoria": ("Categoría", {str(c.id): c.nombre for c in categorias}),
+        "casilla": ("Gestión", dict(casillas)),
+        "stock_bajo": ("Solo stock bajo", None),
+        "con_stock": ("Solo con stock", None),
+    }
     contexto = {
-        "filas": filas,
+        "pagina": listados.paginar(request, filas),
+        "consulta": listados.consulta(request),
+        "aplicados": listados.aplicados(request, campos),
         "por_categoria": por_categoria,
         "total": total,
         "filtro": filtro,
         "ver_costos": request.actor.puede(COSTO),  # RF-TEN-51
         "hoy": timezone.localdate(),
-        "casillas": [(c, c.replace("_", " ").capitalize()) for c in consultas.CASILLAS],
-        "almacenes": Almacen.objects.order_by("nombre"),
-        "categorias": Categoria.objects.order_by("nombre"),
+        "casillas": casillas,
+        "almacenes": almacenes,
+        "categorias": categorias,
         "migas": MIGAS + [("Stock", None)],
     }
     return render(request, "inventory/stock.html", contexto)
@@ -233,6 +246,8 @@ def kardex(request):
         return respuesta
     despues = request.GET.get("despues", "")
     movimientos = consultas.kardex(filtro, int(despues) if despues.isdigit() else None)
+    productos = Producto.objects.filter(tipo="BIEN").order_by("nombre")
+    almacenes = Almacen.objects.order_by("nombre")
     contexto = {
         "movimientos": movimientos,
         "filtro": filtro,
@@ -240,9 +255,20 @@ def kardex(request):
         "con_producto": con_producto,
         "siguiente": movimientos[-1].id if len(movimientos) == 50 else None,
         "consulta": urlencode({k: v for k, v in filtro.items() if v}),
+        "aplicados": listados.aplicados(
+            request,
+            {
+                "producto": ("Producto", {str(p.id): p.sku for p in productos}),
+                "motivo": ("Tipo", dict(MOTIVOS)),
+                "almacen": ("Almacén", {str(a.id): a.nombre for a in almacenes}),
+                "lote": ("Lote", None),
+                "desde": ("Desde", None),
+                "hasta": ("Hasta", None),
+            },
+        ),
         "motivos": MOTIVOS,
-        "productos": Producto.objects.filter(tipo="BIEN").order_by("nombre"),
-        "almacenes": Almacen.objects.order_by("nombre"),
+        "productos": productos,
+        "almacenes": almacenes,
         "migas": MIGAS + [("Kardex", None)],
     }
     return render(request, "inventory/kardex.html", contexto)

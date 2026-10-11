@@ -1,6 +1,6 @@
 # Plan 0004b — Compras: anulación
 
-Estado: borrador. Propuesta del 2026-10-11, pendiente de aprobación del PO
+Estado: implementado (aprobado por el PO el 2026-10-11)
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 
@@ -13,6 +13,7 @@ Contexto: `src/purchasing` (0004a implementada). La reversión la hace `Inventar
 | `src/purchasing/application/compras.py` | `AnularCompra` (`compras.compra.anular`): compra bloqueada (`FOR UPDATE`), motivo obligatorio; si está Finalizada llama a `InventarioService.revertir('COMPRA', id, usuario)`; marca Anulada | RF-COM-15 a 18, 28, 29 |
 | `src/inventory/domain/errores.py`, `movimientos.py` | `AnulacionConConsumoPosterior` lleva el `producto_id` consumido (el mensaje de 0003a no cambia) | RF-COM-16 |
 | `src/purchasing/infrastructure/models.py`, `repositorios.py` | Campos `anulada_por`, `anulada_en`, `motivo_anulacion`; `ComprasOrm.anular` | RF-COM-15, 28 |
+| `src/inventory/application/servicio.py` | Reexporta `AnulacionConConsumoPosterior`: compras la captura sin importar el dominio del inventario (contrato de import-linter) | RF-COM-16 |
 | `src/purchasing/interfaces/` | "Anular compra" al final de "Más acciones", en rojo (docs/ux.md), que abre un `<dialog>` que explica qué se revierte y pide el motivo; en el detalle, quién anuló, cuándo y por qué | RF-COM-15, 16, 28 |
 
 ## 2. Modelo de datos

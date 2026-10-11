@@ -70,7 +70,9 @@ def test_filtros_y_paginacion_de_25(client, lucia):
         )
         Producto.objects.create(sku="INS-X", nombre="Viejo", tipo="BIEN", unidad=und, activo=False)
     pagina = client.get("/catalogo/productos/").content.decode()
-    assert pagina.count("</code></a></td>") == 25 and "Página 1 de 2" in pagina
+    # Grilla estándar (docs/ux.md §3): el nombre abre la ficha; pie con cantidad y paginación.
+    assert pagina.count('<td class="celda-principal"><a href="/catalogo/productos/') == 25
+    assert "31 productos" in pagina and "1–25 de 31" in pagina
     assert "MER-PAPA" in client.get("/catalogo/productos/?q=papas").content.decode()
     assert (
         "MER-PAPA" in client.get(f"/catalogo/productos/?categoria={categoria.id}").content.decode()

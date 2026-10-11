@@ -1,0 +1,4 @@
+{% comment %}Filtros aplicados (docs/ux.md §3): cada uno se quita por separado; "Limpiar" quita todos.{% endcomment %}
+{% if aplicados %}<p class="filtros-aplicados" aria-label="Filtros aplicados"><span class="subtitulo">Filtros aplicados:</span>
+{% for f in aplicados %}<a class="chip neutro" href="{{ f.quitar }}" title="Quitar este filtro">{{ f.etiqueta }}{% if f.valor %}: {{ f.valor }}{% endif %} <span aria-hidden="true">×</span><span class="oculto">quitar</span></a>{% endfor %}
+<a class="texto" href="{{ request.path }}">Limpiar filtros</a></p>{% endif %}

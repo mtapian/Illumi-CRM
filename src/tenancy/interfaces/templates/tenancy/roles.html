@@ -1,15 +1,20 @@
 {% extends "base.html" %}
 {% block titulo %}Roles{% endblock %}
 {% block contenido %}
-<h1>Roles</h1>
-<p class="subtitulo">Combina permisos de las funcionalidades que tu plan incluye. <a href="{% url 'rol_nuevo' %}">Nuevo rol</a></p>
+<nav class="migas" aria-label="Migas de pan"><a href="/">Inicio</a><span aria-hidden="true">/</span><span aria-current="page">Roles</span></nav>
+<div class="encabezado-listado">
+  <div><h1>Roles</h1><p class="subtitulo">Combina permisos de las funcionalidades que tu plan incluye.</p></div>
+  <div class="acciones-listado"><a class="boton principal" href="{% url 'rol_nuevo' %}">+ Nuevo rol</a></div>
+</div>
 <div class="tarjeta tabla">
-<table><thead><tr><th>Rol</th><th>Usuarios</th><th>Estado</th></tr></thead><tbody>
+<table><thead><tr><th>Rol</th><th class="num">Usuarios</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
 {% for r in roles %}<tr>
   <td><a href="{% url 'rol' r.id %}">{{ r }}</a>{% if r.es_sistema %} <span class="chip">sistema</span>{% endif %}</td>
-  <td>{{ r.n_usuarios }}</td>
+  <td class="num">{{ r.n_usuarios }}</td>
   <td><span class="chip {% if r.activo %}ok{% else %}error{% endif %}">{% if r.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+  <td class="acciones"><a class="boton secundario chico" href="{% url 'rol' r.id %}">{% if r.es_sistema %}Ver{% else %}Editar{% endif %}</a></td>
 </tr>{% endfor %}
 </tbody></table>
+<div class="pie-tabla"><span>{{ roles|length }} rol{{ roles|length|pluralize:"es" }}</span></div>
 </div>
 {% endblock %}

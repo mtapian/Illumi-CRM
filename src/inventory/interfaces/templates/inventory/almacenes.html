@@ -3,9 +3,9 @@
 almacén vacío se desactiva.{% endcomment %}
 {% block titulo %}Almacenes{% endblock %}
 {% block contenido %}
-<h1>{% if editando %}Editar almacén{% elif nuevo %}Nuevo almacén{% else %}Almacenes{% endif %}</h1>
 {% include "catalog/_migas.html" %}
 {% if nuevo or editando %}
+<h1>{% if editando %}Editar almacén{% else %}Nuevo almacén{% endif %}</h1>
 <section class="tarjeta formulario-maestro">
   <form method="post" id="form-maestro" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
     {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
@@ -14,23 +14,24 @@ almacén vacío se desactiva.{% endcomment %}
 </section>
 <div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-maestro" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{{ request.path }}" data-descartar>Cancelar</a> <button type="submit" form="form-maestro" data-con-cambios disabled>Guardar</button></div>
 {% else %}
-<div class="barra-listado">
-  <form method="get" class="buscador"><input type="search" name="q" value="{{ q }}" placeholder="Buscar almacén…" aria-label="Buscar almacén"></form>
-  <a class="boton exito" href="?nuevo=1">+ Nuevo almacén</a>
-</div>
+<div class="encabezado-listado"><div><h1>Almacenes</h1><p class="subtitulo">Un almacén con stock no se desactiva; no se eliminan.</p></div>
+  <div class="acciones-listado"><a class="boton principal" href="?nuevo=1">+ Nuevo almacén</a></div></div>
+{% include "listados/_buscar.html" with etiqueta="Buscar almacén" placeholder="Nombre" %}
 <div class="tarjeta tabla">
-<table><thead><tr><th>Nombre</th><th>Productos con stock</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+<table><thead><tr><th>Nombre</th><th class="num">Productos con stock</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
 {% for f in filas %}<tr>
-  <td><strong>{{ f.nombre }}</strong></td>
-  <td><span class="chip neutro">{{ f.n_productos }}</span></td>
+  <td><a href="?editar={{ f.id }}"><strong>{{ f.nombre }}</strong></a></td>
+  <td class="num">{{ f.n_productos }}</td>
   <td><span class="chip {% if f.activo %}ok{% else %}error{% endif %}">{% if f.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
-  <td class="acciones"><form method="post">{% csrf_token %}<input type="hidden" name="id" value="{{ f.id }}">
-    <a class="btn-icono" href="?editar={{ f.id }}" title="Editar" aria-label="Editar {{ f.nombre }}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zm17.7-10.2a1 1 0 0 0 0-1.42l-2.33-2.33a1 1 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></a>
-    {% if f.activo %}{% if not f.n_productos %}<button class="btn-icono peligro" name="accion" value="desactivar">Desactivar</button>{% endif %}
-    {% else %}<button class="btn-icono" name="accion" value="activar">Activar</button>{% endif %}
-  </form></td>
+  <td class="acciones"><a class="boton secundario chico" href="?editar={{ f.id }}">Editar</a>
+    <details class="mas-acciones abajo"><summary aria-label="Más acciones">⋯</summary>
+      <form method="post" class="menu">{% csrf_token %}<input type="hidden" name="id" value="{{ f.id }}">
+        {% if f.activo %}{% if f.n_productos %}<span class="subtitulo">Con stock: no se desactiva</span>{% else %}<button type="submit" name="accion" value="desactivar" class="peligro">Desactivar</button>{% endif %}{% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
+      </form>
+    </details></td>
 </tr>{% empty %}<tr><td colspan="4" class="subtitulo">{% if q %}Sin resultados para "{{ q }}".{% else %}Aún no hay almacenes.{% endif %}</td></tr>{% endfor %}
 </tbody></table>
+<div class="pie-tabla"><span>{{ filas|length }} almac{{ filas|length|pluralize:"én,enes" }}</span></div>
 </div>
 {% endif %}
 {% endblock %}

@@ -158,7 +158,9 @@ def test_proveedor_desactivado_y_documento_duplicado(base):
         crear(base)
     crear(base, doc="SIN_DOCUMENTO", serie="")
     crear(base, doc="SIN_DOCUMENTO", serie="")
-    Compra.objects.filter(pk=compra).update(estado="ANULADA")
+    Compra.objects.filter(pk=compra).update(
+        estado="ANULADA", anulada_en=timezone.now(), motivo_anulacion="x"
+    )
     crear(base)  # una anulada no cuenta
     Proveedor.objects.filter(pk=base["proveedor"]).update(activo=False)
     with pytest.raises(CompraInvalida, match="El proveedor está desactivado"):
@@ -177,7 +179,9 @@ def test_tiene_compras_cuenta_las_no_anuladas(base):
     assert not puertos.compras.tiene_compras(base["proveedor"])
     compra = crear(base)
     assert puertos.compras.tiene_compras(base["proveedor"])
-    Compra.objects.filter(pk=compra).update(estado="ANULADA")
+    Compra.objects.filter(pk=compra).update(
+        estado="ANULADA", anulada_en=timezone.now(), motivo_anulacion="x"
+    )
     assert not puertos.compras.tiene_compras(base["proveedor"])
 
 

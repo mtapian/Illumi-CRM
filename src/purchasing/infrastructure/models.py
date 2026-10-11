@@ -80,6 +80,11 @@ class Compra(TenantModel):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="+"
     )
     finalizada_en = models.DateTimeField(null=True)
+    anulada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="+"
+    )
+    anulada_en = models.DateTimeField(null=True)
+    motivo_anulacion = models.CharField(max_length=200, blank=True)
 
     class Meta:
         constraints = [
@@ -96,6 +101,11 @@ class Compra(TenantModel):
                 condition=Q(estado__in=["CREADA", "EN_PROCESO", "FINALIZADA", "ANULADA"])
                 & (~Q(estado="FINALIZADA") | Q(fecha_recepcion__isnull=False)),
                 name="compra_estado_valido",
+            ),
+            models.CheckConstraint(  # RF-COM-15, 28, 29: anulada con fecha y motivo
+                condition=~Q(estado="ANULADA")
+                | (Q(anulada_en__isnull=False) & ~Q(motivo_anulacion="")),
+                name="compra_anulada_con_motivo",
             ),
         ]
 

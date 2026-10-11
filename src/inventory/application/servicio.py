@@ -12,6 +12,7 @@ from typing import Protocol
 
 from catalog.application.fachada import CatalogoQuery, ProductoDTO
 from inventory.domain import costo as cp
+from inventory.domain.errores import AnulacionConConsumoPosterior as AnulacionConConsumoPosterior
 from inventory.domain.errores import CostoRequerido
 from inventory.domain.existencia import ENTRADA, SALIDA, Existencia, Movimiento, salir
 from inventory.domain.fefo import asignar_fefo

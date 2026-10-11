@@ -5,12 +5,14 @@ from decimal import Decimal as D
 
 import pytest
 from django.db import DatabaseError, IntegrityError, transaction
+from django.utils import timezone
 
 from catalog.infrastructure.models import Producto
 from inventory.infrastructure.models import Almacen
 from purchasing.infrastructure.models import Compra, CompraLinea, Proveedor
 
 pytestmark = pytest.mark.django_db
+ANULADA = {"estado": "ANULADA", "anulada_en": timezone.now(), "motivo_anulacion": "x"}
 
 
 @pytest.fixture
@@ -44,7 +46,7 @@ def test_documento_unico_entre_compras_activas(base):
     proveedor, almacen, _ = base
     compra(proveedor, almacen, 1)
     falla(IntegrityError, lambda: compra(proveedor, almacen, 2))
-    compra(proveedor, almacen, 3, estado="ANULADA")  # una anulada no cuenta (RF-COM-11)
+    compra(proveedor, almacen, 3, **ANULADA)  # una anulada no cuenta (RF-COM-11)
     compra(proveedor, almacen, 4, doc="SIN_DOCUMENTO", serie="")
     compra(proveedor, almacen, 5, doc="SIN_DOCUMENTO", serie="")
     falla(IntegrityError, lambda: compra(proveedor, almacen, 1, serie="F001-2"))  # número
@@ -87,3 +89,12 @@ def test_lineas_de_una_compra_finalizada_no_se_cambian(base):
     falla(DatabaseError, lambda: CompraLinea.objects.filter(pk=linea.pk).update(cantidad=3))
     falla(DatabaseError, lambda: CompraLinea.objects.filter(pk=linea.pk).delete())
     falla(DatabaseError, lambda: CompraLinea.objects.create(compra=c, **datos))
+
+
+def test_una_anulada_tiene_fecha_y_motivo(base):
+    """0004b, T1 (RF-COM-15, 28, 29)."""
+    proveedor, almacen, _ = base
+    falla(IntegrityError, lambda: compra(proveedor, almacen, 1, estado="ANULADA"))
+    sin_motivo = ANULADA | {"motivo_anulacion": ""}
+    falla(IntegrityError, lambda: compra(proveedor, almacen, 2, **sin_motivo))
+    compra(proveedor, almacen, 3, **ANULADA)

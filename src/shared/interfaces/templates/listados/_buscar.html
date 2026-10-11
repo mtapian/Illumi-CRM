@@ -1,0 +1,9 @@
+{% comment %}Barra de filtros de un maestro (docs/ux.md §3): buscador con etiqueta y Enter, y el
+chip de la búsqueda aplicada. Recibe `etiqueta`, `placeholder` y `q`.{% endcomment %}
+<form method="get" class="tarjeta barra-filtros">
+  <label class="buscar">{{ etiqueta }}<input type="search" name="q" value="{{ q }}" placeholder="{{ placeholder }}"></label>
+  <div class="acciones-filtro"><button type="submit">Filtrar</button></div>
+</form>
+{% if q %}<p class="filtros-aplicados" aria-label="Filtros aplicados"><span class="subtitulo">Filtros aplicados:</span>
+<a class="chip neutro" href="{{ request.path }}" title="Quitar este filtro">Búsqueda: {{ q }} <span aria-hidden="true">×</span><span class="oculto">quitar</span></a>
+<a class="texto" href="{{ request.path }}">Limpiar filtros</a></p>{% endif %}

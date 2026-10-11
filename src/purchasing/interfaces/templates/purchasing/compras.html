@@ -1,26 +1,37 @@
 {% extends "base.html" %}
-{% comment %}Listado de compras con filtros (plan 0004a §5; RF-COM-14).{% endcomment %}
+{% comment %}Listado de compras (plan 0004a §5; RF-COM-14) con la grilla estándar (docs/ux.md §3).{% endcomment %}
 {% block titulo %}Compras{% endblock %}
 {% block contenido %}
-<h1>Compras</h1>
 {% include "catalog/_migas.html" %}
-<form method="get" class="filtros">
-  <select name="proveedor" aria-label="Proveedor"><option value="">Todos los proveedores</option>{% for p in proveedores %}<option value="{{ p.id }}"{% if filtro.proveedor == p.id|stringformat:"s" %} selected{% endif %}>{{ p.razon_social }}</option>{% endfor %}</select>
-  <select name="estado" aria-label="Estado"><option value="">Todos los estados</option>{% for v, n in estados %}<option value="{{ v }}"{% if filtro.estado == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>
-  <input type="date" name="desde" value="{{ filtro.desde }}" aria-label="Desde">
-  <input type="date" name="hasta" value="{{ filtro.hasta }}" aria-label="Hasta">
-  <input type="search" name="q" value="{{ filtro.q }}" placeholder="N.°, documento o guía" aria-label="Número, documento o guía">
-  <button type="submit" class="texto">Filtrar</button>
-  <a class="texto" href="{{ request.path }}">Limpiar</a>
+<div class="encabezado-listado">
+  <div><h1>Compras</h1><p class="subtitulo">Compras a proveedores: de creada a finalizada, cuando ingresa el stock.</p></div>
+  {% if puede_registrar %}<div class="acciones-listado"><a class="boton principal" href="{% url 'nueva_compra' %}">+ Nueva compra</a></div>{% endif %}
+</div>
+<form method="get" class="tarjeta barra-filtros">
+  <label class="buscar">Buscar compra<input type="search" name="q" value="{{ filtro.q }}" placeholder="N.°, documento o guía"></label>
+  <label>Estado<select name="estado"><option value="">Todos</option>{% for v, n in estados %}<option value="{{ v }}"{% if filtro.estado == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+  <label>Proveedor<select name="proveedor"><option value="">Todos</option>{% for p in proveedores %}<option value="{{ p.id }}"{% if filtro.proveedor == p.id|stringformat:"s" %} selected{% endif %}>{{ p.razon_social }}</option>{% endfor %}</select></label>
+  <div class="acciones-filtro">
+    <details class="mas-filtros"{% if filtro.desde or filtro.hasta %} data-activos{% endif %}>
+      <summary>Más filtros</summary>
+      <div class="panel-filtros">
+        <label>Fecha desde<input type="date" name="desde" value="{{ filtro.desde }}"></label>
+        <label>Fecha hasta<input type="date" name="hasta" value="{{ filtro.hasta }}"></label>
+      </div>
+    </details>
+    <button type="submit">Filtrar</button>
+  </div>
 </form>
-{% if puede_registrar %}<p class="acciones-tabla"><a class="boton exito" href="{% url 'nueva_compra' %}">+ Nueva compra</a></p>{% endif %}
+{% include "listados/_aplicados.html" %}
 <div class="tarjeta tabla">
-<table><thead><tr><th>N.°</th><th>Fecha</th><th>Proveedor</th><th>Documento</th><th>Total</th><th>Estado</th></tr></thead><tbody>
-{% for c in filas %}<tr>
+<table><thead><tr><th>Compra</th><th>Fecha</th><th>Proveedor</th><th>Documento</th><th class="num">Total</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for c in pagina %}<tr>
   <td><a href="{% url 'compra' c.id %}">C-{{ c.numero|stringformat:"06d" }}</a></td><td>{{ c.fecha|date:"Y-m-d" }}</td><td>{{ c.proveedor.razon_social }}</td>
-  <td>{{ c.doc_tipo }} {{ c.doc_serie_numero }}</td><td>{{ c.total }}</td>
-  <td><span class="chip {% if c.estado == 'FINALIZADA' %}ok{% elif c.estado == 'ANULADA' %}error{% else %}neutro{% endif %}">{{ c.estado|title }}</span></td>
-</tr>{% empty %}<tr><td colspan="6" class="subtitulo">No hay compras{% if filtro.q or filtro.proveedor or filtro.estado or filtro.desde or filtro.hasta %} con esos filtros{% endif %}.</td></tr>{% endfor %}
+  <td>{{ c.doc_tipo }} {{ c.doc_serie_numero }}</td><td class="num">S/ {{ c.total }}</td>
+  <td><span class="chip {% if c.estado == 'FINALIZADA' %}ok{% elif c.estado == 'ANULADA' %}error{% else %}neutro{% endif %}">{% for v, n in estados %}{% if v == c.estado %}{{ n }}{% endif %}{% endfor %}</span></td>
+  <td class="acciones"><a class="boton secundario chico" href="{% url 'compra' c.id %}">Abrir</a></td>
+</tr>{% empty %}<tr><td colspan="7" class="subtitulo">{% if aplicados %}No hay compras con esos filtros.{% else %}Aún no hay compras.{% endif %}</td></tr>{% endfor %}
 </tbody></table>
+{% include "listados/_pie.html" with nombres="compra,compras" %}
 </div>
 {% endblock %}
