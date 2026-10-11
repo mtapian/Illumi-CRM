@@ -19,7 +19,7 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0002b](specs/0002b-Catalogo-presentaciones/) Catálogo: presentaciones y materiales | **implementada** (4 RF) | implementado | 8/8 ✔ | 1 escenario parcial (costo promedio, 0003a) |
 | [0002d](specs/0002d-Catalogo-proveedores/) Catálogo: proveedores y proveedores del producto | **implementada** (5 RF: RF-COM-01 a 03, 21, 22) | implementado | 8/8 ✔ | — ("tiene compras": falso hasta 0004a) |
 | [0002c](specs/0002c-Catalogo-isc/) Catálogo: ISC (reglas de cálculo) | **implementada**; categorías retiradas por 0002a enmienda 4 (ISC en la ficha) | implementado | 9/9 ✔ | código ISC (01 vs 02): dato de cada producto |
-| [0003a](specs/0003a-Inventario-movimientos-costo/) Inventario: almacenes, movimientos y costo promedio | borrador (11 RF) | borrador | 2/17 (solo T1–T2, autorizadas por el PO) | Q12; alinear lotes con 0002a enmienda 4 |
+| [0003a](specs/0003a-Inventario-movimientos-costo/) Inventario: almacenes, movimientos y costo promedio | **aprobada** (13 RF; enmienda 4 de 0002a y Q12 = A) | aprobado | 8/18 (dominio puro: T1–T7 y T6b) | visto bueno del contador sobre Q12 = A |
 | [0003b](specs/0003b-Inventario-ajustes/) Inventario: ajustes | borrador (7 RF) | borrador | ejemplo (9 tareas) | Q12 (sustento de mermas) |
 | [0003c](specs/0003c-Inventario-consultas-alertas/) Inventario: stock, kardex y alertas | borrador (7 RF) | borrador | ejemplo (9 tareas) | — |
 | [0004a](specs/0004a-Compras-proveedores-registro/) Compras: proveedores y registro de compras | borrador (16 RF) | borrador | ejemplo (12 tareas) | Q12, maquila |
@@ -36,6 +36,10 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0008b](specs/0008b-Finanzas-resultados-reportes/) Finanzas: estado de resultados, dashboard y exportación | borrador (11 RF) | borrador | ejemplo (13 tareas) | Q10 |
 
 ## Historial
+
+- **2026-10-10 — 0003a aprobada por el PO ("dale") e implementado su dominio puro (T3–T7 y T6b).** `src/inventory/domain/`: `reversion_de_entrada` (al costo original; si vacía, sale por el valor restante; rechaza si se consumió), `existencia.salir` sin negativos, `lotes` (vencido desde el día siguiente, solo merma; servicio sin stock; vencimiento sugerido por la vida útil; lote existente con otro vencimiento), `fefo` (vencidos fuera; sin fecha al final; stock sin lote al último) y `movimientos` (salidas posteriores en cualquier almacén, salvo reversiones de otras entradas; inversos al costo original). Plan §3 ajustado: `reversion_de_entrada` también devuelve el importe y se agrega `validar_reversion`. Sigue la persistencia (T8). 414 tests en verde, 13 skipped; lint, formato, contratos y migraciones en verde.
+
+- **2026-10-10 — Q12 (anulación de compra consumida): el PO elige la opción A.** Una entrada con salidas posteriores no se anula; se corrige con un ajuste `CORRECCION` (art. 4.5). Falta el visto bueno del contador. **Propuesta de ajuste de 0003a (borrador, sin código):** alineada con la enmienda 4 de 0002a: stock con lote opcional en cualquier bien (el stock sin lote sale al final en FEFO); RF-INV-25 (un servicio no lleva stock); RF-INV-26 (lote nuevo con vencimiento sugerido por la vida útil; un lote existente con otro vencimiento se rechaza, generaliza RF-COM-19). Plan: la fila de costo del producto se crea con el primer movimiento; sin `ENVASADO` (lo reemplaza la OP); el inventario implementa el puerto `InventarioConsultaPort` del catálogo. Tarea nueva T6b; cuatro escenarios nuevos.
 
 - **2026-10-10 — 0003a: T1 y T2 por orden del PO ("sigue con 2 tareas"), con spec y plan aún en borrador.** Solo dominio puro: `src/inventory/domain/costo.py` (`CostoProducto`, `entrada`, `salida_al_promedio` con la salida que vacía por el valor restante; half-up con 4/2/6 decimales), que aplica la constitución art. 4.1 y 4.2 y no depende de Q12 ni de los lotes. `inventory` se agrega a import-linter (dominio puro). Antes de seguir hay que aprobar spec y plan de 0003a; además su spec aún habla de lotes por tipo de producto (GRANEL/TERMINADO/MERCADERIA), que la enmienda 4 de 0002a cambió (el lote se registra en el ingreso o la OP). **Corrección:** el contrato de compras de import-linter estaba roto en el commit de 0002d (la fachada del catálogo usa su dominio y el contrato prohibía también los imports indirectos; la verificación lo ocultó con un `| tail`). Ahora prohíbe solo imports directos (`allow_indirect_imports`). 402 tests en verde, 13 skipped; 7 contratos en verde.
 
@@ -89,7 +93,7 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 
 ## Pendientes del PO / contador
 
-- **Q1** PSE · **Q3** taproom B2C · **Q6** sesión y contraseñas · **Q7** vida útil · **Q8** planes · **Q10** lote perdido · **Q12** consultas al contador.
+- **Q1** PSE · **Q3** taproom B2C · **Q6** sesión y contraseñas · **Q7** vida útil · **Q8** planes · **Q10** lote perdido · **Q12** consultas al contador (anulación de compra consumida: el PO eligió A; falta el visto bueno del contador).
 - **Código de tipo de sistema ISC:** el contador dijo `01`; el catálogo 08 de SUNAT indica `02` para monto fijo → validar en el sandbox del PSE.
 - **Cerveza que entra sin producir:** ¿maquila o compra a granel? Hoy solo se cubre la reventa de terceros (`MERCADERIA`) y el saldo inicial. ¿La reventa de cerveza de terceros paga ISC otra vez? (contador).
 

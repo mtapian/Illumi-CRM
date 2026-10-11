@@ -1,6 +1,6 @@
 # Spec 0003a — Inventario: almacenes, movimientos y costo promedio
 
-Estado: borrador
+Estado: aprobada (2026-10-10, PO). Se alinea con la enmienda 4 de 0002a (lote opcional en cualquier bien, servicios sin stock; RF-CAT-37 y 40) y registra Q12 = opción A
 
 Épica E03 (Inventario), parte 1 de 3. Depende de: 0001a, 0002a. La usan: 0003b, 0003c, 0004, 0005, 0006.
 
@@ -24,7 +24,9 @@ El inventario es la base del costo: si el stock o el costo están mal, la utilid
 
 ## Definiciones
 
-- **Stock:** cantidad por producto × almacén × lote. El lote aplica a `GRANEL`, `TERMINADO` y a la `MERCADERIA` que controla lote.
+- **Stock:** cantidad por producto × almacén × lote, con **lote opcional**. Solo los bienes llevan stock; un servicio no (RF-CAT-37). El lote no es dato del producto (RF-CAT-40): se registra en cada ingreso (código y vencimiento, opcionales por línea en compras y ajustes) o en la orden de producción (obligatorio, épica 0005). Un mismo producto puede tener stock con lote y sin lote.
+
+- **Lote:** código único por producto en la empresa, con vencimiento opcional. La vida útil del producto, si la tiene, solo **sugiere** el vencimiento: fecha de ingreso + vida útil.
 
 - **Movimiento:** registro de cada entrada o salida, con su costo y el saldo resultante. El conjunto de movimientos de un producto es su **kardex**.
 
@@ -51,7 +53,7 @@ Reversión de una entrada: anular la compra de 50 KG a 5.00 con saldo de 150 KG 
 
 - **Lote vencido:** lote cuya fecha de vencimiento es anterior a hoy (hora de Lima). El día del vencimiento todavía se puede vender.
 
-- **FEFO** (*first expired, first out*): primero sale el lote no vencido que vence antes; a igual vencimiento, el más antiguo. Los lotes sin fecha de vencimiento salen al final, del más antiguo al más nuevo.
+- **FEFO** (*first expired, first out*): primero sale el lote no vencido que vence antes; a igual vencimiento, el más antiguo. Los lotes sin fecha de vencimiento y el stock sin lote salen al final, del más antiguo al más nuevo.
 
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
@@ -71,6 +73,8 @@ Reversión de una entrada: anular la compra de 50 KG a 5.00 con saldo de 150 KG 
 - RF-INV-22: CUANDO una operación de un producto con lote no indica el lote y la operación lo permite, EL SISTEMA lo asigna por FEFO y puede repartir la cantidad entre varios lotes (RN-INV-05, RN-INV-06).
 - RF-INV-23: SI se intenta sacar stock de un lote vencido por un motivo distinto de `MERMA` (venta, envasado, corrección), ENTONCES EL SISTEMA lo rechaza (RN-INV-07).
 - RF-INV-24: CUANDO una salida deja el producto en cantidad 0, EL SISTEMA le asigna el valor restante, de modo que el valor total quede en 0.00.
+- RF-INV-25: SI se intenta registrar una entrada o salida de un Servicio, ENTONCES EL SISTEMA la rechaza con "Un servicio no lleva stock" (RF-CAT-37).
+- RF-INV-26: CUANDO una entrada trae un código de lote que no existe para ese producto, EL SISTEMA crea el lote con ese código y el vencimiento indicado, que es opcional; si no se indica y el producto tiene vida útil, EL SISTEMA sugiere la fecha de ingreso + la vida útil (RF-CAT-40). SI el código ya existe para ese producto con otro vencimiento, ENTONCES EL SISTEMA rechaza la entrada con "El lote <código> ya existe con vencimiento <fecha>" (generaliza RF-COM-19).
 
 ## Requisitos no funcionales
 
@@ -82,10 +86,12 @@ Reversión de una entrada: anular la compra de 50 KG a 5.00 con saldo de 150 KG 
 - Dos usuarios consumen el último stock a la vez: uno tiene éxito y el otro recibe "Stock insuficiente".
 - Stock en cero: el valor queda en 0.00 y el promedio se conserva como referencia hasta la siguiente entrada.
 - Un lote que vence hoy todavía se vende; mañana solo sale por merma.
+- Producto con stock sin lote y con lotes: FEFO usa primero los lotes no vencidos con fecha y deja al final el stock sin lote.
+- Un producto que pasa de Bien a Servicio: no puede, si tiene movimientos (RF-CAT-43).
 
 ## Fuera de alcance
 
-Transferencias como documento con estados, lotes en insumos, ubicaciones o bins, conteo cíclico planificado, PEPS como método alternativo, integración con WMS o handhelds.
+Transferencias como documento con estados, ubicaciones o bins, conteo cíclico planificado, PEPS como método alternativo, integración con WMS o handhelds.
 
 ## Criterios de finalización
 
@@ -95,4 +101,4 @@ Transferencias como documento con estados, lotes en insumos, ubicaciones o bins,
 
 ## Dudas abiertas
 
-- [NECESITA ACLARACIÓN] **Contador (PRD Q12):** ¿se confirma que una compra ya consumida en parte no se anula y se corrige con un ajuste (RF-INV-21), o se prefiere revertir al promedio y llevar la diferencia a resultados?
+- **Resuelto por el PO (2026-10-10), Q12 opción A:** una entrada que tuvo salidas posteriores no se anula; se corrige con un ajuste `CORRECCION` trazable y con motivo (RF-INV-21; constitución, art. 4.5). Queda pendiente solo el visto bueno del contador; si lo objeta, se reabre con una enmienda.

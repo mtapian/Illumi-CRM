@@ -1,9 +1,12 @@
-"""0003a, T1 y T2: costo promedio ponderado por producto (RF-INV-18, RF-INV-24;
+"""0003a, T1 a T3: costo promedio ponderado por producto (RF-INV-18, RF-INV-20, RF-INV-24;
 RN-INV-01, RN-GEN-09; constitución, art. 4.1 y 4.2). Ejemplo de la malta de la spec."""
 
 from decimal import Decimal as D
 
-from inventory.domain.costo import CostoProducto, entrada, salida_al_promedio
+import pytest
+
+from inventory.domain.costo import CostoProducto, entrada, reversion_de_entrada, salida_al_promedio
+from inventory.domain.errores import AnulacionConConsumoPosterior
 
 VACIO = CostoProducto()
 
@@ -56,3 +59,22 @@ def test_entrada_con_stock_en_cero_toma_el_costo_de_la_entrada():
     c = CostoProducto(D("0"), D("0.00"), D("4.333333"))  # promedio de referencia
     c = entrada(c, D("10"), D("6"))
     assert c.promedio == D("6.000000")
+
+
+def test_reversion_de_entrada_usa_el_costo_original():
+    """T3, RF-INV-20: anular la compra de 50 KG a 5.00 con 150 KG / 650.00 ⇒ 100 KG, 400.00 y
+    promedio 4.000000 (el promedio sí cambia)."""
+    c = entrada(entrada(VACIO, D("100"), D("4")), D("50"), D("5"))
+    c, importe = reversion_de_entrada(c, D("50"), D("5"))
+    assert importe == D("250.00")
+    assert (c.cantidad, c.valor, c.promedio) == (D("100.0000"), D("400.00"), D("4.000000"))
+
+
+def test_reversion_que_vacia_lleva_el_valor_restante_y_no_queda_negativa():
+    c = CostoProducto(D("3"), D("1.00"), D("0.333333"))
+    c, importe = reversion_de_entrada(c, D("3"), D("0.333333"))  # 0.999999 ⇒ el restante
+    assert (importe, c.valor, c.promedio) == (D("1.00"), D("0.00"), D("0.333333"))
+    with pytest.raises(AnulacionConConsumoPosterior):
+        reversion_de_entrada(CostoProducto(D("10"), D("10.00"), D("1")), D("11"), D("1"))
+    with pytest.raises(AnulacionConConsumoPosterior):
+        reversion_de_entrada(CostoProducto(D("10"), D("10.00"), D("1")), D("5"), D("3"))

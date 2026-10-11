@@ -7,7 +7,7 @@ Característica: Costo promedio ponderado y kardex
 
   Antecedentes:
     Dado que soy usuario "almacen" de "Cervecería Andina"
-    Y existe el insumo "INS-MALTA" en KG sin stock
+    Y existe el bien "INS-MALTA" que se compra, en KG, sin stock
     Y el almacén "Principal"
 
   @UC-INV-04 @UC-INV-03 @critico @RF-INV-06 @RF-INV-17 @RF-INV-18

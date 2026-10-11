@@ -5,7 +5,10 @@ cantidad, y con cantidad 0 se conserva el último como referencia."""
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
+from inventory.domain.errores import AnulacionConConsumoPosterior
+
 CERO = Decimal("0")
+CORREGIR = "La entrada ya tuvo salidas posteriores: corrígela con un ajuste CORRECCION"
 
 
 def cantidad(x: Decimal) -> Decimal:
@@ -42,3 +45,18 @@ def salida_al_promedio(c: CostoProducto, cant: Decimal) -> tuple[CostoProducto, 
     nueva = cantidad(c.cantidad - cant)
     monto = c.valor if nueva == 0 else importe(cantidad(cant) * c.promedio)
     return CostoProducto(nueva, importe(c.valor - monto), c.promedio), monto
+
+
+def reversion_de_entrada(
+    c: CostoProducto, cant: Decimal, costo_original: Decimal
+) -> tuple[CostoProducto, Decimal]:
+    """RF-INV-20: sale al costo original de la entrada, así que el promedio sí cambia. Si
+    vacía el producto, sale por el valor restante. Si dejaría cantidad o valor negativos, la
+    entrada ya se consumió (RF-INV-21)."""
+    nueva = cantidad(c.cantidad - cant)
+    monto = c.valor if nueva == 0 else importe(cantidad(cant) * costo_unitario(costo_original))
+    valor = importe(c.valor - monto)
+    if nueva < 0 or valor < 0:
+        raise AnulacionConConsumoPosterior(CORREGIR)
+    promedio = costo_unitario(valor / nueva) if nueva else c.promedio
+    return CostoProducto(nueva, valor, promedio), monto

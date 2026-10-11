@@ -8,7 +8,7 @@ Característica: Ajustes, lotes, almacenes y alertas
   Antecedentes:
     Dado que soy usuario "almacen" de "Cervecería Andina"
     Y la fecha de hoy es "2026-11-01"
-    Y el producto terminado "TER-IPA-330" con stock por lote en "Principal":
+    Y el bien "TER-IPA-330" que se fabrica y se vende, con stock por lote en "Principal":
       | lote      | vence      | cantidad |
       | IPA-0012  | 2026-10-30 | 10       |
       | IPA-0015  | 2026-12-15 | 48       |
@@ -41,3 +41,28 @@ Característica: Ajustes, lotes, almacenes y alertas
     Dado que el almacén "Taproom" tiene stock
     Cuando intento desactivar "Taproom"
     Entonces la operación es rechazada con el mensaje "El almacén tiene stock"
+
+  @UC-INV-04 @RN-INV-06 @borde @RF-INV-22
+  Escenario: El stock sin lote sale al final en FEFO
+    Dado que "TER-IPA-330" también tiene 5 UND sin lote en "Principal"
+    Cuando se solicita la salida de 170 UND de "TER-IPA-330" sin indicar lote
+    Entonces se asignan 48 UND del lote "IPA-0015"
+    Y se asignan 120 UND del lote "IPA-0018"
+    Y se asignan 2 UND sin lote
+
+  @UC-INV-04 @borde @RF-INV-26
+  Escenario: Lote nuevo con vencimiento sugerido por la vida útil
+    Dado que "TER-IPA-330" tiene vida útil de 120 días
+    Cuando entra un lote "IPA-0020" de 24 UND de "TER-IPA-330" sin indicar vencimiento
+    Entonces el lote "IPA-0020" vence el "2027-03-01"
+
+  @UC-INV-04 @borde @RF-INV-26
+  Escenario: Lote existente con otro vencimiento
+    Cuando entra el lote "IPA-0015" de 12 UND de "TER-IPA-330" con vencimiento "2027-01-31"
+    Entonces la operación es rechazada con el mensaje "El lote IPA-0015 ya existe con vencimiento 2026-12-15"
+
+  @UC-INV-04 @borde @RF-INV-25
+  Escenario: Un servicio no lleva stock
+    Dado que existe el servicio "SRV-TOUR" (visita guiada)
+    Cuando se intenta registrar una entrada de 1 SERV de "SRV-TOUR"
+    Entonces la operación es rechazada con el mensaje "Un servicio no lleva stock"

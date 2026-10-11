@@ -1,6 +1,6 @@
 # Tareas 0003a — Inventario: almacenes, movimientos y costo promedio
 
-Estado: borrador (ejemplo). `spec.md` y `plan.md` siguen en borrador; depende de Q12 y de alinear los lotes con la enmienda 4 de 0002a (el lote no es dato del producto). **El PO autorizó solo T1 y T2 (2026-10-10, "sigue con 2 tareas")**: dominio puro del costo promedio, que no depende de esas dudas y aplica la constitución, art. 4.1 y 4.2. El resto no se ejecuta hasta aprobar spec y plan.
+Estado: aprobado (2026-10-10, PO). T1 y T2 se hicieron antes, por orden del PO.
 
 Spec: `./spec.md` · Plan: `./plan.md`
 
@@ -17,19 +17,22 @@ Reglas (constitución, art. 8):
 - [x] **T2. Implementar `salida_al_promedio()`, incluida la salida que vacía.** — RF-INV-24
   - Hecho cuando: un test comprueba que −30 sale por 130,00 sin cambiar el promedio y que la salida que deja 0 sale por el valor restante y deja 0,00.
 
-- [ ] **T3. Implementar `reversion_de_entrada()`.** — RF-INV-20
+- [x] **T3. Implementar `reversion_de_entrada()`.** — RF-INV-20
   - Hecho cuando: un test anula la compra de 50 KG a 5,00 con saldo 150/650,00 y obtiene 100 KG, 400,00 y promedio 4,000000.
 
-- [ ] **T4. Implementar `salir()` sobre la existencia por almacén y lote.** — RF-INV-19
+- [x] **T4. Implementar `salir()` sobre la existencia por almacén y lote.** — RF-INV-19
   - Hecho cuando: un test comprueba que una salida mayor al stock del almacén y lote lanza `StockInsuficiente`.
 
-- [ ] **T5. Implementar `lote_vencido`, `orden_fefo` y `asignar_fefo` con `hoy`.** — RF-INV-22
-  - Hecho cuando: un test comprueba que el lote que vence hoy se puede usar, el vencido no, y que los lotes sin vencimiento salen al final.
+- [x] **T5. Implementar `lote_vencido`, `orden_fefo` y `asignar_fefo` con `hoy`.** — RF-INV-22
+  - Hecho cuando: un test comprueba que el lote que vence hoy se puede usar, el vencido no, y que los lotes sin vencimiento y el stock sin lote salen al final.
 
-- [ ] **T6. Implementar `validar_salida_de_lote()` y `hubo_salidas_posteriores()`.** — RF-INV-21, RF-INV-23
+- [x] **T6. Implementar `validar_salida_de_lote()` y `hubo_salidas_posteriores()`.** — RF-INV-21, RF-INV-23
   - Hecho cuando: un test comprueba que un lote vencido solo sale por `MERMA` y que una salida en otro almacén cuenta como posterior.
 
-- [ ] **T7. Implementar `inversos_de()`.** — RF-INV-20
+- [x] **T6b. Implementar `validar_bien()`, `sugerir_vencimiento()` y `validar_lote_existente()`.** — RF-INV-25, RF-INV-26
+  - Hecho cuando: `test_lotes.py` comprueba que un servicio se rechaza, que el vencimiento sugerido es ingreso + vida útil y que un lote existente con otro vencimiento se rechaza.
+
+- [x] **T7. Implementar `inversos_de()`.** — RF-INV-20
   - Hecho cuando: un test comprueba que los inversos usan el costo original de cada movimiento.
 
 ## Persistencia
