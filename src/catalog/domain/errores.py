@@ -51,3 +51,7 @@ class CodigoBarrasDuplicado(DomainError):
 
 class AgrupacionInvalida(DomainError):
     codigo = "AGRUPACION_INVALIDA"
+
+
+class ImpuestoInvalido(DomainError):
+    codigo = "IMPUESTO_INVALIDO"

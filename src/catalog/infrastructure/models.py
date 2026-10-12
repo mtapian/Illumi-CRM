@@ -4,6 +4,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models.functions import Lower
 
+from catalog.domain.impuestos import AFECTACION, COMPRA, ISC, VENTA
 from catalog.domain.tipos import TipoProducto as T
 from shared.infrastructure.tenant_models import TenantModel
 
@@ -152,6 +153,68 @@ class ProductoIscTasa(TenantModel):
 
     def __str__(self):
         return f"{self.monto_por_litro} desde {self.vigente_desde}"
+
+
+class Impuesto(TenantModel):
+    """Impuesto de venta o de compra de la empresa (spec 0002e, RF-CAT-53). Sus importes
+    están en las tasas; el código define el criterio (ISC = monto fijo, resto = %)."""
+
+    nombre = models.CharField(max_length=80)
+    tipo = models.CharField(max_length=6, choices=[(t, t) for t in (VENTA, COMPRA)])
+    codigo = models.CharField(max_length=3, choices=[(c, c) for c in (*AFECTACION, ISC)])
+    activo = models.BooleanField(default=True)
+    productos = models.ManyToManyField(
+        "Producto", through="ProductoImpuesto", related_name="impuestos"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                "empresa", "tipo", Lower("nombre"), name="impuesto_unico_por_tipo"
+            ),
+            models.CheckConstraint(condition=Q(tipo__in=[VENTA, COMPRA]), name="impuesto_tipo"),
+            models.CheckConstraint(
+                condition=Q(codigo__in=[*AFECTACION, ISC]), name="impuesto_codigo"
+            ),
+            models.CheckConstraint(
+                condition=~Q(codigo=ISC) | Q(tipo=VENTA), name="isc_solo_de_venta"
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class ImpuestoTasa(TenantModel):
+    """Importe de un impuesto con su vigencia (RF-CAT-54): % o S/ por unidad. Solo inserción."""
+
+    impuesto = models.ForeignKey(Impuesto, on_delete=models.PROTECT, related_name="tasas")
+    vigente_desde = models.DateField()
+    importe = models.DecimalField(max_digits=10, decimal_places=4)
+    creado_por = models.ForeignKey(
+        "tenancy.Usuario", null=True, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["impuesto", "vigente_desde"], name="impuesto_tasa_por_fecha"
+            ),
+            models.CheckConstraint(condition=Q(importe__gte=0), name="impuesto_tasa_no_negativa"),
+        ]
+
+
+class ProductoImpuesto(TenantModel):
+    """Impuesto asignado a un producto (RF-CAT-56); la lista (venta o compra) es su tipo."""
+
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    impuesto = models.ForeignKey(Impuesto, on_delete=models.PROTECT)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["producto", "impuesto"], name="producto_impuesto_unico")
+        ]
 
 
 class ProductoHistorial(TenantModel):
