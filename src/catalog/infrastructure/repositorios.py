@@ -9,9 +9,12 @@ from catalog.domain.producto import DatosProducto
 from catalog.domain.tipos import TipoProducto
 from catalog.infrastructure.models import (
     Categoria,
+    Impuesto,
+    ImpuestoTasa,
     Marca,
     Producto,
     ProductoHistorial,
+    ProductoImpuesto,
     ProductoIscTasa,
     RecetaComponente,
     Unidad,
@@ -266,3 +269,48 @@ class CatalogoOrm:
             )
             for p in filas
         ]
+
+
+class ImpuestosOrm:
+    """Repositorio del maestro de impuestos (spec 0002e)."""
+
+    def _fila(self, id_) -> Impuesto:
+        fila = Impuesto.objects.filter(pk=id_).first()
+        if fila is None:
+            raise NoEncontrado("No encontrado")
+        return fila
+
+    def impuesto(self, id_):
+        fila = self._fila(id_)
+        return fila.tipo, fila.codigo, fila.criterio
+
+    def existe_nombre(self, tipo, nombre, excluir_id) -> bool:
+        filas = Impuesto.objects.filter(tipo=tipo, nombre__iexact=nombre)
+        return filas.exclude(pk=excluir_id).exists()
+
+    def en_uso(self, id_) -> bool:
+        # ponytail: solo productos; los documentos (0004a, 0006b) se suman al usar impuestos.
+        return ProductoImpuesto.objects.filter(impuesto_id=id_).exists()
+
+    def asignado_a_activos(self, id_) -> bool:
+        return ProductoImpuesto.objects.filter(impuesto_id=id_, producto__activo=True).exists()
+
+    def guardar(self, id_, nombre, tipo, codigo, criterio) -> int:
+        campos = {"nombre": nombre, "tipo": tipo, "codigo": codigo, "criterio": criterio}
+        if id_ is None:
+            return Impuesto.objects.create(**campos).id
+        Impuesto.objects.filter(pk=id_).update(**campos)
+        return id_
+
+    def fechas_tasas(self, id_):
+        return list(
+            ImpuestoTasa.objects.filter(impuesto_id=id_).values_list("vigente_desde", flat=True)
+        )
+
+    def agregar_tasa(self, id_, importe, desde, actor_id):
+        ImpuestoTasa.objects.create(
+            impuesto_id=id_, importe=importe, vigente_desde=desde, creado_por_id=actor_id
+        )
+
+    def cambiar_estado(self, id_, activo):
+        Impuesto.objects.filter(pk=id_).update(activo=activo)

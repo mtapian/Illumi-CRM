@@ -1,6 +1,6 @@
 # Plan 0002e — Catálogo: impuestos
 
-Estado: aprobado (PO, 2026-10-11; borrador del 2026-10-10, ajustado el 2026-10-11: impuestos de venta y de compra, ISC solo monto fijo, compras con IGV por producto)
+Estado: aprobado (PO, 2026-10-11); **enmienda 1 aprobada (2026-10-12): criterio seleccionable** (§2, §3, §6, T9–T10). Historia: ( borrador del 2026-10-10, ajustado el 2026-10-11: impuestos de venta y de compra, ISC solo monto fijo, compras con IGV por producto)
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 
@@ -30,7 +30,7 @@ Contexto: `src/catalog`. Los impuestos son del catálogo porque se asignan al pr
 | `catalog_impuesto_tasa` | empresa_id, impuesto_id, vigente_desde, importe `NUMERIC(10,4)`, creado_por | UNIQUE(impuesto_id, vigente_desde); CHECK importe ≥ 0; trigger de solo inserción (`fn_rechazar_cambio`) | RF-CAT-54 |
 | `catalog_producto_impuesto` | empresa_id, producto_id, impuesto_id | UNIQUE(producto_id, impuesto_id); la lista (venta o compra) es el tipo del impuesto | RF-CAT-56 a 58 |
 
-Sin campo de criterio: el código lo define (ISC = monto fijo; el resto, porcentaje). Se agrega con el ISC porcentual.
+Enmienda 1: `catalog_impuesto.criterio` (`PORCENTAJE`/`FIJO`, NOT NULL; la migración pone FIJO en ISC y PORCENTAJE en el resto) con CHECK de valores; fijo si el impuesto está en uso, como tipo y código.
 
 ## 3. Funciones puras
 
@@ -38,7 +38,7 @@ Sin campo de criterio: el código lo define (ISC = monto fijo; el resto, porcent
 |---|---|---|
 | `validar_tasa(codigo, importe, fechas_existentes, fecha)` | Fecha única, importe ≥ 0, 0 en EXO/INA | RF-CAT-54 |
 | `validar_impuestos(tipo, impuestos, es_servicio)` | Exactamente una afectación; a lo sumo un ISC; ISC solo en bienes; todos del tipo de la lista | RF-CAT-57, 58 |
-| `desglose_linea(total, cantidad, igv_pct, isc_monto)` | Fórmula de Definiciones, half-up a 2 decimales | RF-CAT-59 |
+| `desglose_linea(total, cantidad, afectacion, isc)` | Fórmula de Definiciones con cada impuesto como (criterio, importe), half-up a 2 decimales (enmienda 1) | RF-CAT-59 |
 | `agrupar_historiales(historiales)` | Para la conversión: productos con el mismo historial de ISC por unidad comparten impuesto | RF-CAT-60 |
 
 ## 4. Algoritmos clave
@@ -70,7 +70,7 @@ SET CONSTRAINTS ALL IMMEDIATE   (como en 0002a 0007 y 0008)
 | Decisión | Alternativa descartada | Motivo |
 |---|---|---|
 | Dos tipos de impuesto, Venta y Compra (PO, 2026-10-11) | Uso "ventas, compras o ambos" | Cada lista ofrece solo lo suyo y valida sus reglas; costo: el IGV se registra en dos impuestos |
-| Criterio derivado del código | Campo criterio editable | En el MVP el ISC es solo monto fijo; un campo sin elección es configuración de más (art. 7.6) |
+| Criterio seleccionable por impuesto (enmienda 1, PO 2026-10-12) | Criterio derivado del código | El PO quiere que cada cliente lo configure según lo que vea; cubre el ISC al valor y por litro |
 | Monto fijo por unidad vendida, definido por el usuario | ISC por litro calculado con los litros del producto | Pedido del PO: cada presentación tiene su impuesto; el sistema no valida el monto (responsabilidad del usuario) |
 | Orden ISC → IGV fijo en el dominio | "Afecta la base de los siguientes" configurable (Odoo) | Una sola regla tributaria, validada con el contador |
 | Tasas aparte del impuesto, solo inserción | Importe editable en el impuesto (Odoo) | Constitución, art. 5.1 |

@@ -1,6 +1,6 @@
 # Spec 0002e — Catálogo: impuestos
 
-Estado: aprobada (PO: "go", 2026-10-11). Propuesta del 2026-10-10 (capturas de Odoo del PO), ajustada el 2026-10-11; reglas validadas con el contador el 2026-10-11 (constitución, art. 5.5)
+Estado: aprobada (PO: "go", 2026-10-11). Propuesta del 2026-10-10 (capturas de Odoo del PO), ajustada el 2026-10-11; reglas validadas con el contador el 2026-10-11 (constitución, art. 5.5). **Enmienda 1 (2026-10-12): criterio seleccionable**, aprobada por el PO ("continúa con las tareas"); falta el visto bueno del contador
 
 Épica E02 (Catálogo), parte 5. Depende de: 0001a, 0002a (enmienda 4), 0004a. La usan: 0004a (compras), 0006b (ventas), 0007a (facturación).
 
@@ -27,27 +27,31 @@ Hoy el IGV es un dato de la empresa y el ISC una tasa por producto; todo product
 ## Definiciones
 
 - **Impuesto:** registro de la empresa definido por el usuario con **nombre**, **tipo** (**Venta** o **Compra**), **código SUNAT** (IGV, EXO, INA o ISC en el MVP) y activo. Su importe está en sus **tasas**. Ejemplos: "IGV 18%" de venta y "IGV 18%" de compra (IGV, 18 %); "ISC por 750 ml" de venta (ISC, S/ 2.01 por unidad).
-- **Criterio:** lo define el código. IGV, EXO e INA son un **porcentaje** del valor; el ISC es un **monto fijo** por unidad vendida del producto (Sistema Específico).
-- **Tasa:** importe con fecha de vigencia (p. ej. IGV 18 % desde 2011-03-01; "ISC por 750 ml" S/ 2.01 desde 2026-01-01). No se edita ni se borra: un cambio es una tasa nueva. Cada documento usa la tasa vigente a su fecha.
+- **Criterio** (enmienda 1, PO 2026-10-12: "que sea seleccionable… setup del cliente"): cada impuesto lo elige el usuario: **porcentaje** (del valor; en el ISC, sistema al valor) o **monto fijo** por unidad vendida (en el ISC, Sistema Específico). Por defecto, porcentaje en IGV, EXO e INA y monto fijo en ISC. Definirlo bien es responsabilidad del usuario.
+- **Tasa:** importe con fecha de vigencia, en % o en S/ por unidad según el criterio (p. ej. IGV 18 % desde 2011-03-01; "ISC por 750 ml" S/ 2.01 desde 2026-01-01; "ISC 25 %" 25 desde 2026-01-01). No se edita ni se borra: un cambio es una tasa nueva. Cada documento usa la tasa vigente a su fecha.
 - **Afectación del IGV:** la define el impuesto IGV, EXO o INA que tiene el producto en cada lista: gravado (IGV), exonerado (EXO, tasa 0) o inafecto (INA, tasa 0).
 - **Código de afectación del IGV en el comprobante** (catálogo 07 de SUNAT): en una venta onerosa, gravado `10`, exonerado `20`, inafecto `30`. Los códigos de las entregas gratuitas y su motivo son de 0006b; el código del sistema del ISC en el comprobante, de 0007a.
 - **Precio de lista:** incluye los impuestos (sin cambio respecto de 0002a). El desglose separa valor, ISC e IGV.
 
-Orden del cálculo de la venta (fijo, no configurable; contador 2026-10-10): primero el ISC; después el IGV sobre valor + ISC. Con un precio que incluye impuestos:
+Orden del cálculo de la venta (fijo, no configurable; contador 2026-10-10): primero el ISC; después el IGV sobre valor + ISC. Con un precio que incluye impuestos (enmienda 1: cada impuesto en % o fijo):
 
 ```
-base  = total / (1 + % de IGV vigente)          (% = 0 si es EXO o INA; base = valor + ISC)
-ISC   = round(cantidad × monto vigente, 2)       (0 sin ISC)
-valor = round(base − ISC, 2)
+fijo_igv = cantidad × monto si la afectación es fija; si no, 0     g = % de la afectación si es porcentaje (0 en EXO o INA)
+fijo_isc = cantidad × monto si el ISC es fijo; si no, 0            s = % del ISC si es porcentaje; si no, 0
+base  = (total − fijo_igv) / (1 + g)                                (base = valor + ISC)
+valor = round((base − fijo_isc) / (1 + s), 2)
+ISC   = round(fijo_isc + valor × s, 2)
 IGV   = total − valor − ISC
 ```
+
+Ejemplo de ISC porcentual: precio 100.00, IGV 18 %, ISC 25 % → valor 67.80, ISC 16.95, IGV 15.25.
 
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
 ### UC-CAT-09 Gestionar impuestos
 
 - RF-CAT-52: CUANDO se registra una empresa, EL SISTEMA le crea, de tipo Venta y de tipo Compra, los impuestos "IGV 18%" (IGV, con la tasa vigente desde la fecha de registro), "Exonerado" (EXO) e "Inafecto" (INA).
-- RF-CAT-53: CUANDO un usuario con `catalogo.isc.gestionar` crea o edita un impuesto, EL SISTEMA guarda nombre (único por empresa y tipo, sin distinguir mayúsculas), tipo y código SUNAT; el tipo y el código no cambian si algún producto o documento usa el impuesto. SI se crea un impuesto ISC de tipo Compra, ENTONCES EL SISTEMA lo rechaza con "El ISC es solo un impuesto de venta".
+- RF-CAT-53: CUANDO un usuario con `catalogo.isc.gestionar` crea o edita un impuesto, EL SISTEMA guarda nombre (único por empresa y tipo, sin distinguir mayúsculas), tipo, código SUNAT y criterio (porcentaje o monto fijo); el tipo, el código y el criterio no cambian si algún producto o documento usa el impuesto. SI se crea un impuesto ISC de tipo Compra, ENTONCES EL SISTEMA lo rechaza con "El ISC es solo un impuesto de venta".
 - RF-CAT-54: CUANDO se agrega una tasa a un impuesto, EL SISTEMA la guarda con su fecha de vigencia; SI ya hay una tasa en esa fecha, o el importe es negativo, o es mayor a 0 en un impuesto EXO o INA, ENTONCES EL SISTEMA la rechaza. Las tasas no se editan ni se borran (constitución, art. 5.1).
 - RF-CAT-55: SI se intenta desactivar un impuesto asignado a productos activos, ENTONCES EL SISTEMA lo rechaza; un impuesto inactivo no se ofrece en productos nuevos.
 
@@ -77,7 +81,7 @@ IGV   = total − valor − ISC
 
 ## Fuera de alcance
 
-ISC porcentual (sistema al valor, `01`) e ISC por Precio de Venta al Público (`03`); ISC en compras; exportación (EXP), ICBPER, IVAP y OTROS como códigos; impuestos de tipo "ambos"; grupos de impuestos; precio sin impuestos; cuentas contables ("distribución de facturas"); percepciones y retenciones. Se agregan con una enmienda cuando hagan falta.
+ISC por Precio de Venta al Público (`03`); ISC en compras; exportación (EXP), ICBPER, IVAP y OTROS como códigos; impuestos de tipo "ambos"; grupos de impuestos; precio sin impuestos; cuentas contables ("distribución de facturas"); percepciones y retenciones. Se agregan con una enmienda cuando hagan falta.
 
 ## Criterios de finalización
 
@@ -94,6 +98,8 @@ ISC porcentual (sistema al valor, `01`) e ISC por Precio de Venta al Público (`
 - **0006b, 0007a (borradores):** toman los impuestos de venta del producto; el comprobante usa la afectación (gravado, exonerado, inafecto) de cada línea. 0006b recibe la duda de los códigos gratuitos de inafectos; 0007a ya tiene la del código del sistema ISC (01 vs 02).
 
 ## Dudas abiertas
+
+- [NECESITA ACLARACIÓN] Contador (art. 5.5), enmienda 1: (1) ¿el ISC al valor (porcentaje) se calcula sobre el valor de venta y el IGV sobre valor + ISC, como en el ejemplo? (2) un IGV, exonerado o inafecto en monto fijo no existe en la norma: se permite porque el PO lo pide como configuración del cliente; ¿algún reparo? (3) el código del sistema ISC del comprobante sale del criterio (porcentaje = `01`, fijo = `02`); ya anotado en 0007a.
 
 - ~~Contador (art. 5.5)~~ **Resueltas (respuesta a la consulta al contador transmitida por el PO, 2026-10-11):** (1) sí: en una compra con factura, un insumo exonerado o inafecto lleva IGV 0, sin crédito fiscal, y entra al inventario al valor pagado; (2) sí: el ISC se calcula igual en un producto exonerado de IGV y forma parte del precio.
 - Resueltas o movidas: códigos de venta onerosa (10, 20, 30, catálogo 07); códigos gratuitos de gravados (PO, en 0006b); códigos gratuitos de inafectos → 0006b; sistema del ISC (01 vs 02) → 0007a; ISC porcentual → fuera de alcance.

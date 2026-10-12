@@ -11,6 +11,7 @@ urlpatterns = [
     path("catalogo/unidades/", views.unidades, name="unidades"),
     path("catalogo/categorias/", views.categorias, name="categorias"),
     path("catalogo/marcas/", views.marcas, name="marcas"),
+    path("catalogo/impuestos/", views.impuestos, name="impuestos"),
     path("api/v1/productos/", ProductosApi.as_view(), name="api_productos"),
 ]
 
@@ -19,5 +20,6 @@ for etiqueta, url, orden, permiso, icono in (
     ("Unidades de medida", "/catalogo/unidades/", 110, "catalogo.unidad.gestionar", "unidades"),
     ("Categorías", "/catalogo/categorias/", 120, "catalogo.producto.gestionar", "categorias"),
     ("Marcas", "/catalogo/marcas/", 125, "catalogo.producto.gestionar", "marcas"),
+    ("Impuestos", "/catalogo/impuestos/", 130, "catalogo.isc.gestionar", "impuesto"),
 ):
     menu.agregar("Catálogo", etiqueta, url, orden, permiso=permiso, icono=icono)

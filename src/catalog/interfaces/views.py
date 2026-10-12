@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from dataclasses import asdict
+from datetime import date
 from decimal import Decimal
 
 from django.contrib import messages
@@ -9,18 +10,20 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from catalog.application import impuestos as uc_impuestos
 from catalog.application import productos as uc
 from catalog.application.puertos import puertos
-from catalog.domain.errores import IscSinTarifaVigente
+from catalog.domain.errores import ImpuestoInvalido, IscSinTarifaVigente
 from catalog.domain.isc import contenido_sugerido, tarifa_aplicable
 from catalog.domain.precio import desglose_precio
 from catalog.domain.producto import CASILLAS
 from catalog.domain.tipos import TipoProducto
-from catalog.infrastructure.contenedor import caso_de_uso, catalogo_query
-from catalog.infrastructure.models import Categoria, Marca, Producto, Unidad
+from catalog.infrastructure.contenedor import caso_de_impuestos, caso_de_uso, catalogo_query
+from catalog.infrastructure.models import Categoria, Impuesto, Marca, Producto, Unidad
 from catalog.infrastructure.repositorios import CatalogoOrm
 from catalog.interfaces.forms import ProductoForm
 from catalog.interfaces.pestanas import pestanas
+from shared.domain.vigencia import SinValorVigente, valor_vigente
 from shared.interfaces import listados
 from tenancy.infrastructure.contenedor import tenancy_service
 from tenancy.interfaces.acceso import requiere
@@ -341,3 +344,130 @@ def categorias(request):
 @requiere("catalogo.producto.gestionar")
 def marcas(request):
     return _agrupacion(request, "marca", Marca, "Marcas", "Nueva marca")
+
+
+TIPOS_IMPUESTO = {"VENTA": "Venta", "COMPRA": "Compra"}
+CODIGOS_IMPUESTO = {"IGV": "IGV", "EXO": "Exonerado", "INA": "Inafecto", "ISC": "ISC"}
+CRITERIOS = {"PORCENTAJE": "Porcentaje (%)", "FIJO": "Monto fijo (S/ por unidad)"}
+
+
+def _tasa_hoy(impuesto, hoy):
+    try:
+        return valor_vigente([(t.vigente_desde, t.importe) for t in impuesto.tasas.all()], hoy)
+    except SinValorVigente:
+        return None
+
+
+@requiere(uc_impuestos.GESTIONAR)
+def impuestos(request):
+    """Maestro de impuestos (spec 0002e §5; RF-CAT-53 a 55): listado con filtro por tipo;
+    `?editar=<id>` con su historial de tasas y "Agregar tasa"."""
+    p, actor, hoy = request.POST, request.actor, timezone.localdate()
+    if request.method == "POST":
+        id_ = int(p["id"]) if p.get("id", "").isdigit() else None
+        guardado = {}
+        acciones = {
+            "guardar": lambda: guardado.update(
+                id=caso_de_impuestos(uc_impuestos.GuardarImpuesto).ejecutar(
+                    actor,
+                    id_,
+                    p.get("nombre", ""),
+                    p.get("tipo", ""),
+                    p.get("codigo", ""),
+                    p.get("criterio") or None,
+                )
+            ),
+            "tasa": lambda: caso_de_impuestos(uc_impuestos.AgregarTasa).ejecutar(
+                actor, id_, _decimal(p.get("importe"), "importe"), _fecha(p.get("desde"))
+            ),
+            "activar": lambda: caso_de_impuestos(uc_impuestos.CambiarEstadoImpuesto).ejecutar(
+                actor, id_, True
+            ),
+            "desactivar": lambda: caso_de_impuestos(uc_impuestos.CambiarEstadoImpuesto).ejecutar(
+                actor, id_, False
+            ),
+        }
+        if _intentar(request, acciones.get(p.get("accion"), acciones["guardar"])):
+            messages.success(request, "Cambio guardado.")
+            if p.get("accion") == "tasa" or (guardado and id_ is None):
+                return redirect(f"{request.path}?editar={id_ or guardado['id']}")  # su tasa
+            return redirect(request.path)
+    todas = (
+        Impuesto.objects.annotate(n_productos=Count("productos", distinct=True))
+        .prefetch_related("tasas")
+        .order_by("tipo", "nombre")
+    )
+    editar = request.GET.get("editar", "")
+    # Si falló, vuelve el formulario (o la ficha, si era una tasa) con lo enviado.
+    fallo = request.method == "POST" and p.get("accion") in ("guardar", "tasa")
+    if fallo and p.get("id", "").isdigit():
+        editar = p["id"]
+    editando = get_object_or_404(todas, pk=editar) if editar.isdigit() else None  # art. 3.1
+    nuevo = "nuevo" in request.GET or (fallo and not editando)
+    filas = todas
+    if q := request.GET.get("q", "").strip():
+        filas = filas.filter(nombre__icontains=q)
+    if (tipo := request.GET.get("tipo", "")) in TIPOS_IMPUESTO:
+        filas = filas.filter(tipo=tipo)
+    migas = MIGAS_CATALOGO + [("Impuestos", None)]
+    if nuevo or editando:
+        accion = "Editar" if editando else "Nuevo"
+        migas = MIGAS_CATALOGO + [("Impuestos", request.path), (accion, None)]
+    valores = {"tipo": "VENTA", "codigo": "IGV"}
+    if editando:
+        valores |= {
+            "nombre": editando.nombre,
+            "tipo": editando.tipo,
+            "codigo": editando.codigo,
+            "criterio": editando.criterio,
+        }
+    if fallo:
+        valores |= {
+            k: p.get(k, "") for k in ("nombre", "tipo", "codigo", "criterio", "importe", "desde")
+        }
+    tasas = (
+        sorted(editando.tasas.all(), key=lambda t: t.vigente_desde, reverse=True)
+        if editando
+        else []
+    )
+    contexto = {
+        "filas": [(f, _tasa_hoy(f, hoy)) for f in filas],
+        "q": q,
+        "filtro_tipo": tipo,
+        "aplicados": listados.aplicados(
+            request, {"q": ("Búsqueda", None), "tipo": ("Tipo", TIPOS_IMPUESTO)}
+        ),
+        "nuevo": nuevo,
+        "editando": editando,
+        "tasas": tasas,
+        "vigente_id": getattr(
+            max(
+                (t for t in tasas if t.vigente_desde <= hoy),
+                key=lambda t: t.vigente_desde,
+                default=None,
+            ),
+            "id",
+            None,
+        ),
+        "valores": valores,
+        "tipos": TIPOS_IMPUESTO,
+        "codigos": CODIGOS_IMPUESTO,
+        "criterios": CRITERIOS,
+        "hoy": hoy,
+        "migas": migas,
+    }
+    return render(request, "catalog/impuestos.html", contexto)
+
+
+def _decimal(texto, campo):
+    try:
+        return Decimal(texto or "")
+    except ArithmeticError:
+        raise ImpuestoInvalido("Ingresa un importe válido", campo) from None
+
+
+def _fecha(texto):
+    try:
+        return date.fromisoformat(texto or "")
+    except ValueError:
+        raise ImpuestoInvalido("Ingresa la fecha de vigencia", "desde") from None

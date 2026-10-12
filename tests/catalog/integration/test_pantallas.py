@@ -6,9 +6,10 @@ from datetime import date
 
 import pytest
 
-from catalog.infrastructure.contenedor import sembrar_unidades
+from catalog.infrastructure.contenedor import sembrar_impuestos, sembrar_unidades
 from catalog.infrastructure.models import (
     Categoria,
+    Impuesto,
     Marca,
     Producto,
     ProductoIscTasa,
@@ -328,3 +329,45 @@ def test_error_de_negocio_junto_al_campo_y_en_su_pestana(client, lucia):
     ).content.decode()
     assert '<small class="error-campo" role="alert">Ya existe la marca gloria' in html
     assert 'value="gloria"' in html and "Nombre *" in html
+
+
+def test_maestro_de_impuestos(client, lucia, crear_empresa):
+    """0002e §5 (RF-CAT-53 a 55): listado con filtro y tasa de hoy, alta que abre su ficha,
+    agregar tasa con el error junto al campo y aislamiento del `?editar=`."""
+    sembrar_impuestos(lucia.empresa_id, lucia.id, date(2026, 1, 1))
+    html = client.get("/catalogo/impuestos/", {"tipo": "COMPRA"}).content.decode()
+    assert html.count("<strong>IGV 18%</strong>") == 1 and "18 %" in html
+    assert "<strong>Exonerado</strong>" in html and "+ Nuevo impuesto" in html
+    datos = {"accion": "guardar", "nombre": "ISC por 750 ml", "tipo": "VENTA", "codigo": "ISC"}
+    r = client.post("/catalogo/impuestos/?nuevo=1", datos)
+    with tenant_context(lucia.empresa_id):
+        isc = Impuesto.objects.get(nombre="ISC por 750 ml")
+    assert r.url == f"/catalogo/impuestos/?editar={isc.id}"
+    tasa = {"accion": "tasa", "id": isc.id, "importe": "2.01", "desde": "2026-01-01"}
+    client.post("/catalogo/impuestos/", tasa)
+    html = client.post("/catalogo/impuestos/", tasa | {"importe": "2.30"}).content.decode()
+    assert (
+        '<small class="error-campo" role="alert">Ya hay una tasa del impuesto en esa fecha' in html
+    )
+    assert 'value="2.30"' in html and "Vigente hoy" in html and "S/ 2.0100" in html
+    html = client.post("/catalogo/impuestos/", datos | {"tipo": "COMPRA"}).content.decode()
+    assert "El ISC es solo un impuesto de venta" in html and "Nuevo impuesto" in html
+    otra = crear_empresa("20100070970", "Otra")
+    sembrar_impuestos(otra.id, None, date(2026, 1, 1))
+    with tenant_context(otra.id):
+        ajeno = Impuesto.objects.first().id
+    assert client.get(f"/catalogo/impuestos/?editar={ajeno}").status_code == 404
+
+
+def test_impuesto_con_criterio_elegido(client, lucia):
+    """Enmienda 1 de 0002e: el usuario elige % o monto fijo y la tasa se muestra así."""
+    datos = {"accion": "guardar", "nombre": "ISC 25%", "tipo": "VENTA", "codigo": "ISC"}
+    client.post("/catalogo/impuestos/?nuevo=1", datos | {"criterio": "PORCENTAJE"})
+    with tenant_context(lucia.empresa_id):
+        isc = Impuesto.objects.get(nombre="ISC 25%")
+    assert isc.criterio == "PORCENTAJE"
+    tasa = {"accion": "tasa", "id": isc.id, "importe": "25", "desde": "2026-01-01"}
+    client.post("/catalogo/impuestos/", tasa)
+    html = client.get("/catalogo/impuestos/").content.decode()
+    assert "<td>Porcentaje</td>" in html and "25 %" in html
+    assert "Según el código" in client.get("/catalogo/impuestos/?nuevo=1").content.decode()

@@ -7,7 +7,8 @@ class CatalogConfig(AppConfig):
     verbose_name = "Catálogo"
 
     def ready(self):
-        from catalog.infrastructure.contenedor import sembrar_unidades
+        from catalog.infrastructure.contenedor import sembrar_impuestos, sembrar_unidades
         from tenancy.application.sembradores import sembradores
 
         sembradores.registrar(sembrar_unidades)
+        sembradores.registrar(sembrar_impuestos)

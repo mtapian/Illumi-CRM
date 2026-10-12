@@ -10,7 +10,12 @@ from pytest_bdd import given, parsers, then, when
 from catalog.application import productos as uc
 from catalog.domain.producto import DatosProducto
 from catalog.domain.tipos import TipoProducto
-from catalog.infrastructure.contenedor import caso_de_uso, catalogo_query, sembrar_unidades
+from catalog.infrastructure.contenedor import (
+    caso_de_uso,
+    catalogo_query,
+    sembrar_impuestos,
+    sembrar_unidades,
+)
 from catalog.infrastructure.models import (
     Categoria,
     Marca,
@@ -24,7 +29,7 @@ from shared.domain.accesos import CATALOGO
 from shared.domain.errores import DomainError
 from shared.domain.tenant import tenant_context
 from tenancy.infrastructure.contenedor import tenancy_service
-from tenancy.infrastructure.models import PlanFuncionalidad
+from tenancy.infrastructure.models import ParametroVigencia, PlanFuncionalidad
 from tests.acceptance.conftest import contenido
 from tests.acceptance.pasos_accesos import actor, como, re_
 from tests.acceptance.pasos_sesion import crear_empresa, crear_usuario
@@ -141,6 +146,11 @@ def soy_usuario(client, ctx, inventario, rol, nombre):
         PlanFuncionalidad.objects.create(plan=ctx["empresa"].plan, funcionalidad_id=f)
     usuario = crear_usuario(EMAIL, ctx["empresa"], ROLES[rol])
     sembrar_unidades(ctx["empresa"].id, usuario.id, date.today())
+    # Un test transaccional vacía la tabla: se repone el IGV de la plataforma (migración 0004).
+    ParametroVigencia.objects.get_or_create(
+        empresa=None, clave="igv_pct", vigente_desde=date(2011, 3, 1), defaults={"valor": 18}
+    )
+    sembrar_impuestos(ctx["empresa"].id, usuario.id, date.today())  # RF-CAT-52
     ctx["inventario"] = inventario
 
 

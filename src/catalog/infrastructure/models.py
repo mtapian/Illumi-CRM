@@ -4,7 +4,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models.functions import Lower
 
-from catalog.domain.impuestos import AFECTACION, COMPRA, ISC, VENTA
+from catalog.domain.impuestos import AFECTACION, COMPRA, FIJO, ISC, PORCENTAJE, VENTA
 from catalog.domain.tipos import TipoProducto as T
 from shared.infrastructure.tenant_models import TenantModel
 
@@ -157,11 +157,14 @@ class ProductoIscTasa(TenantModel):
 
 class Impuesto(TenantModel):
     """Impuesto de venta o de compra de la empresa (spec 0002e, RF-CAT-53). Sus importes
-    están en las tasas; el código define el criterio (ISC = monto fijo, resto = %)."""
+    están en las tasas: % o S/ por unidad según el criterio que elige el usuario (enmienda 1)."""
 
     nombre = models.CharField(max_length=80)
     tipo = models.CharField(max_length=6, choices=[(t, t) for t in (VENTA, COMPRA)])
     codigo = models.CharField(max_length=3, choices=[(c, c) for c in (*AFECTACION, ISC)])
+    criterio = models.CharField(
+        max_length=10, choices=[(c, c) for c in (PORCENTAJE, FIJO)], default=PORCENTAJE
+    )
     activo = models.BooleanField(default=True)
     productos = models.ManyToManyField(
         "Producto", through="ProductoImpuesto", related_name="impuestos"
@@ -178,6 +181,9 @@ class Impuesto(TenantModel):
             ),
             models.CheckConstraint(
                 condition=~Q(codigo=ISC) | Q(tipo=VENTA), name="isc_solo_de_venta"
+            ),
+            models.CheckConstraint(
+                condition=Q(criterio__in=[PORCENTAJE, FIJO]), name="impuesto_criterio"
             ),
         ]
 

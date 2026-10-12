@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% comment %}Maestro de impuestos (spec 0002e §5; ADR-12, docs/ux.md §3 y §4). La tasa vigente se muestra en %
+(IGV, EXO, INA) o en S/ por unidad (ISC). Las tasas no se editan ni se borran (RF-CAT-54).{% endcomment %}
+{% block titulo %}Impuestos{% endblock %}
+{% block contenido %}
+{% include "catalog/_migas.html" %}
+{% if nuevo or editando %}
+<h1>{% if editando %}{{ editando.nombre }}{% else %}Nuevo impuesto{% endif %}</h1>
+<section class="tarjeta formulario-maestro">
+  <h2>Datos del impuesto</h2>
+  <form method="post" id="form-maestro" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
+    <p class="requerido-nota">Los campos con * son obligatorios.</p>
+    <label>Nombre *<input name="nombre" required maxlength="80" value="{{ valores.nombre }}" placeholder="ISC por 750 ml">{% include "listados/_error.html" with error=request.errores_campo.nombre %}</label>
+    <label>Tipo *<select name="tipo">{% for v, t in tipos.items %}<option value="{{ v }}"{% if valores.tipo == v %} selected{% endif %}>{{ t }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.tipo %}</label>
+    <label>Código SUNAT *<select name="codigo">{% for v, t in codigos.items %}<option value="{{ v }}"{% if valores.codigo == v %} selected{% endif %}>{{ t }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.codigo %}</label>
+    <label>Criterio *<select name="criterio">{% if not editando %}<option value="">Según el código (% en IGV, Exonerado e Inafecto; fijo en ISC)</option>{% endif %}{% for v, t in criterios.items %}<option value="{{ v }}"{% if valores.criterio == v %} selected{% endif %}>{{ t }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.criterio %}</label>
+    <small class="subtitulo">El criterio define la tasa: un porcentaje del valor o un monto fijo por unidad vendida. Definirlo según la norma es responsabilidad de la empresa. El ISC es solo de venta.{% if editando.n_productos %} Lo usan {{ editando.n_productos }} producto{{ editando.n_productos|pluralize }}: el tipo, el código y el criterio ya no se cambian.{% endif %}</small>
+  </form>
+</section>
+{% if editando %}
+<section class="tarjeta">
+  <h2>Tasas</h2>
+  <p class="subtitulo">Cada documento usa la tasa vigente a su fecha. Un cambio de tasa se registra como una tasa nueva; las anteriores no se editan ni se borran.</p>
+  <table><thead><tr><th>Vigente desde</th><th class="num">{% if editando.criterio == "FIJO" %}S/ por unidad{% else %}%{% endif %}</th><th></th></tr></thead><tbody>
+  {% for t in tasas %}<tr><td>{{ t.vigente_desde|date:"d/m/Y" }}</td><td class="num">{% if editando.criterio == "FIJO" %}S/ {{ t.importe }}{% else %}{{ t.importe|floatformat:"-2" }} %{% endif %}</td><td>{% if t.id == vigente_id %}<span class="chip ok">Vigente hoy</span>{% elif t.vigente_desde > hoy %}<span class="chip neutro">Programada</span>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="3" class="subtitulo">Sin tasas: los documentos lo rechazarán hasta que registres una.</td></tr>{% endfor %}
+  </tbody></table>
+  <form method="post" class="fila-formulario">{% csrf_token %}<input type="hidden" name="accion" value="tasa"><input type="hidden" name="id" value="{{ editando.id }}">
+    <label>{% if editando.criterio == "FIJO" %}Monto (S/ por unidad){% else %}Tasa (%){% endif %} *<input name="importe" required inputmode="decimal" value="{{ valores.importe }}"{% if editando.codigo == "EXO" or editando.codigo == "INA" %} placeholder="0"{% endif %}>{% include "listados/_error.html" with error=request.errores_campo.importe %}</label>
+    <label>Vigente desde *<input type="date" name="desde" required value="{{ valores.desde }}">{% include "listados/_error.html" with error=request.errores_campo.desde %}</label>
+    <button type="submit" class="secundario">Agregar tasa</button>
+  </form>
+</section>
+{% endif %}
+<div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-maestro" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{{ request.path }}" data-descartar>Volver al listado</a> <button type="submit" form="form-maestro" data-con-cambios disabled>Guardar</button></div>
+{% else %}
+<div class="encabezado-listado"><div><h1>Impuestos</h1><p class="subtitulo">Impuestos de venta y de compra con sus tasas por vigencia.</p></div>
+  <div class="acciones-listado"><a class="boton principal" href="?nuevo=1">+ Nuevo impuesto</a></div></div>
+<form method="get" class="tarjeta barra-filtros">
+  <label class="buscar">Buscar impuesto<input type="search" name="q" value="{{ q }}" placeholder="Nombre"></label>
+  <label>Tipo<select name="tipo"><option value="">Todos</option>{% for v, t in tipos.items %}<option value="{{ v }}"{% if filtro_tipo == v %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+  <div class="acciones-filtro"><button type="submit">Filtrar</button></div>
+</form>
+{% include "listados/_aplicados.html" %}
+<div class="tarjeta tabla">
+<table><thead><tr><th>Nombre</th><th>Tipo</th><th>Código SUNAT</th><th>Criterio</th><th class="num">Tasa vigente hoy</th><th class="num">Productos</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for f, tasa in filas %}<tr>
+  <td><a href="?editar={{ f.id }}"><strong>{{ f.nombre }}</strong></a></td>
+  <td>{% if f.tipo == "VENTA" %}Venta{% else %}Compra{% endif %}</td>
+  <td><code>{{ f.codigo }}</code></td>
+  <td>{% if f.criterio == "FIJO" %}Monto fijo{% else %}Porcentaje{% endif %}</td>
+  <td class="num">{% if tasa is None %}<span class="chip error">Sin tasa</span>{% elif f.criterio == "FIJO" %}S/ {{ tasa }}{% else %}{{ tasa|floatformat:"-2" }} %{% endif %}</td>
+  <td class="num">{{ f.n_productos }}</td>
+  <td><span class="chip {% if f.activo %}ok{% else %}error{% endif %}">{% if f.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+  <td class="acciones"><a class="boton secundario chico" href="?editar={{ f.id }}">Editar</a>
+    <details class="mas-acciones abajo"><summary aria-label="Más acciones de {{ f.nombre }}">⋯</summary>
+      <form method="post" class="menu">{% csrf_token %}<input type="hidden" name="id" value="{{ f.id }}">
+        <a href="?editar={{ f.id }}">Agregar tasa</a><hr>
+        {% if f.activo %}<button type="submit" name="accion" value="desactivar" class="peligro" onclick="return confirm('{{ f.nombre|escapejs }} dejará de ofrecerse en productos nuevos. Si lo usan productos activos, no se desactiva.')">Desactivar</button>{% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
+      </form>
+    </details></td>
+</tr>{% empty %}<tr><td colspan="8" class="subtitulo">{% if aplicados %}No hay impuestos con esos filtros.{% else %}Aún no hay impuestos.{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+<div class="pie-tabla"><span>{{ filas|length }} impuesto{{ filas|length|pluralize }}</span></div>
+</div>
+{% endif %}
+{% endblock %}

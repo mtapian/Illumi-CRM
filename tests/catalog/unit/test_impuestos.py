@@ -10,11 +10,14 @@ from catalog.domain.errores import ImpuestoInvalido
 from catalog.domain.impuestos import (
     COMPRA,
     EXO,
+    FIJO,
     IGV,
     INA,
     ISC,
+    PORCENTAJE,
     VENTA,
     Impuesto,
+    criterio_sugerido,
     desglose_linea,
     validar_impuesto,
     validar_impuestos,
@@ -24,6 +27,14 @@ from catalog.domain.impuestos import (
 IGV_V, EXO_V, INA_V, ISC_V = (Impuesto(VENTA, c) for c in (IGV, EXO, INA, ISC))
 IGV_C, EXO_C = Impuesto(COMPRA, IGV), Impuesto(COMPRA, EXO)
 HOY = date(2027, 1, 1)
+
+
+def pct(importe):
+    return PORCENTAJE, Decimal(importe)
+
+
+def fijo(importe):
+    return FIJO, Decimal(importe)
 
 
 # RF-CAT-53
@@ -99,21 +110,40 @@ def test_impuestos_del_producto_invalidos(tipo, impuestos, es_servicio, mensaje)
 
 # RF-CAT-59: ISC primero, IGV sobre valor + ISC; precio con impuestos incluidos
 def test_desglose_gravado_con_isc_ejemplo_de_0006b():
-    d = desglose_linea(Decimal("288.00"), Decimal("24"), Decimal("18"), Decimal("0.8283"))
+    d = desglose_linea(Decimal("288.00"), Decimal("24"), pct("18"), fijo("0.8283"))
     assert (d.valor, d.isc, d.igv) == (Decimal("224.19"), Decimal("19.88"), Decimal("43.93"))
 
 
 def test_desglose_exonerado_sin_isc():
-    d = desglose_linea(Decimal("50.00"), Decimal("1"), Decimal("0"), Decimal("0"))
+    d = desglose_linea(Decimal("50.00"), Decimal("1"), pct("0"))
     assert (d.valor, d.isc, d.igv) == (Decimal("50.00"), Decimal("0.00"), Decimal("0.00"))
 
 
 def test_desglose_exonerado_con_isc_respuesta_del_contador():
-    d = desglose_linea(Decimal("288.00"), Decimal("24"), Decimal("0"), Decimal("0.8283"))
+    d = desglose_linea(Decimal("288.00"), Decimal("24"), pct("0"), fijo("0.8283"))
     assert (d.valor, d.isc, d.igv) == (Decimal("268.12"), Decimal("19.88"), Decimal("0.00"))
 
 
 def test_desglose_gravado_sin_isc_cuadra_al_centimo():
-    d = desglose_linea(Decimal("10.00"), Decimal("1"), Decimal("18"), Decimal("0"))
+    d = desglose_linea(Decimal("10.00"), Decimal("1"), pct("18"))
     assert (d.valor, d.isc, d.igv) == (Decimal("8.47"), Decimal("0.00"), Decimal("1.53"))
     assert d.valor + d.isc + d.igv == Decimal("10.00")
+
+
+# Enmienda 1 (PO, 2026-10-12): cada impuesto elige porcentaje o monto fijo
+def test_desglose_isc_porcentual_ejemplo_de_la_spec():
+    d = desglose_linea(Decimal("100.00"), Decimal("1"), pct("18"), pct("25"))
+    assert (d.valor, d.isc, d.igv) == (Decimal("67.80"), Decimal("16.95"), Decimal("15.25"))
+
+
+def test_desglose_afectacion_en_monto_fijo():
+    """IGV fijo de S/ 1.00 por unidad: 10 unidades a 5.00 → valor 40.00, IGV 10.00."""
+    d = desglose_linea(Decimal("50.00"), Decimal("10"), fijo("1.00"))
+    assert (d.valor, d.isc, d.igv) == (Decimal("40.00"), Decimal("0.00"), Decimal("10.00"))
+
+
+def test_criterio_sugerido_y_validado():
+    assert [criterio_sugerido(c) for c in (IGV, EXO, INA, ISC)] == [PORCENTAJE] * 3 + [FIJO]
+    validar_impuesto(VENTA, IGV, FIJO)  # el cliente lo decide
+    with pytest.raises(ImpuestoInvalido, match="El criterio es porcentaje o monto fijo"):
+        validar_impuesto(VENTA, IGV, "OTRO")

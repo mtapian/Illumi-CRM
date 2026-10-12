@@ -56,3 +56,16 @@ def test_un_impuesto_se_asigna_una_sola_vez_a_un_producto(empresa_catalogo):
     ProductoImpuesto.objects.create(producto=p, impuesto=igv)
     falla(IntegrityError, lambda: ProductoImpuesto.objects.create(producto=p, impuesto=igv))
     assert list(p.impuestos.values_list("nombre", flat=True)) == ["IGV 18%"]
+
+
+def test_criterio_porcentaje_o_monto_fijo(empresa_catalogo):
+    """Enmienda 1: el criterio lo elige el usuario; la base solo admite esos dos."""
+    fijo = Impuesto.objects.create(nombre="IGV fijo", tipo="VENTA", codigo="IGV", criterio="FIJO")
+    assert fijo.criterio == "FIJO"
+    assert (
+        Impuesto.objects.create(nombre="IGV", tipo="VENTA", codigo="IGV").criterio == "PORCENTAJE"
+    )
+    falla(
+        IntegrityError,
+        lambda: Impuesto.objects.create(nombre="Z", tipo="VENTA", codigo="IGV", criterio="OTRO"),
+    )
