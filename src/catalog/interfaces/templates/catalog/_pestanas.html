@@ -11,12 +11,14 @@
 </style>
 <div class="con-pestanas">
   <div class="encabezado-ficha tarjeta">
-    <div class="tipo-producto" role="radiogroup" aria-label="Tipo">{% for r in form.tipo %}<label class="check">{{ r.tag }} {{ r.choice_label }}</label>{% endfor %}{{ form.tipo.errors }}</div>
-    <div class="casillas">{% for f in form.encabezado %}{% if f.name != "tipo" %}<label class="check casilla-{{ f.name }}">{{ f }} {{ f.label }}</label>{% endif %}{% endfor %}</div>
+    <div class="tipo-producto" role="radiogroup" aria-label="Tipo">{% for r in form.tipo %}<label class="check">{{ r.tag }} {{ r.choice_label }}</label>{% endfor %}{% include "listados/_error.html" with error=form.tipo.errors|first %}</div>
+    <div class="casillas">{% for f in form.encabezado %}{% if f.name != "tipo" %}<label class="check casilla-{{ f.name }}">{{ f }} {{ f.label }}</label>{% endif %}{% endfor %}
+      {% for f in form.encabezado %}{% if f.name != "tipo" %}{% include "listados/_error.html" with error=f.errors|first %}{% endif %}{% endfor %}</div>
   </div>
   {% for p in pestanas %}<input type="radio" name="pestana" id="pes-{{ p.clave }}" class="pestana-radio"{% if p.clave == abierta %} checked{% endif %}>{% endfor %}
   <nav class="pestanas">{% for p in pestanas %}<label for="pes-{{ p.clave }}" data-activa="{{ p.activa|yesno:'si,no' }}">{{ p.etiqueta }}{% if p.errores %} <span class="chip error">!</span>{% endif %}</label>{% endfor %}</nav>
   <form method="post" id="ficha" class="tarjeta" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    <p class="requerido-nota">Los campos con * son obligatorios.</p>
     {% if form.non_field_errors %}<div class="error">{{ form.non_field_errors }}</div>{% endif %}
     {% for p in pestanas %}{% if p.campos %}<section class="panel-pestana pan-{{ p.clave }}">
       {% if p.clave == "produccion" %}<p class="subtitulo">Receta opcional: uno o varios productos del catálogo por unidad. La orden de producción la copia y la puede editar.</p>{% endif %}
@@ -25,7 +27,7 @@
         {% if f.name == "unidad" and "catalogo.unidad.gestionar" in permisos %}<small><a href="{% url 'unidades' %}">Administrar unidades</a></small>{% endif %}
         {% if f.name == "categoria" %}<small><a href="{% url 'categorias' %}">Administrar categorías</a></small>{% endif %}
         {% if f.name == "marca" %}<small><a href="{% url 'marcas' %}">Administrar marcas</a></small>{% endif %}
-        {{ f.errors }}</p>{% endfor %}
+        {% include "listados/_error.html" with error=f.errors|first %}</p>{% endfor %}
       </div>
       {% if p.clave == "ventas" and tasas_isc %}
         <table class="tasas-isc"><thead><tr><th>Tasa de ISC vigente desde</th><th>S/ por litro</th><th></th></tr></thead><tbody>

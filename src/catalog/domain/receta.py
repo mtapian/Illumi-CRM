@@ -6,6 +6,8 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from catalog.domain.errores import RecetaInvalida
 
+CAMPO = "componente_0"  # el error se muestra en la receta (docs/ux.md §4)
+
 CUATRO_DECIMALES = Decimal("0.0001")  # cantidades (RN-GEN-09)
 
 Receta = tuple[tuple[int, Decimal], ...]  # (componente_id, cantidad por unidad)
@@ -15,13 +17,13 @@ def validar_receta(producto_id: int | None, componentes, estados: dict) -> None:
     """`estados`: componente_id → (tipo, activo). Una receta vacía es "sin receta"."""
     ids = [c for c, _ in componentes]
     if producto_id is not None and producto_id in ids:
-        raise RecetaInvalida("Un producto no puede ser componente de sí mismo")
+        raise RecetaInvalida("Un producto no puede ser componente de sí mismo", CAMPO)
     if len(set(ids)) != len(ids):
-        raise RecetaInvalida("Un componente está repetido en la receta")
+        raise RecetaInvalida("Un componente está repetido en la receta", CAMPO)
     if any(c is None or c <= 0 for _, c in componentes):
-        raise RecetaInvalida("La cantidad de cada componente debe ser mayor a 0")
+        raise RecetaInvalida("La cantidad de cada componente debe ser mayor a 0", CAMPO)
     if any(not estados.get(i, (None, False))[1] for i in ids):
-        raise RecetaInvalida("Un componente no existe o está inactivo")
+        raise RecetaInvalida("Un componente no existe o está inactivo", CAMPO)
 
 
 def hay_ciclo(grafo: dict[int, set[int]], producto_id: int, componentes: set[int]) -> bool:

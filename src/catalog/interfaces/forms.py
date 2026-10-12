@@ -32,6 +32,7 @@ class ProductoForm(forms.Form):
     """Todos los campos van en el formulario; las pestañas se muestran según el tipo y las
     casillas (CSS `:has`, sin JS) y el dominio descarta lo que no corresponde."""
 
+    required_css_class = "requerido"  # docs/ux.md §4
     tipo = forms.ChoiceField(
         choices=[(TipoProducto.BIEN, "Bien"), (TipoProducto.SERVICIO, "Servicio")],
         widget=forms.RadioSelect,

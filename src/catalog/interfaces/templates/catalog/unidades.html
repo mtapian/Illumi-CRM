@@ -2,8 +2,9 @@
 {% block columnas %}<th>Abreviatura</th><th>Código SUNAT</th>{% endblock %}
 {% block celdas %}<td>{{ f.abreviatura }}</td><td>{{ f.codigo_sunat }}</td>{% endblock %}
 {% block campos %}
-<label>Nombre<input name="nombre" required value="{{ valores.nombre }}"></label>
-<label>Abreviatura<input name="abreviatura" required maxlength="10" value="{{ valores.abreviatura }}"
-  {% if editando and editando.n_productos %}readonly title="En uso: no se puede cambiar"{% endif %}></label>
-<label>Código SUNAT<input name="codigo_sunat" required maxlength="3" placeholder="NIU" value="{{ valores.codigo_sunat }}"></label>
+<p class="requerido-nota">Los campos con * son obligatorios.</p>
+<label>Nombre *<input name="nombre" required value="{{ valores.nombre }}">{% include "listados/_error.html" with error=request.errores_campo.nombre %}</label>
+<label>Abreviatura *<input name="abreviatura" required maxlength="10" value="{{ valores.abreviatura }}"
+  {% if editando and editando.n_productos %}readonly title="En uso: no se puede cambiar"{% endif %}>{% include "listados/_error.html" with error=request.errores_campo.abreviatura %}</label>
+<label>Código SUNAT *<input name="codigo_sunat" required maxlength="3" placeholder="NIU" value="{{ valores.codigo_sunat }}">{% include "listados/_error.html" with error=request.errores_campo.codigo_sunat %}</label>
 {% endblock %}

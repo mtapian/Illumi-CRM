@@ -52,12 +52,12 @@ def validar_producto(d: DatosProducto) -> DatosProducto:
         codigo_barras=d.codigo_barras.strip(),
     )
     if not d.sku:
-        raise ProductoInvalido("El SKU es obligatorio")
+        raise ProductoInvalido("El SKU es obligatorio", "sku")
     if not d.nombre:
-        raise ProductoInvalido("El nombre es obligatorio")
+        raise ProductoInvalido("El nombre es obligatorio", "nombre")
     if tipo == T.SERVICIO:  # RF-CAT-37: sin inventario ni ISC
         if d.se_fabrica:
-            raise ProductoInvalido("Un servicio no se fabrica")
+            raise ProductoInvalido("Un servicio no se fabrica", "se_fabrica")
         d = replace(
             d,
             stock_minimo=Decimal("0"),
@@ -69,7 +69,7 @@ def validar_producto(d: DatosProducto) -> DatosProducto:
             contenido_litros=None,
         )
     if not any(getattr(d, c) for c in CASILLAS):
-        raise ProductoInvalido(SIN_CASILLAS)
+        raise ProductoInvalido(SIN_CASILLAS, "se_vende")
     if not d.se_vende:  # RF-CAT-39: precio e ISC solo si se vende
         d = replace(
             d,
@@ -79,27 +79,34 @@ def validar_producto(d: DatosProducto) -> DatosProducto:
             contenido_litros=None,
         )
     elif d.precio_venta is None or d.precio_venta <= 0:
-        raise ProductoInvalido("El precio de venta es obligatorio y debe ser mayor a 0")
+        raise ProductoInvalido(
+            "El precio de venta es obligatorio y debe ser mayor a 0", "precio_venta"
+        )
     if d.stock_minimo < 0:
-        raise ProductoInvalido("El stock mínimo no puede ser negativo")
+        raise ProductoInvalido("El stock mínimo no puede ser negativo", "stock_minimo")
     if d.vida_util_dias is not None and d.vida_util_dias <= 0:
-        raise ProductoInvalido("La vida útil debe ser mayor a 0 días")
+        raise ProductoInvalido("La vida útil debe ser mayor a 0 días", "vida_util_dias")
     if d.peso_kg is not None and d.peso_kg < 0:
-        raise ProductoInvalido("El peso no puede ser negativo")
+        raise ProductoInvalido("El peso no puede ser negativo", "peso_kg")
     if d.volumen_m3 is not None and d.volumen_m3 < 0:
-        raise ProductoInvalido("El volumen no puede ser negativo")
+        raise ProductoInvalido("El volumen no puede ser negativo", "volumen_m3")
     if d.isc_sistema is None:
         d = replace(d, isc_codigo_tipo_sistema="")
     elif d.isc_sistema != ESPECIFICO:
-        raise ProductoInvalido("El MVP solo admite el ISC por Sistema Específico")  # RF-CAT-23
+        raise ProductoInvalido(
+            "El MVP solo admite el ISC por Sistema Específico", "afecto_isc"
+        )  # RF-CAT-23
     elif not d.contenido_litros:
         raise ProductoInvalido(
-            "Un producto con ISC por litro requiere el contenido en litros por unidad"
+            "Un producto con ISC por litro requiere el contenido en litros por unidad",
+            "contenido_litros",
         )  # RF-CAT-26
     elif not d.isc_codigo_tipo_sistema.strip():
-        raise ProductoInvalido("Indica el código de tipo de sistema del ISC")
+        raise ProductoInvalido(
+            "Indica el código de tipo de sistema del ISC", "isc_codigo_tipo_sistema"
+        )
     if d.contenido_litros is not None and d.contenido_litros <= 0:
-        raise ProductoInvalido("El contenido en litros debe ser mayor a 0")
+        raise ProductoInvalido("El contenido en litros debe ser mayor a 0", "contenido_litros")
     return d
 
 

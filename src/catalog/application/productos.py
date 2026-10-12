@@ -32,7 +32,7 @@ from catalog.domain.producto import (
     solo_cambios,
     validar_producto,
 )
-from catalog.domain.receta import Receta, hay_ciclo, validar_receta
+from catalog.domain.receta import CAMPO, Receta, hay_ciclo, validar_receta
 from catalog.domain.tipos import TipoProducto
 from shared.application.autorizacion import Actor, CasoDeUso
 
@@ -120,7 +120,7 @@ class _Base(CasoDeUso):
     def _unidad(self, abreviatura: str) -> int:
         unidad_id = self._repo.unidad_activa(abreviatura)
         if unidad_id is None:
-            raise UnidadInvalida(f"La unidad {abreviatura} no existe o está inactiva")
+            raise UnidadInvalida(f"La unidad {abreviatura} no existe o está inactiva", "unidad")
         return unidad_id
 
     def _exigir_limite(self, empresa_id: int) -> None:
@@ -139,7 +139,7 @@ class _Base(CasoDeUso):
             id_ = getattr(d, f"{tipo}_id")
             cambia = original is None or getattr(original, f"{tipo}_id") != id_
             if id_ and cambia and not self._repo.agrupacion_activa(tipo, id_):
-                raise ProductoInvalido(f"La {NOMBRE[tipo]} no existe o está inactiva")
+                raise ProductoInvalido(f"La {NOMBRE[tipo]} no existe o está inactiva", tipo)
 
     def _exigir_permiso_isc(self, actor: Actor, d, original, tasa) -> None:
         """Gestionar el ISC es de quien tiene `catalogo.isc.gestionar` (0001c; RF-CAT-45)."""
@@ -155,11 +155,13 @@ class _Base(CasoDeUso):
         """Un cambio de tasa es una tasa nueva; las anteriores no se editan (RF-CAT-46)."""
         monto, desde = tasa
         if monto is None or monto <= 0:
-            raise IscInvalido("La tasa de ISC por litro debe ser mayor a 0")
+            raise IscInvalido("La tasa de ISC por litro debe ser mayor a 0", "tasa_monto")
         if desde is None:
-            raise IscInvalido("La fecha de vigencia de la tasa es obligatoria")
+            raise IscInvalido("La fecha de vigencia de la tasa es obligatoria", "tasa_desde")
         if self._repo.existe_tasa(producto_id, desde):
-            raise IscInvalido(f"Ya hay una tasa de ISC vigente desde {desde:%Y-%m-%d}")
+            raise IscInvalido(
+                f"Ya hay una tasa de ISC vigente desde {desde:%Y-%m-%d}", "tasa_desde"
+            )
         self._repo.agregar_tasa(producto_id, monto, desde, actor.usuario_id)
 
     def _validar_receta(self, producto_id: int | None, receta: Receta) -> None:
@@ -168,16 +170,18 @@ class _Base(CasoDeUso):
         if producto_id and hay_ciclo(
             self._repo.grafo_recetas(), producto_id, {c for c, _ in receta}
         ):
-            raise RecetaInvalida("La receta crea un ciclo: un componente ya usa este producto")
+            raise RecetaInvalida(
+                "La receta crea un ciclo: un componente ya usa este producto", CAMPO
+            )
 
     def _sku_libre(self, sku: str, excluir_id: int | None = None) -> None:
         if self._repo.existe_sku(sku, excluir_id):
-            raise SkuDuplicado(f"Ya existe un producto con el SKU {sku}")  # RN-CAT-01
+            raise SkuDuplicado(f"Ya existe un producto con el SKU {sku}", "sku")  # RN-CAT-01
 
     def _codigo_barras_libre(self, codigo: str, excluir_id: int | None = None) -> None:
         if codigo and (sku := self._repo.sku_con_codigo_barras(codigo, excluir_id)):
             raise CodigoBarrasDuplicado(
-                f"El código de barras ya está asignado a {sku}"
+                f"El código de barras ya está asignado a {sku}", "codigo_barras"
             )  # RF-CAT-31
 
 
@@ -194,7 +198,7 @@ class CrearProducto(_Base):
         d = validar_producto(datos)
         self._exigir_permiso_isc(actor, d, None, tasa)
         if d.afecto_isc and not tasa:
-            raise IscInvalido(SIN_TASA)
+            raise IscInvalido(SIN_TASA, "tasa_monto")
         self._validar_agrupaciones(d, None)
         receta = tuple(receta or ()) if d.se_fabrica else ()
         self._validar_receta(None, receta)
@@ -229,11 +233,11 @@ class EditarProducto(_Base):
         d = replace(validar_producto(datos), activo=original.activo)
         self._exigir_permiso_isc(actor, d, original, tasa)
         if d.afecto_isc and not tasa and not self._repo.tasas_isc(producto_id):
-            raise IscInvalido(SIN_TASA)
+            raise IscInvalido(SIN_TASA, "tasa_monto")
         self._validar_agrupaciones(d, original)
         movimientos = self._puertos.inventario.tiene_movimientos(producto_id)
-        if cambios_prohibidos(original, d, movimientos):
-            raise CampoInmutable(INMUTABLE)
+        if prohibidos := cambios_prohibidos(original, d, movimientos):
+            raise CampoInmutable(INMUTABLE, prohibidos[0])
         if (
             movimientos
             and original.contenido_litros
@@ -241,7 +245,8 @@ class EditarProducto(_Base):
         ):
             raise ContenidoInmutable(  # RF-CAT-46 (antes RF-CAT-18)
                 "No se puede cambiar el contenido en litros de un producto con movimientos: "
-                "define el ISC de las unidades ya producidas o compradas"
+                "define el ISC de las unidades ya producidas o compradas",
+                "contenido_litros",
             )
         previa = self._repo.receta(producto_id)
         if receta is not None and d.se_fabrica:
@@ -340,9 +345,9 @@ class GuardarAgrupacion(_Agrupacion):
     ) -> int:
         tipo, nombre = self._tipo(tipo), nombre.strip()
         if not nombre:
-            raise AgrupacionInvalida(f"El nombre de la {NOMBRE[tipo]} es obligatorio")
+            raise AgrupacionInvalida(f"El nombre de la {NOMBRE[tipo]} es obligatorio", "nombre")
         if self._repo.existe_agrupacion(tipo, nombre, id_):
-            raise AgrupacionInvalida(f"Ya existe la {NOMBRE[tipo]} {nombre}")
+            raise AgrupacionInvalida(f"Ya existe la {NOMBRE[tipo]} {nombre}", "nombre")
         return self._repo.guardar_agrupacion(tipo, id_, nombre, descripcion.strip(), activo)
 
 
@@ -361,15 +366,24 @@ class EliminarAgrupacion(_Agrupacion):
 # --- Unidades (UC-CAT-01) ---
 
 
+def _obligatorios_unidad(nombre: str, abreviatura: str, codigo_sunat: str) -> None:
+    for campo, valor in (
+        ("nombre", nombre),
+        ("abreviatura", abreviatura),
+        ("codigo_sunat", codigo_sunat),
+    ):
+        if not valor.strip():
+            raise UnidadInvalida("Nombre, abreviatura y código SUNAT son obligatorios", campo)
+
+
 class CrearUnidad(_Base):
     permiso_requerido = UNIDADES
 
     def ejecutar(self, actor: Actor, nombre: str, abreviatura: str, codigo_sunat: str) -> int:
         abreviatura = abreviatura.strip().upper()
-        if not (nombre.strip() and abreviatura and codigo_sunat.strip()):
-            raise UnidadInvalida("Nombre, abreviatura y código SUNAT son obligatorios")
+        _obligatorios_unidad(nombre, abreviatura, codigo_sunat)
         if self._repo.existe_unidad(abreviatura):
-            raise UnidadInvalida(f"Ya existe la unidad {abreviatura}")
+            raise UnidadInvalida(f"Ya existe la unidad {abreviatura}", "abreviatura")
         return self._repo.crear_unidad(nombre.strip(), abreviatura, codigo_sunat.strip().upper())
 
 
@@ -400,13 +414,14 @@ class EditarUnidad(_Base):
         self, actor: Actor, unidad_id: int, nombre: str, abreviatura: str, codigo_sunat: str
     ) -> None:
         abreviatura = abreviatura.strip().upper()
-        if not (nombre.strip() and abreviatura and codigo_sunat.strip()):
-            raise UnidadInvalida("Nombre, abreviatura y código SUNAT son obligatorios")
+        _obligatorios_unidad(nombre, abreviatura, codigo_sunat)
         if abreviatura != self._repo.abreviatura_de(unidad_id):
             if self._repo.unidad_en_uso(unidad_id, solo_activos=False):
-                raise UnidadInvalida("La unidad está en uso: su abreviatura no se puede cambiar")
+                raise UnidadInvalida(
+                    "La unidad está en uso: su abreviatura no se puede cambiar", "abreviatura"
+                )
             if self._repo.existe_unidad(abreviatura):
-                raise UnidadInvalida(f"Ya existe la unidad {abreviatura}")
+                raise UnidadInvalida(f"Ya existe la unidad {abreviatura}", "abreviatura")
         self._repo.editar_unidad(
             unidad_id, nombre.strip(), abreviatura, codigo_sunat.strip().upper()
         )

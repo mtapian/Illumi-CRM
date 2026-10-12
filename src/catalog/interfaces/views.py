@@ -126,8 +126,15 @@ def producto_nuevo(request):
         ):
             messages.success(request, "Producto creado.")
             return redirect("producto", producto_id=nuevo["id"])
+    _errores_al_form(request, form)
     contexto = {"form": form}
     return render(request, "catalog/producto_form.html", contexto | _pestanas(form))
+
+
+def _errores_al_form(request, form):
+    """El error de negocio va junto a su campo y abre su pestaña (docs/ux.md §4)."""
+    for campo, mensaje in getattr(request, "errores_campo", {}).items():
+        form.add_error(campo if campo in form.fields else None, mensaje)
 
 
 def _pestanas(form, externas=()):
@@ -211,6 +218,7 @@ def producto(request, producto_id):
         if hecho:
             messages.success(request, "Cambio guardado.")
             return redirect("producto", producto_id=producto_id)
+    _errores_al_form(request, form)
     externas = pestanas.para(request, producto_id, form.casillas_activas(), request.actor.permisos)
     gestiona = request.actor.puede(uc.GESTIONAR)
     contexto = {
@@ -244,6 +252,10 @@ def _maestro(request, plantilla, contexto, guardar, estado, eliminar, filas, bus
     q = request.GET.get("q", "").strip()
     todas = filas.annotate(n_productos=Count("productos"))
     editar = request.GET.get("editar", "")
+    # Si un "guardar" falló, el formulario vuelve con lo enviado y el error en su campo.
+    fallo = request.method == "POST" and request.POST.get("accion") == "guardar"
+    if fallo and request.POST.get("id", "").isdigit():
+        editar = request.POST["id"]
     editando = get_object_or_404(todas, pk=editar) if editar.isdigit() else None
     valores = defaultdict(str, request.POST.dict() if request.method == "POST" else {})
     if editando and request.method != "POST":
@@ -254,7 +266,7 @@ def _maestro(request, plantilla, contexto, guardar, estado, eliminar, filas, bus
     contexto |= {
         "filas": todas.filter(buscar(q)) if q else todas,
         "q": q,
-        "nuevo": "nuevo" in request.GET,
+        "nuevo": "nuevo" in request.GET or (fallo and not editando),
         # Manager por empresa: un id de otra empresa da 404 (art. 3.1).
         "editando": editando,
         "valores": valores,

@@ -297,3 +297,34 @@ def test_stock_bajo_incluye_el_stock_igual_al_minimo(client, lucia, inventario):
     assert "MER-PAPA" in client.get("/catalogo/productos/?stock_bajo=1").content.decode()
     inventario.stocks[papa.id] = 11
     assert "MER-PAPA" not in client.get("/catalogo/productos/?stock_bajo=1").content.decode()
+
+
+def test_error_de_negocio_junto_al_campo_y_en_su_pestana(client, lucia):
+    """docs/ux.md §4: el error va junto a su campo, abre su pestaña y conserva lo escrito."""
+    with tenant_context(lucia.empresa_id):
+        und = Unidad.objects.get(abreviatura="UND")
+        malta = Producto.objects.create(sku="INS-MALTA", nombre="Malta", unidad=und)
+        Marca.objects.create(nombre="Gloria")
+    datos = {
+        "tipo": "BIEN",
+        "se_compra": "on",
+        "sku": "ins-malta",
+        "nombre": "Otra",
+        "unidad": "UND",
+    }
+    html = client.post("/catalogo/productos/nuevo/", datos).content.decode()
+    assert (
+        '<small class="error-campo" role="alert">Ya existe un producto con el SKU INS-MALTA' in html
+    )
+    assert "No se guardó: revisa el campo marcado." in html and 'value="Otra"' in html
+    assert 'class="requerido"' in html and "Los campos con * son obligatorios." in html
+    receta = datos | {"sku": "TER-1", "se_fabrica": "on", "componente_0": malta.id}
+    receta |= {"cantidad_0": "1", "componente_1": malta.id, "cantidad_1": "1"}
+    html = client.post("/catalogo/productos/nuevo/", receta).content.decode()
+    assert 'id="pes-produccion" class="pestana-radio" checked' in html
+    assert '<small class="error-campo" role="alert">Un componente está repetido' in html
+    html = client.post(
+        "/catalogo/marcas/?nuevo=1", {"accion": "guardar", "nombre": "gloria"}
+    ).content.decode()
+    assert '<small class="error-campo" role="alert">Ya existe la marca gloria' in html
+    assert 'value="gloria"' in html and "Nombre *" in html
