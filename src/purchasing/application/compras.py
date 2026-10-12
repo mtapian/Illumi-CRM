@@ -30,7 +30,7 @@ from purchasing.domain.compra import (
 from purchasing.domain.errores import CompraInvalida
 from shared.application.autorizacion import Actor, CasoDeUso
 from shared.application.puertos import SequencePort
-from shared.domain.errores import NoEncontrado
+from shared.domain.errores import DomainError, NoEncontrado
 
 VER, REGISTRAR, ANULAR = "compras.compra.ver", "compras.compra.registrar", "compras.compra.anular"
 REF = "COMPRA"
@@ -86,33 +86,34 @@ class _Base(CasoDeUso):
     def _almacen(self, almacen_id: int | None) -> None:
         activo = self._repo.almacen_activo(almacen_id) if almacen_id else None
         if activo is None:
-            raise CompraInvalida("Elige el almacén")
+            raise CompraInvalida("Elige el almacén", "almacen")
         if not activo:
-            raise CompraInvalida("El almacén está desactivado")
+            raise CompraInvalida("El almacén está desactivado", "almacen")
 
     def _validar(self, datos: DatosCompra, excluir: int | None = None) -> DatosCompra:
         """RF-COM-04, 05, 11, 20 y 23; devuelve los datos normalizados."""
         proveedor = self._repo.proveedor(datos.proveedor_id) if datos.proveedor_id else None
         if proveedor is None:
-            raise CompraInvalida("Elige un proveedor")
+            raise CompraInvalida("Elige un proveedor", "proveedor")
         activo, tipo_doc, razon_social = proveedor
         if not activo:
-            raise CompraInvalida("El proveedor está desactivado")
+            raise CompraInvalida("El proveedor está desactivado", "proveedor")
         serie = validar_documento_compra(datos.doc_tipo, datos.doc_serie_numero, tipo_doc)
         self._almacen(datos.almacen_id)
         if not datos.lineas:
-            raise CompraInvalida("La compra debe tener al menos una línea")
+            raise CompraInvalida("La compra debe tener al menos una línea", "lineas")
         for x in datos.lineas:
             validar_linea(x.cantidad, x.costo_unitario, x.bonificacion)
             p = self._catalogo.producto(x.producto_id)
             if p is None or not (p.activo and p.tipo == "BIEN" and p.se_compra):
-                raise CompraInvalida(NO_COMPRABLE)
+                raise CompraInvalida(NO_COMPRABLE, "lineas")
         if datos.doc_tipo != SIN_DOCUMENTO:
             n = self._repo.con_documento(datos.proveedor_id, datos.doc_tipo, serie, excluir)
             if n is not None:
                 raise CompraInvalida(
                     f"La {DOCUMENTOS[datos.doc_tipo]} {serie} de {razon_social} ya fue "
-                    f"registrada en {numero_compra(n)}"
+                    f"registrada en {numero_compra(n)}",
+                    "doc_serie_numero",
                 )
         return replace(datos, doc_serie_numero=serie, observacion=datos.observacion.strip())
 
@@ -177,7 +178,7 @@ class FinalizarCompra(_Base):
         hoy: date,
     ) -> None:
         if recepcion > hoy:
-            raise CompraInvalida("La fecha de recepción no puede ser futura")
+            raise CompraInvalida("La fecha de recepción no puede ser futura", "fecha_recepcion")
         guia = validar_guia(guia)
         with self._atomic():
             estado, datos = self._editable(compra_id)
@@ -191,7 +192,12 @@ class FinalizarCompra(_Base):
                 )
                 for x in datos.lineas
             ]
-            self._inv.registrar_entrada(REF, REF, compra_id, lineas, actor.usuario_id, recepcion)
+            try:
+                usuario = actor.usuario_id
+                self._inv.registrar_entrada(REF, REF, compra_id, lineas, usuario, recepcion)
+            except DomainError as e:  # lote con otro vencimiento, etc.: el error es de las líneas
+                e.campo = e.campo or "lineas"
+                raise
 
 
 class AnularCompra(_Base):
@@ -203,7 +209,7 @@ class AnularCompra(_Base):
     def ejecutar(self, actor: Actor, compra_id: int, motivo: str) -> None:
         motivo = motivo.strip()
         if not motivo:
-            raise CompraInvalida("El motivo es obligatorio")
+            raise CompraInvalida("El motivo es obligatorio", "motivo")
         with self._atomic():
             fila = self._repo.bloquear(compra_id)  # el segundo espera y ve ANULADA (RF-COM-17)
             if fila is None:

@@ -57,11 +57,15 @@ def proveedores(request):
     q = request.GET.get("q", "").strip()
     filas = todas.filter(Q(razon_social__icontains=q) | Q(num_doc__icontains=q)) if q else todas
     editar = request.GET.get("editar", "")
+    # Si un "guardar" falló, el formulario vuelve con lo enviado y el error en su campo.
+    fallo = request.method == "POST" and request.POST.get("accion", "guardar") == "guardar"
+    if fallo and request.POST.get("id", "").isdigit():
+        editar = request.POST["id"]
     editando = get_object_or_404(todas, pk=editar) if editar.isdigit() else None  # art. 3.1
     valores = defaultdict(str, request.POST.dict() if request.method == "POST" else {})
     if editando and request.method != "POST":
         valores |= {c: getattr(editando, c) for c in CAMPOS}
-    nuevo = "nuevo" in request.GET
+    nuevo = "nuevo" in request.GET or (fallo and not editando)
     migas = MIGAS + [("Proveedores", None)]
     if nuevo or editando:
         migas = MIGAS + [("Proveedores", request.path), ("Editar" if editando else "Nuevo", None)]
@@ -135,14 +139,14 @@ def _decimal(texto, campo):
     try:
         return Decimal(texto or "0")
     except InvalidOperation:
-        raise CompraInvalida(f"{campo} no es un número válido") from None
+        raise CompraInvalida(f"{campo} no es un número válido", "lineas") from None
 
 
-def _fecha(texto, campo="La fecha"):
+def _fecha(texto, campo="La fecha", nombre="fecha"):
     try:
         return date.fromisoformat(texto)
     except (TypeError, ValueError):
-        raise CompraInvalida(f"{campo} no es válida") from None
+        raise CompraInvalida(f"{campo} no es válida", nombre) from None
 
 
 def _filas(post) -> list[dict]:
@@ -159,7 +163,7 @@ def _datos(post) -> DatosCompra:
             _decimal(f["costo"], "El costo unitario"),
             f["bonificacion"] == "si",
             f["lote"].strip() or None,
-            _fecha(f["vencimiento"], "El vencimiento") if f["vencimiento"] else None,
+            _fecha(f["vencimiento"], "El vencimiento", "lineas") if f["vencimiento"] else None,
         )
         for f in _filas(post)
         if f["producto"].isdigit()
@@ -292,7 +296,7 @@ def compra(request, compra_id):
                 actor,
                 compra_id,
                 _id(p.get("almacen_recepcion")),
-                _fecha(p.get("fecha_recepcion"), "La fecha de recepción"),
+                _fecha(p.get("fecha_recepcion"), "La fecha de recepción", "fecha_recepcion"),
                 p.get("guia", ""),
                 timezone.localdate(),
             ),
@@ -315,6 +319,8 @@ def compra(request, compra_id):
         "estado_texto": dict(ESTADOS)[fila.estado],
         "editable": editable,
         "puede_anular": fila.estado != "ANULADA" and request.actor.puede(cc.ANULAR),
+        # si falló, qué acción era: sus errores van en su diálogo (docs/ux.md §4)
+        "accion_fallida": request.POST.get("accion", "guardar") if request.method == "POST" else "",
         "estados": ESTADOS[:3],
         "hoy": timezone.localdate().isoformat(),
         "lineas": fila.lineas.select_related("producto__unidad").order_by("id"),

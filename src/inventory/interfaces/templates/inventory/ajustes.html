@@ -9,15 +9,17 @@ costo solo se pide en entradas (obligatorio en SALDO_INICIAL).{% endcomment %}
 <div class="dos-columnas">
 <section class="tarjeta">
   <h2>Nuevo ajuste</h2>
+  <p class="requerido-nota">Los campos con * son obligatorios.</p>
   <form method="post" id="form-ajuste">{% csrf_token %}
     <div class="dos-columnas">
-      <label>Tipo<select name="tipo">{% for t in tipos %}<option value="{{ t }}"{% if valores.tipo == t %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
-      <label>Almacén<select name="almacen">{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
-      <label>Destino (solo transferencia)<select name="destino"><option value="">—</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.destino == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
-      <label>Motivo<input name="motivo" required maxlength="200" value="{{ valores.motivo|default:'' }}"></label>
+      <label>Tipo *<select name="tipo">{% for t in tipos %}<option value="{{ t }}"{% if valores.tipo == t %} selected{% endif %}>{{ t }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.tipo %}</label>
+      <label>Almacén *<select name="almacen">{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
+      <label>Destino (solo transferencia)<select name="destino"><option value="">—</option>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.destino == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.destino %}</label>
+      <label>Motivo *<input name="motivo" required maxlength="200" value="{{ valores.motivo|default:'' }}">{% include "listados/_error.html" with error=request.errores_campo.motivo %}</label>
     </div>
     <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad (en conteo, lo contado)</th><th>Lote</th><th>Vence</th><th>Costo unit.</th><th>Corrección</th><th></th></tr></thead>
     <tbody id="lineas">{% for f in filas %}{% include "inventory/_linea_ajuste.html" %}{% endfor %}</tbody></table></div>
+    {% include "listados/_error.html" with error=request.errores_campo.lineas %}
     <template id="linea-vacia">{% include "inventory/_linea_ajuste.html" with f=None %}</template>
     <p><button type="button" class="secundario" onclick="agregarLinea()">+ Agregar producto</button></p>
   </form>

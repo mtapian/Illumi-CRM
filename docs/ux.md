@@ -71,3 +71,8 @@ Antes de generar la recepción se muestran la compra, el proveedor, el almacén 
   - Chips de filtros aplicados: `shared/interfaces/listados.py::aplicados` + `listados/_aplicados.html` (cada chip quita su filtro; "Limpiar filtros" quita todos). En un maestro con solo buscador: `listados/_buscar.html`.
   - Tabla `.tarjeta.tabla`: el nombre o código abre el registro; importes con `S/` y `class="num"`; última columna `td.acciones` con una acción visible (`a.boton.secundario.chico`) y el resto en `<details class="mas-acciones abajo">` ⋯, lo destructivo al final y en rojo.
   - Pie `listados/_pie.html` con `listados.paginar` (25 por página): cantidad de registros y "1–25 de N" con Anterior/Siguiente; el kardex usa cursor ("Siguientes ›").
+- **Formularios:**
+  - Obligatorios con `*` en la etiqueta y la nota "Los campos con * son obligatorios."; en formularios de Django, `required_css_class = "requerido"`.
+  - Error junto al campo: el error de negocio lleva su campo (`DomainError(mensaje, campo)`); `_intentar` lo deja en `request.errores_campo` y la plantilla lo muestra con `{% include "listados/_error.html" with error=request.errores_campo.<campo> %}`; arriba solo "No se guardó: revisa el campo marcado.". Los errores del inventario en una línea van al campo `lineas`.
+  - Si falla un "guardar", el formulario vuelve con lo enviado; si falla una acción con diálogo (recepción, anulación), su diálogo se reabre con el error y lo escrito.
+  - Secciones separadas (p. ej. proveedor: "Datos generales" y "Contacto"; compra: "Datos de la compra" y "Productos").

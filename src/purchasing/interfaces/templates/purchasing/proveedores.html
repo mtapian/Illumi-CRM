@@ -8,12 +8,17 @@
 <section class="tarjeta formulario-maestro">
   <form method="post" id="form-maestro" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
     {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
+    <p class="requerido-nota">Los campos con * son obligatorios.</p>
+    <h2>Datos generales</h2>
     <div class="dos-columnas">
-    <label>Tipo de documento<select name="tipo_doc">
+    <label>Tipo de documento *<select name="tipo_doc">
       <option value="RUC"{% if valores.tipo_doc != "DNI" %} selected{% endif %}>RUC</option>
       <option value="DNI"{% if valores.tipo_doc == "DNI" %} selected{% endif %}>DNI</option></select></label>
-    <label>Número<input name="num_doc" required maxlength="11" inputmode="numeric" value="{{ valores.num_doc }}"></label>
-    <label>Razón social<input name="razon_social" required maxlength="200" value="{{ valores.razon_social }}"></label>
+    <label>Número *<input name="num_doc" required maxlength="11" inputmode="numeric" value="{{ valores.num_doc }}">{% include "listados/_error.html" with error=request.errores_campo.num_doc %}</label>
+    <label class="ancho">Razón social *<input name="razon_social" required maxlength="200" value="{{ valores.razon_social }}">{% include "listados/_error.html" with error=request.errores_campo.razon_social %}</label>
+    </div>
+    <h2>Contacto</h2>
+    <div class="dos-columnas">
     <label>Contacto<input name="contacto" maxlength="120" value="{{ valores.contacto }}"></label>
     <label>Teléfono<input name="telefono" maxlength="40" value="{{ valores.telefono }}"></label>
     <label>Email<input name="email" type="email" maxlength="120" value="{{ valores.email }}"></label>

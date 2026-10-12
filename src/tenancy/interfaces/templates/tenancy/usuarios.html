@@ -22,9 +22,9 @@
   <h2>Nuevo usuario</h2>
   <form method="post">{% csrf_token %}
     <div class="filtros">
-      <label>Nombre<input name="nombre" required></label>
-      <label>Email<input type="email" name="email" required></label>
-      <label>Contraseña inicial<input type="password" name="password" required autocomplete="new-password"></label>
+      <label>Nombre *<input name="nombre" required></label>
+      <label>Email *<input type="email" name="email" required></label>
+      <label>Contraseña inicial *<input type="password" name="password" required autocomplete="new-password"></label>
     </div>
     <p><strong>Roles</strong></p>
     {% for r in roles %}{% if r.activo %}<label class="check"><input type="checkbox" name="roles" value="{{ r.id }}"> {{ r }}</label>{% endif %}{% endfor %}

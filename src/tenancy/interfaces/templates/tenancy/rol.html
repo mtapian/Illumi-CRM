@@ -4,7 +4,7 @@
 <h1>{% if rol %}Rol {{ rol }}{% else %}Nuevo rol{% endif %}</h1>
 {% if rol.es_sistema %}<p class="subtitulo"><span class="chip">El rol Administrador tiene siempre todos los permisos habilitados y no se edita.</span></p>{% endif %}
 <form method="post" id="form-rol" data-cambios>{% csrf_token %}
-  {% if not rol.es_sistema %}<p><label>Nombre<input name="nombre" value="{{ rol.nombre|default:'' }}" required></label></p>{% endif %}
+  {% if not rol.es_sistema %}<p><label>Nombre *<input name="nombre" value="{{ rol.nombre|default:'' }}" required></label></p>{% endif %}
   <div class="tarjetas">
   {% for m in matriz %}
     <section class="tarjeta">

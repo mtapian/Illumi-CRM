@@ -34,14 +34,14 @@ class LineaCompra:
 def validar_linea(cantidad: Decimal, costo: Decimal, bonificacion: bool) -> None:
     """Costo 0 solo en una bonificación, y una bonificación solo con costo 0 (RF-COM-04)."""
     if cantidad <= 0:
-        raise CompraInvalida("La cantidad debe ser mayor a 0")
+        raise CompraInvalida("La cantidad debe ser mayor a 0", "lineas")
     if costo < 0:
-        raise CompraInvalida("El costo unitario no puede ser negativo")
+        raise CompraInvalida("El costo unitario no puede ser negativo", "lineas")
     if bonificacion and costo != 0:
-        raise CompraInvalida("Una bonificación tiene costo 0")
+        raise CompraInvalida("Una bonificación tiene costo 0", "lineas")
     if not bonificacion and costo == 0:
         raise CompraInvalida(
-            "El costo unitario debe ser mayor a 0; si es una bonificación, márcala"
+            "El costo unitario debe ser mayor a 0; si es una bonificación, márcala", "lineas"
         )
 
 
@@ -73,14 +73,14 @@ def totales(
 def validar_documento_compra(doc_tipo: str, serie_numero: str, tipo_doc_proveedor: str) -> str:
     """Devuelve la serie-número normalizada ("" sin documento; RF-COM-20)."""
     if doc_tipo not in DOCUMENTOS:
-        raise CompraInvalida("Tipo de documento inválido")
+        raise CompraInvalida("Tipo de documento inválido", "doc_tipo")
     if doc_tipo == SIN_DOCUMENTO:
         return ""
     serie_numero = serie_numero.strip().upper()
     if not serie_numero:
-        raise CompraInvalida("Indica la serie y el número del documento")
+        raise CompraInvalida("Indica la serie y el número del documento", "doc_serie_numero")
     if doc_tipo == FACTURA and tipo_doc_proveedor != "RUC":
-        raise CompraInvalida("Una factura requiere un proveedor con RUC")
+        raise CompraInvalida("Una factura requiere un proveedor con RUC", "doc_tipo")
     return serie_numero
 
 
@@ -88,7 +88,7 @@ def validar_guia(guia: str) -> str:
     """Guía de remisión opcional: serie de 4 caracteres, guion y hasta 8 dígitos (RF-COM-27)."""
     guia = guia.strip().upper()
     if guia and not GUIA.fullmatch(guia):
-        raise CompraInvalida("Guía de remisión inválida")
+        raise CompraInvalida("Guía de remisión inválida", "guia")
     return guia
 
 

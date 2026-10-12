@@ -50,8 +50,12 @@ def almacenes(request):
     ).order_by("nombre")
     q = request.GET.get("q", "").strip()
     editar = request.GET.get("editar", "")
+    # Si un "guardar" falló, el formulario vuelve con lo enviado y el error en su campo.
+    fallo = request.method == "POST" and request.POST.get("accion", "guardar") == "guardar"
+    if fallo and request.POST.get("id", "").isdigit():
+        editar = request.POST["id"]
     editando = get_object_or_404(todas, pk=editar) if editar.isdigit() else None  # art. 3.1
-    nuevo = "nuevo" in request.GET
+    nuevo = "nuevo" in request.GET or (fallo and not editando)
     migas = MIGAS + [("Almacenes", None)]
     if nuevo or editando:
         migas = MIGAS + [("Almacenes", request.path), ("Editar" if editando else "Nuevo", None)]

@@ -244,6 +244,11 @@
     .tres-columnas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 1.25rem; }
     @media (max-width: 900px) { .tres-columnas { grid-template-columns: 1fr; } }
     .etiqueta { display: block; font-weight: 600; font-size: .9rem; margin-bottom: .35rem; }
+    /* Formularios (docs/ux.md §4): error junto al campo y obligatorios marcados */
+    .error-campo { display: block; color: var(--error); font-size: .85rem; font-weight: 500; margin-top: .3rem; }
+    label:has(+ .error-campo) :is(input, select, textarea), label:has(.error-campo) :is(input, select, textarea) { border-color: var(--error); }
+    .requerido > label::after { content: " *"; color: var(--error); }
+    .requerido-nota { color: var(--tenue); font-size: .8rem; margin: 0 0 .75rem; }
     .oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     a.boton.principal { background: var(--acento); color: #fff; }
     .acciones-dialogo { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }

@@ -5,7 +5,7 @@
 {% include "catalog/_migas.html" %}
 <section class="tarjeta formulario-maestro">
   <form method="post" id="form-config" data-cambios>{% csrf_token %}
-    <label>Días de alerta de vencimiento<input name="dias" type="number" min="1" max="365" required value="{{ dias }}"></label>
+    <label>Días de alerta de vencimiento *<input name="dias" type="number" min="1" max="365" required value="{{ dias }}">{% include "listados/_error.html" with error=request.errores_campo.dias %}</label>
     <p class="subtitulo">Los lotes con stock que vencen dentro de estos días aparecen en el aviso "Por vencer" del inicio.</p>
   </form>
 </section>

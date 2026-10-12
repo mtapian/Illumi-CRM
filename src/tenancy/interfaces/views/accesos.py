@@ -22,14 +22,20 @@ from tenancy.interfaces.acceso import requiere
 
 
 def _intentar(request, accion) -> bool:
-    """Ejecuta la acción; un error de negocio se muestra al usuario. 403/404 siguen de largo."""
+    """Ejecuta la acción; un error de negocio se muestra al usuario. 403/404 siguen de largo.
+    Si el error indica su campo, va junto al campo (`request.errores_campo`) y arriba queda un
+    resumen (docs/ux.md §4); la pantalla vuelve con lo enviado."""
     try:
         accion()
         return True
     except (AccesoDenegado, NoEncontrado):
         raise
     except DomainError as e:
-        messages.error(request, e.mensaje)
+        if e.campo:
+            request.errores_campo = {**getattr(request, "errores_campo", {}), e.campo: e.mensaje}
+            messages.error(request, "No se guardó: revisa el campo marcado.")
+        else:
+            messages.error(request, e.mensaje)
         return False
 
 

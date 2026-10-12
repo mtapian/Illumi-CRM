@@ -4,9 +4,10 @@
 class DomainError(Exception):
     codigo = "ERROR_DE_NEGOCIO"
 
-    def __init__(self, mensaje: str):
+    def __init__(self, mensaje: str, campo: str | None = None):
         super().__init__(mensaje)
         self.mensaje = mensaje
+        self.campo = campo  # campo del formulario al que se refiere (docs/ux.md §4)
 
 
 class AccesoDenegado(DomainError):

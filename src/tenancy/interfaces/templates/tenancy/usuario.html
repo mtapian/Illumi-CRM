@@ -7,7 +7,7 @@
   <section class="tarjeta">
     <h2>Datos</h2>
     <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="datos">
-      <p><label>Nombre<input name="nombre" value="{{ ficha.nombre }}" required></label></p>
+      <p><label>Nombre *<input name="nombre" value="{{ ficha.nombre }}" required></label></p>
       <button type="submit">Guardar</button>
     </form>
   </section>

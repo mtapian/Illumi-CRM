@@ -19,12 +19,13 @@ diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% e
 <form method="post" id="form-compra" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
   <section class="tarjeta">
     <h2>Datos de la compra</h2>
+    <p class="requerido-nota">Los campos con * son obligatorios.</p>
     <div class="tres-columnas">
-      <label>Proveedor *<select name="proveedor" required><option value="">Elige un proveedor</option>{% for p in proveedores %}<option value="{{ p.id }}"{% if valores.proveedor == p.id|stringformat:"s" %} selected{% endif %}>{{ p.razon_social }} · {{ p.tipo_doc }} {{ p.num_doc }}</option>{% endfor %}</select></label>
-      <label>Almacén de destino *<select name="almacen" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
-      <label>Fecha de referencia *<input type="date" name="fecha" required value="{{ valores.fecha }}"></label>
-      <label>Tipo de documento<select name="doc_tipo" id="doc_tipo">{% for v, n in documentos %}<option value="{{ v }}"{% if valores.doc_tipo == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
-      <label>Serie y número<input name="doc_serie_numero" maxlength="20" placeholder="Ej. F001-000845" value="{{ valores.doc_serie_numero|default:'' }}"></label>
+      <label>Proveedor *<select name="proveedor" required><option value="">Elige un proveedor</option>{% for p in proveedores %}<option value="{{ p.id }}"{% if valores.proveedor == p.id|stringformat:"s" %} selected{% endif %}>{{ p.razon_social }} · {{ p.tipo_doc }} {{ p.num_doc }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.proveedor %}</label>
+      <label>Almacén de destino *<select name="almacen" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>{% if accion_fallida != "finalizar" %}{% include "listados/_error.html" with error=request.errores_campo.almacen %}{% endif %}</label>
+      <label>Fecha de referencia *<input type="date" name="fecha" required value="{{ valores.fecha }}">{% include "listados/_error.html" with error=request.errores_campo.fecha %}</label>
+      <label>Tipo de documento<select name="doc_tipo" id="doc_tipo">{% for v, n in documentos %}<option value="{{ v }}"{% if valores.doc_tipo == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.doc_tipo %}</label>
+      <label>Serie y número<input name="doc_serie_numero" maxlength="20" placeholder="Ej. F001-000845" value="{{ valores.doc_serie_numero|default:'' }}">{% include "listados/_error.html" with error=request.errores_campo.doc_serie_numero %}</label>
       <div><span class="etiqueta">Moneda</span><p>Soles · PEN (S/)</p></div>
     </div>
   </section>
@@ -32,6 +33,7 @@ diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% e
     <h2>Productos</h2>
     <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad</th><th id="etiqueta-costo">Costo unitario</th><th>Bonificación</th><th>Lote</th><th>Vence</th><th class="num">Subtotal</th><th><span class="oculto">Quitar</span></th></tr></thead>
     <tbody id="lineas">{% for f in filas %}{% include "purchasing/_linea_compra.html" %}{% endfor %}</tbody></table></div>
+    {% if accion_fallida != "finalizar" %}{% include "listados/_error.html" with error=request.errores_campo.lineas %}{% endif %}
     <template id="linea-vacia">{% include "purchasing/_linea_compra.html" with f=None %}</template>
     <p><button type="button" class="secundario" onclick="agregarLinea()">+ Agregar producto</button></p>
     <p class="subtitulo" id="ayuda-costo">Ingresa el total pagado por unidad.</p>
@@ -76,9 +78,10 @@ diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% e
     <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th>Lote</th></tr></thead><tbody>
     {% for l in lineas %}<tr><td>{{ l.producto.sku }} · {{ l.producto.nombre }}{% if l.es_bonificacion %} <span class="chip neutro">Bonificación</span>{% endif %}</td><td class="num">{{ l.cantidad.normalize }} {{ l.producto.unidad.abreviatura }}</td><td>{{ l.lote_codigo|default:"—" }}</td></tr>{% endfor %}
     </tbody></table></div>
-    <label>Almacén de ingreso *<select name="almacen_recepcion" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if compra.almacen_id == a.id %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
-    <label>Fecha de recepción *<input type="date" name="fecha_recepcion" required max="{{ hoy }}" value="{{ hoy }}"></label>
-    <label>Guía de remisión (opcional)<input name="guia" maxlength="13" placeholder="T001-00004521"></label>
+    {% if accion_fallida == "finalizar" %}{% include "listados/_error.html" with error=request.errores_campo.lineas %}{% endif %}
+    <label>Almacén de ingreso *<select name="almacen_recepcion" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if accion_fallida == "finalizar" %}{% if request.POST.almacen_recepcion == a.id|stringformat:"s" %} selected{% endif %}{% elif compra.almacen_id == a.id %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>{% if accion_fallida == "finalizar" %}{% include "listados/_error.html" with error=request.errores_campo.almacen %}{% include "listados/_error.html" with error=request.errores_campo.proveedor %}{% endif %}</label>
+    <label>Fecha de recepción *<input type="date" name="fecha_recepcion" required max="{{ hoy }}" value="{% if accion_fallida == "finalizar" %}{{ request.POST.fecha_recepcion }}{% else %}{{ hoy }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.fecha_recepcion %}</label>
+    <label>Guía de remisión (opcional)<input name="guia" maxlength="13" placeholder="T001-00004521" value="{% if accion_fallida == "finalizar" %}{{ request.POST.guia }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.guia %}</label>
     <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver a revisar</button> <button type="submit">Confirmar recepción</button></p>
   </form>
 </dialog>
@@ -167,9 +170,14 @@ diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% e
     <p>La compra <strong>{{ numero }}</strong> de <strong>{{ compra.proveedor.razon_social }}</strong> quedará anulada. Aún no ingresó stock, así que no se mueve el inventario.</p>
     {% endif %}
     <p class="subtitulo">Su documento podrá registrarse de nuevo. La anulación no se puede deshacer.</p>
-    <label>Motivo *<input name="motivo" required maxlength="200"></label>
+    <label>Motivo *<input name="motivo" required maxlength="200" value="{% if accion_fallida == "anular" %}{{ request.POST.motivo }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.motivo %}</label>
     <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit" class="peligro">Confirmar anulación</button></p>
   </form>
 </dialog>
+{% endif %}
+{% if accion_fallida == "finalizar" or accion_fallida == "anular" %}
+<script>  // la acción falló: su diálogo vuelve abierto, con el error y lo escrito (docs/ux.md §1)
+  document.getElementById("{% if accion_fallida == 'finalizar' %}confirmar-recepcion{% else %}anular-compra{% endif %}")?.showModal();
+</script>
 {% endif %}
 {% endblock %}

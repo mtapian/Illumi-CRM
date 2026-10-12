@@ -8,7 +8,7 @@
   <form method="post">{% csrf_token %}
     <h2>Anular el ajuste N.° {{ ajuste.numero }}</h2>
     <p>Se registrarán los movimientos inversos de este ajuste al costo original y quedará anulado. No se puede deshacer.</p>
-    <label>Motivo de la anulación<input name="motivo" required maxlength="200"></label>
+    <label>Motivo de la anulación *<input name="motivo" required maxlength="200" value="{{ request.POST.motivo }}">{% include "listados/_error.html" with error=request.errores_campo.motivo %}</label>
     <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit" class="peligro">Confirmar anulación</button></p>
   </form>
 </dialog>
@@ -36,4 +36,5 @@
   </details>
   {% endif %}
 </div>
+{% if request.method == "POST" %}<script>document.getElementById("anular")?.showModal();  // falló: vuelve con el error</script>{% endif %}
 {% endblock %}

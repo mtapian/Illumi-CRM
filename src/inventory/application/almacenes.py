@@ -37,9 +37,9 @@ class GuardarAlmacen(_Base):
             self._existe(almacen_id)
         nombre = nombre.strip()
         if not nombre:
-            raise AlmacenInvalido("El nombre del almacén es obligatorio")
+            raise AlmacenInvalido("El nombre del almacén es obligatorio", "nombre")
         if self._repo.existe_nombre(nombre, almacen_id):
-            raise AlmacenInvalido(f"Ya existe el almacén {nombre}")
+            raise AlmacenInvalido(f"Ya existe el almacén {nombre}", "nombre")
         return self._repo.guardar(almacen_id, nombre)
 
 
@@ -58,5 +58,5 @@ class GuardarDiasAlerta(_Base):
 
     def ejecutar(self, actor: Actor, dias: int) -> None:
         if not 1 <= dias <= 365:
-            raise AlmacenInvalido("Los días de alerta deben estar entre 1 y 365")
+            raise AlmacenInvalido("Los días de alerta deben estar entre 1 y 365", "dias")
         self._repo.guardar_dias_alerta(dias)

@@ -21,7 +21,7 @@ from inventory.domain.errores import AjusteInvalido
 from inventory.domain.existencia import ENTRADA, SALIDA
 from shared.application.autorizacion import Actor, CasoDeUso
 from shared.application.puertos import SequencePort
-from shared.domain.errores import NoEncontrado
+from shared.domain.errores import DomainError, NoEncontrado
 
 REGISTRAR, ANULAR = "inventario.ajuste.registrar", "inventario.ajuste.anular"
 REF, ANULADO = "AJUSTE", "ANULADO"
@@ -70,7 +70,7 @@ class RegistrarAjuste(_Base):
     ) -> int:
         validar_ajuste(tipo, motivo, almacen_id, destino_id)
         if not lineas:
-            raise AjusteInvalido("El ajuste necesita al menos una línea")
+            raise AjusteInvalido("El ajuste necesita al menos una línea", "lineas")
         with self._atomic():
             numero = self._secuencia.siguiente(REF)  # RF-INV-28
             ajuste = self._repo.crear(
@@ -78,7 +78,11 @@ class RegistrarAjuste(_Base):
             )
             self._inv.bloquear([x.producto_id for x in lineas])
             for x in lineas:
-                sistema = self._aplicar(actor, tipo, ajuste, almacen_id, destino_id, x, hoy)
+                try:
+                    sistema = self._aplicar(actor, tipo, ajuste, almacen_id, destino_id, x, hoy)
+                except DomainError as e:  # stock, lote, costo: el error es de las líneas
+                    e.campo = e.campo or "lineas"
+                    raise
                 self._repo.agregar_linea(ajuste, x, sistema)
         return ajuste
 
@@ -130,7 +134,7 @@ class AnularAjuste(_Base):
 
     def ejecutar(self, actor: Actor, ajuste_id: int, motivo: str) -> None:
         if not motivo.strip():
-            raise AjusteInvalido("El motivo es obligatorio")
+            raise AjusteInvalido("El motivo es obligatorio", "motivo")
         with self._atomic():
             estado = self._repo.estado(ajuste_id)
             if estado is None:

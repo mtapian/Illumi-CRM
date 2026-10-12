@@ -38,6 +38,8 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 
 ## Historial
 
+- **2026-10-12 — Reglas de UX, fase C: formularios.** `DomainError` lleva un `campo` opcional y `_intentar` muestra el error junto a ese campo (`request.errores_campo`, `listados/_error.html`, borde rojo) con un resumen arriba; si falla un "guardar", el formulario vuelve con lo enviado; si falla "Finalizar y recibir stock" o una anulación, su diálogo se reabre con el error. Aplicado a compra, proveedores (secciones "Datos generales" y "Contacto"), almacenes, configuración de inventario, ajustes y anulación de ajuste; obligatorios con * en esos formularios, usuarios, rol, empresa y registro. Los formularios del catálogo quedan como tareas pendientes (ver abajo) para no chocar con la sesión de 0002e. 590 tests en verde (base de prueba aislada).
+
 - **2026-10-11 — Reglas de UX, fase B: grillas estándar** (pedido del PO con capturas de stock y productos: "estandariza… alinea las grillas"). Piezas comunes: `shared/interfaces/listados.py` (`paginar`, `consulta`, `aplicados`), `listados/_aplicados.html`, `_pie.html`, `_buscar.html` y CSS (`encabezado-listado`, `barra-filtros`, `mas-filtros`, `filtros-aplicados`, `pie-tabla`, acciones por fila). Aplicado a productos (según el prototipo: "+ Nuevo producto ▾", Tipo y Estado visibles, Gestión/Categoría/Marca/Stock bajo en "Más filtros", Editar + ⋯ con Consultar stock, Ver kardex y Desactivar), stock, kardex (Exportar CSV arriba), compras, proveedores, almacenes, unidades/categorías/marcas, usuarios, roles, auditoría y empresas de la plataforma. Documentado en `docs/ux.md` §5. **Aviso:** otra sesión trabaja en paralelo sobre 0002e (impuestos) en el mismo repositorio y la misma base de prueba; esta sesión corrió sus tests con `DB_NAME=illumi_ux` para no chocar.
 
 - **2026-10-11 — 0004b aprobada (PO: "sí") e implementada.** `AnularCompra` (`compras.compra.anular`, motivo obligatorio, compra bloqueada `FOR UPDATE`): una Finalizada revierte sus entradas al mismo costo con el `InventarioService` (movimientos `ANULACION`); una Creada o En proceso solo cambia de estado; si el stock ya tuvo salidas, rechaza con el SKU ("No se puede anular: <SKU> tuvo salidas posteriores a la compra. Corrígela con un ajuste CORRECCION"; `AnulacionConConsumoPosterior` lleva el `producto_id` y el servicio la reexporta); una Anulada no se anula ni avanza; el documento queda libre. Campos `anulada_por`, `anulada_en`, `motivo_anulacion` con CHECK (Anulada ⇔ fecha y motivo). Pantalla: "Anular compra" al final de "Más acciones", en rojo, con un diálogo que explica qué se revierte; la compra anulada muestra quién, cuándo y por qué. Doble anulación concurrente probada con dos hilos (estable en 3 corridas). 6 escenarios de 0004b en verde.
@@ -124,6 +126,14 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 - **Q1** PSE · **Q3** taproom B2C · **Q6** sesión y contraseñas · **Q7** vida útil · **Q8** planes · **Q10** lote perdido · **Q12** consultas al contador (anulación de compra consumida: el PO eligió A; falta el visto bueno del contador).
 - **Código de tipo de sistema ISC:** el contador dijo `01`; el catálogo 08 de SUNAT indica `02` para monto fijo. Con 0002e (borrador) sale del criterio del impuesto (fijo = 02, porcentaje = 01) → confirmar con el contador.
 - **Cerveza que entra sin producir:** ¿maquila o compra a granel? Hoy solo se cubre la reventa de terceros (`MERCADERIA`) y el saldo inicial. ¿La reventa de cerveza de terceros paga ISC otra vez? (contador).
+
+## Tareas pendientes de UX (fase C, formularios del catálogo)
+
+Postergadas por el PO (2026-10-11) para no chocar con la sesión que implementa 0002e (impuestos) en `catalog/`. Patrón ya listo en `docs/ux.md` §4–5 (`DomainError(mensaje, campo)`, `listados/_error.html`, `required_css_class`):
+
+- [ ] Ficha y alta de producto: `ProductoForm` con `required_css_class = "requerido"`; errores del dominio (`catalog/domain/producto.py`) y de `catalog/application/productos.py` con su campo (SKU, nombre, precio, stock mínimo, vida útil, peso, volumen, ISC, receta, código de barras) y su pestaña abierta.
+- [ ] Unidades, categorías y marcas (`_maestro.html`): nombre y abreviatura obligatorios con *, errores de `AgrupacionInvalida` y `UnidadInvalida` junto al campo.
+- [ ] Barra de acciones de la ficha de producto: "Guardar cambios" solo con cambios ya funciona; revisar que la pestaña con error quede visible.
 
 ## Próximo paso
 

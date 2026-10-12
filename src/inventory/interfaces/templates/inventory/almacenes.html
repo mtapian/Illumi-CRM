@@ -9,7 +9,8 @@ almacén vacío se desactiva.{% endcomment %}
 <section class="tarjeta formulario-maestro">
   <form method="post" id="form-maestro" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
     {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
-    <label>Nombre<input name="nombre" required maxlength="80" value="{{ nombre }}"></label>
+    <p class="requerido-nota">Los campos con * son obligatorios.</p>
+    <label>Nombre *<input name="nombre" required maxlength="80" value="{{ nombre }}">{% include "listados/_error.html" with error=request.errores_campo.nombre %}</label>
   </form>
 </section>
 <div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-maestro" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{{ request.path }}" data-descartar>Cancelar</a> <button type="submit" form="form-maestro" data-con-cambios disabled>Guardar</button></div>

@@ -52,7 +52,7 @@ class GuardarProveedor(_Base):
         datos = validar_proveedor(datos)
         if self._repo.existe_documento(datos.tipo_doc, datos.num_doc, proveedor_id):
             raise ProveedorInvalido(
-                f"Ya existe un proveedor con el {datos.tipo_doc} {datos.num_doc}"
+                f"Ya existe un proveedor con el {datos.tipo_doc} {datos.num_doc}", "num_doc"
             )
         return self._repo.guardar(proveedor_id, datos)
 

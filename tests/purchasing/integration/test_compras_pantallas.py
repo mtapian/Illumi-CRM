@@ -88,7 +88,9 @@ def test_crear_editar_pasar_y_finalizar_desde_la_pantalla(client, e):
 def test_si_se_rechaza_las_lineas_vuelven(client, e):
     r = client.post("/compras/nueva/", formulario(e, costos=("5", "0", "0.10")))
     pagina = r.content.decode()
-    assert "El costo unitario debe ser mayor a 0" in pagina
+    # docs/ux.md §4: el error va junto al campo (bajo los productos) y arriba un resumen
+    assert '<small class="error-campo" role="alert">El costo unitario debe ser mayor a 0' in pagina
+    assert "No se guardó: revisa el campo marcado." in pagina
     assert 'value="1200"' in pagina and 'value="0.10"' in pagina
     assert not Compra.objects.exists()
 
@@ -134,3 +136,19 @@ def test_anular_desde_la_pantalla(client, e):
     assert "Anular compra" not in pagina
     compra.refresh_from_db()
     assert compra.estado == "ANULADA"
+
+
+def test_si_falla_la_recepcion_el_dialogo_vuelve_con_el_error(client, e):
+    """docs/ux.md §1 y §4: el diálogo de la acción que falló se reabre con lo escrito."""
+    client.post("/compras/nueva/", formulario(e))
+    compra = Compra.objects.get()
+    url = f"/compras/{compra.id}/"
+    client.post(url, formulario(e, accion="en_proceso"))
+    datos = {"accion": "finalizar", "almacen_recepcion": e["almacen"]}
+    pagina = client.post(url, datos | {"fecha_recepcion": HOY, "guia": "T1-ABC"}).content.decode()
+    dialogo = pagina.split('id="confirmar-recepcion"')[1].split("</dialog>")[0]
+    assert '<small class="error-campo" role="alert">Guía de remisión inválida' in dialogo
+    assert 'value="T1-ABC"' in dialogo
+    assert 'getElementById("confirmar-recepcion")?.showModal()' in pagina
+    compra.refresh_from_db()
+    assert compra.estado == "EN_PROCESO"

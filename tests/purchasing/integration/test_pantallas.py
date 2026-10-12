@@ -94,3 +94,15 @@ def test_sin_permiso_ve_la_pestana_pero_no_gestiona(client, empresa):
     r = client.post("/compras/proveedores/producto/", {"producto": empresa["malta"]})
     assert r.status_code == 403
     assert client.get("/compras/proveedores/").status_code == 403
+
+
+def test_error_junto_al_campo_y_lo_escrito_vuelve(client, empresa):
+    """docs/ux.md §4: el documento duplicado se marca en su campo; la razón social se conserva."""
+    entrar(client, empresa)
+    datos = {"accion": "guardar", "tipo_doc": "RUC", "num_doc": RUC, "razon_social": "Maltería"}
+    client.post("/compras/proveedores/", datos)
+    pagina = client.post("/compras/proveedores/?nuevo=1", datos | {"razon_social": "Otra"})
+    html = pagina.content.decode()
+    error = f'<small class="error-campo" role="alert">Ya existe un proveedor con el RUC {RUC}'
+    assert error in html
+    assert 'value="Otra"' in html and "No se guardó: revisa el campo marcado." in html

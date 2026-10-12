@@ -12,13 +12,15 @@ TIPOS = (SALDO_INICIAL, CONTEO, MERMA, CORRECCION, TRANSFERENCIA)
 def validar_ajuste(tipo: str, motivo: str, origen: int, destino: int | None) -> None:
     """RF-INV-08: motivo obligatorio. RF-INV-12: destino solo en transferencias y distinto."""
     if tipo not in TIPOS:
-        raise AjusteInvalido("Tipo de ajuste desconocido")
+        raise AjusteInvalido("Tipo de ajuste desconocido", "tipo")
     if not motivo.strip():
-        raise AjusteInvalido("El motivo es obligatorio")
+        raise AjusteInvalido("El motivo es obligatorio", "motivo")
     if tipo == TRANSFERENCIA and (destino is None or destino == origen):
-        raise AjusteInvalido("La transferencia necesita un almacén destino distinto del origen")
+        raise AjusteInvalido(
+            "La transferencia necesita un almacén destino distinto del origen", "destino"
+        )
     if tipo != TRANSFERENCIA and destino is not None:
-        raise AjusteInvalido("Solo una transferencia tiene almacén destino")
+        raise AjusteInvalido("Solo una transferencia tiene almacén destino", "destino")
 
 
 def validar_saldo_inicial(costo: Decimal | None, tiene_movimientos: bool) -> None:

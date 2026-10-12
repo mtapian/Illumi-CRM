@@ -3,6 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 
 
 class RegistroForm(forms.Form):
+    required_css_class = "requerido"  # obligatorios con * (docs/ux.md §4)
     ruc = forms.CharField(label="RUC", max_length=20)
     razon_social = forms.CharField(label="Razón social", max_length=200)
     nombre_comercial = forms.CharField(label="Nombre comercial", max_length=200, required=False)
@@ -22,6 +23,7 @@ class LoginForm(forms.Form):
 
 
 class EmpresaForm(forms.Form):
+    required_css_class = "requerido"  # obligatorios con * (docs/ux.md §4)
     """Datos editables de la empresa; el RUC no está (RF-TEN-17)."""
 
     razon_social = forms.CharField(label="Razón social", max_length=200)
@@ -34,6 +36,7 @@ class EmpresaForm(forms.Form):
 
 
 class IgvForm(forms.Form):
+    required_css_class = "requerido"  # obligatorios con * (docs/ux.md §4)
     igv_pct = forms.DecimalField(label="IGV %", max_digits=5, decimal_places=2)
     vigente_desde = forms.DateField(
         label="Vigente desde", widget=forms.DateInput(attrs={"type": "date"})
