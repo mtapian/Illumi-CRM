@@ -18,6 +18,7 @@ _PESTANA_DE = {
     "contenido_litros": "ventas",
     "stock_minimo": "inventario",
     "vida_util_dias": "inventario",
+    "estrategia_salida": "inventario",
     "peso_kg": "inventario",
     "volumen_m3": "inventario",
     "impuestos_venta": "ventas",  # 0002e, RF-CAT-56
@@ -69,6 +70,16 @@ class ProductoForm(forms.Form):
         required=False,
         min_value=1,
         help_text="Solo sugiere el vencimiento del lote al ingresar o producir",
+    )
+    estrategia_salida = forms.ChoiceField(  # RF-CAT-62 (enmienda 6)
+        label="Estrategia de salida",
+        choices=[
+            ("FEFO", "FEFO: primero vence, primero sale"),
+            ("FIFO", "FIFO: primero entra, primero sale"),
+        ],
+        initial="FEFO",
+        required=False,
+        help_text="Qué lote sale cuando no se indica uno. No cambia el costo (promedio)",
     )
     peso_kg = forms.DecimalField(label="Peso (kg)", decimal_places=4, required=False, min_value=0)
     volumen_m3 = forms.DecimalField(
@@ -178,6 +189,7 @@ class ProductoForm(forms.Form):
             precio_venta=c.get("precio_venta"),
             contenido_litros=c.get("contenido_litros"),
             vida_util_dias=c.get("vida_util_dias"),
+            estrategia_salida=c.get("estrategia_salida") or "FEFO",
             peso_kg=c.get("peso_kg"),
             volumen_m3=c.get("volumen_m3"),
             referencia=c.get("referencia", ""),

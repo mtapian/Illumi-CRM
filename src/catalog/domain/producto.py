@@ -7,6 +7,7 @@ from catalog.domain.errores import ProductoInvalido
 from catalog.domain.tipos import TipoProducto as T
 
 CASILLAS = ("se_vende", "se_compra", "se_fabrica")  # RF-CAT-38
+ESTRATEGIAS = ("FEFO", "FIFO")  # RF-CAT-62: qué lote sale si no se indica
 INMUTABLES_CON_MOVIMIENTOS = ("sku", "tipo", "unidad")  # RF-CAT-43
 SIN_CASILLAS = "Marca al menos una opción: se vende, se compra o se fabrica"
 
@@ -31,6 +32,7 @@ class DatosProducto:
     referencia: str = ""  # RF-CAT-31
     codigo_barras: str = ""
     marca_id: int | None = None  # RF-CAT-33
+    estrategia_salida: str = "FEFO"  # RF-CAT-62 (enmienda 6)
 
 
 def validar_producto(d: DatosProducto) -> DatosProducto:
@@ -55,6 +57,7 @@ def validar_producto(d: DatosProducto) -> DatosProducto:
             d,
             stock_minimo=Decimal("0"),
             vida_util_dias=None,
+            estrategia_salida="FEFO",
             peso_kg=None,
             volumen_m3=None,
             contenido_litros=None,
@@ -71,6 +74,8 @@ def validar_producto(d: DatosProducto) -> DatosProducto:
         raise ProductoInvalido(
             "El precio de venta es obligatorio y debe ser mayor a 0", "precio_venta"
         )
+    if d.estrategia_salida not in ESTRATEGIAS:
+        raise ProductoInvalido("La estrategia de salida debe ser FEFO o FIFO", "estrategia_salida")
     if d.stock_minimo < 0:
         raise ProductoInvalido("El stock mínimo no puede ser negativo", "stock_minimo")
     if d.vida_util_dias is not None and d.vida_util_dias <= 0:

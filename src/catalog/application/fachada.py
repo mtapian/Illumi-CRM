@@ -26,6 +26,7 @@ class ProductoDTO:
     precio_venta: Decimal | None
     activo: bool
     vida_util_dias: int | None = None  # sugiere el vencimiento del lote (RF-CAT-40)
+    estrategia_salida: str = "FEFO"  # qué lote sale si no se indica (RF-CAT-62)
 
 
 @dataclass(frozen=True)

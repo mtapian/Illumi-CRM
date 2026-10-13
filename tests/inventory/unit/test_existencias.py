@@ -14,7 +14,7 @@ from inventory.domain.errores import (
     StockInsuficiente,
 )
 from inventory.domain.existencia import ENTRADA, SALIDA, Existencia, Movimiento, salir
-from inventory.domain.fefo import asignar_fefo, orden_fefo
+from inventory.domain.fefo import asignar_fefo, orden_fefo, orden_fifo
 from inventory.domain.lotes import (
     lote_vencido,
     sugerir_vencimiento,
@@ -77,6 +77,25 @@ def test_sin_vencimiento_y_sin_lote_al_final():
     assert [e.lote for e in sorted(todas, key=orden_fefo)] == ["D", "C", "A", "B", None]
     asignado = asignar_fefo(todas, D("6"), HOY, "UND")
     assert [(e.lote, c) for e, c in asignado][-1] == (None, D("2"))
+
+
+def test_fifo_por_ingreso_sin_mirar_vencimiento_y_sin_vencidos():
+    """0002a enmienda 6 (RF-CAT-62; RF-INV-22): el lote que entró antes sale primero; los
+    vencidos no salen y el stock sin lote va al último."""
+    existencias = [
+        lote("IPA-0015", date(2026, 12, 15), "48", date(2026, 10, 1), 2),
+        lote("IPA-0018", date(2027, 2, 20), "120", date(2026, 9, 1), 3),
+        lote("IPA-0012", date(2026, 10, 30), "10", date(2026, 8, 1), 1),
+        Existencia(D("5"), id_=9),
+    ]
+    assert [e.lote for e in sorted(existencias, key=orden_fifo)] == [
+        "IPA-0012",
+        "IPA-0018",
+        "IPA-0015",
+        None,
+    ]
+    asignado = asignar_fefo(existencias, D("130"), HOY, "UND", "FIFO")
+    assert [(e.lote, c) for e, c in asignado] == [("IPA-0018", D("120")), ("IPA-0015", D("10"))]
 
 
 # --- T6: lote vencido y salidas posteriores (RF-INV-21, 23) ---

@@ -34,6 +34,7 @@ _CAMPOS = (
     "precio_venta",
     "contenido_litros",
     "vida_util_dias",
+    "estrategia_salida",
     "peso_kg",
     "volumen_m3",
     "referencia",
@@ -271,6 +272,7 @@ class CatalogoOrm:
                 p.precio_venta,
                 p.activo,
                 p.vida_util_dias,
+                p.estrategia_salida,
             )
             for p in filas
         ]

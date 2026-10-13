@@ -1,68 +1,36 @@
-# Tareas 0005a — Producción: recetas y órdenes de producción
+# Tareas 0005a — Producción: órdenes de producción
 
-Estado: borrador (ejemplo). **No ejecutar:** `spec.md` y `plan.md` siguen en borrador (constitución, art. 2.1). Depende de Q10 y Q12.
+Estado: aprobado (PO: "dale", 2026-10-12).
 
-Spec: `./spec.md` · Plan: `./plan.md`
+Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y parar (art. 8.1).
 
-Reglas (constitución, art. 8):
-- Una tarea a la vez, de 30 minutos como máximo.
-- Primero el test en rojo; después el código, hasta que el test pase a verde; marcar la tarea y parar.
-- Además de su "Hecho cuando", cada tarea exige `ruff check`, `ruff format --check`, `lint-imports` y `python manage.py makemigrations --check` en verde.
-
-## Dominio puro
-
-- [ ] **T1. Implementar la receta versionada y el escalado de insumos.** — RF-PRD-01, RF-PRD-02, RF-PRD-03, RF-PRD-05
-  - Hecho cuando: `test_receta.py` comprueba que solo se admiten `INSUMO` activos, que editar una receta usada crea la versión 2 y que 1000 L escalan 100 kg a 200,0000 kg.
-
-- [ ] **T2. Implementar la máquina de estados de la OP.** — RF-PRD-18, RF-PRD-33
-  - Hecho cuando: `test_maquina_estados.py` prueba parametrizado todas las transiciones válidas e inválidas del diagrama.
-
-- [ ] **T3. Implementar `litros_sugeridos()` por faltante de presentaciones.** — RF-PRD-07
-  - Hecho cuando: `test_sugerencia.py` reproduce los 95,84 L del escenario de pedidos (spec 0006a).
-
-- [ ] **T4. Implementar el costo por litro y el rendimiento del lote.** — RF-PRD-13, RF-PRD-14
-  - Hecho cuando: un test reproduce el ejemplo de referencia: 798,00 / 409,5 L y rendimiento 104,00 %.
-
-## Persistencia
-
-- [ ] **T5. Crear los modelos de receta, versión, insumo de receta, OP, consumo y vínculo OP–pedido.** — RF-PRD-01, RF-PRD-04, RF-PRD-08
-  - Hecho cuando: la migración se aplica y un test comprueba la numeración `OP-000001` y que una OP conserva su versión de receta.
-
-## Casos de uso
-
-- [ ] **T6. Crear el CRUD de recetas con versionado.** — RF-PRD-01 a RF-PRD-03
-  - Hecho cuando: "Editar una receta usada crea una nueva versión" y "La receta solo admite insumos" están en verde.
-
-- [ ] **T7. Crear `PlanificarOP` con advertencia de faltantes y pedidos vinculados.** — RF-PRD-04 a RF-PRD-07
-  - Hecho cuando: "Planificar una OP escala los insumos y advierte faltantes" está en verde.
-
-- [ ] **T8. Crear `IniciarOP`, con la salida de insumos y el paso de pedidos a `EN_PRODUCCION`.** — RF-PRD-08, RF-PRD-09, RF-PRD-11
-  - Hecho cuando: "Iniciar OP consume los insumos reales al costo promedio" y "No se inicia una OP con insumos insuficientes" están en verde.
-
-- [ ] **T9. Probar el doble inicio concurrente.** — RF-PRD-12
-  - Hecho cuando: con `TransactionTestCase`, dos inicios simultáneos de la misma OP consumen los insumos una sola vez.
-
-- [ ] **T10. Crear `RegistrarConsumoAdicional`.** — RF-PRD-10
-  - Hecho cuando: "Consumo adicional durante el proceso (dry hopping)" está en verde y un insumo sin stock se rechaza.
-
-- [ ] **T11. Crear `TerminarOP` con el lote de granel.** — RF-PRD-13, RF-PRD-14
-  - Hecho cuando: "Terminar OP crea el lote de granel con su costo por litro" y "Rendimiento mayor al 100 % se permite con advertencia" están en verde.
-
-- [ ] **T12. Soportar la OP terminada con 0 L (lote perdido).** — RF-PRD-15
-  - Hecho cuando: "Lote perdido se termina con 0 litros" está en verde (escenario `@pendiente-q10`: se activa cuando se apruebe Q10).
-
-- [ ] **T13. Crear `AnularOP`, con reversión de consumos y pedidos vía `PedidosPort`.** — RF-PRD-16 a RF-PRD-19
-  - Hecho cuando: "Anular una OP en proceso revierte los consumos", "Transiciones de estado inválidas", "Rol producción no puede anular" y "Anular una OP devuelve a CONFIRMADO solo los pedidos que dependían de ella" están en verde.
-
-## Pantallas
-
-- [ ] **T-ODOO. Ficha de la OP con encabezado de estados, componentes precargados, responsable e historial (ver plan §5).** — RF-PRD-04, RF-PRD-05, RF-PRD-35
-  - Hecho cuando: un test de vista comprueba la barra de estados, el botón de la acción siguiente según el estado, los componentes precargados desde la receta y el responsable por defecto.
-
-- [ ] **T14. Crear las pantallas de recetas y de OP para tablet.** — RF-PRD-01 a RF-PRD-14, RNF-PRD-02
-  - Hecho cuando: un test de vista recorre planificar → iniciar → terminar; la plantilla usa el layout de tablet (pendiente del wireframe).
-
-## Cierre
-
-- [ ] **T15. Verificar la spec completa.** — RF-PRD-01 a RF-PRD-19
-  - Hecho cuando: `pytest tests/production tests/acceptance -k E05a` en verde, salvo `@pendiente-q10`; lint en verde; `MEMORY.md` actualizado.
+- [ ] **T1. Dominio de la OP.** — RF-PRD-14, 15, 33, 37, 38, 41, 42, 44, 46, 47
+  - `production/domain/op.py` y `errores.py` (§3); app `production` registrada y en import-linter (capas, dominio puro, contrato como el de compras).
+  - Hecho cuando: `tests/production/unit/test_op.py` pasa con el ejemplo de la spec (1.880080 por botella; lote IPA-0020 sugerido) y los contratos siguen en verde.
+- [ ] **T2. Modelos y migración.** — RF-PRD-15, 16, 36, 41
+  - `OrdenProduccion` y `OpComponente` con los CHECK de §2 y el trigger de componentes inmutables tras Finalizada o Anulada.
+  - Hecho cuando: un test de integración prueba cada CHECK y el trigger, y `makemigrations --check` está limpio.
+- [ ] **T3. Inventario para producción.** — RF-PRD-09, 39, 41, 46
+  - `InventarioService.existencias_en_orden` y `consumido`; las salidas guardan `fecha=hoy`.
+  - Hecho cuando: sus tests pasan (orden FEFO o FIFO sin vencidos, importes y lotes de las salidas, fecha de la salida) y 0003a–0004b siguen en verde.
+- [ ] **T4. Crear, editar, pasar a en proceso y anular.** — RF-PRD-16, 18, 33, 35 a 38, 44, 45
+  - `CrearOp`, `EditarOp`, `PasarAEnProceso`, `AnularOp`; correlativo `OP-000001`; responsable; contador de OP en curso (RF-TEN-32).
+  - Hecho cuando: `test_ordenes.py` cubre crear con y sin receta, editar sin stock, transiciones, anular sin stock y permisos.
+- [ ] **T5. Finalizar.** — RF-PRD-09, 14, 15, 41, 42, 46, 47
+  - `FinalizarOp` según §4: faltantes de todos los componentes, salidas, entrada con lote (nuevo o heredado), servicios, costo indirecto, lote perdido.
+  - Hecho cuando: `test_ordenes.py` reproduce las dos OP del ejemplo de la spec y el lote perdido (pérdida 790.00), y un faltante no deja movimientos.
+- [ ] **T6. Concurrencia y reconciliación.** — RF-PRD-12; art. 4.6
+  - Dos finalizaciones simultáneas (dos hilos); OP encadenadas con semillas: el kardex reproduce stock y valor.
+  - Hecho cuando: ambos tests pasan estables en 3 corridas.
+- [ ] **T7. Receta desde la OP.** — RF-PRD-38
+  - `GuardarReceta` en el catálogo (`catalogo.producto.gestionar`, ciclos, historial).
+  - Hecho cuando: su test pasa y la OP puede guardar sus componentes como receta del producto.
+- [ ] **T8. Pantallas.** — RF-PRD-34, 36 a 39, 41, 44 a 46, 48
+  - `/produccion/`, `/produccion/nueva/`, `/produccion/<id>/` (componentes dinámicos, disponibilidad, diálogo de finalizar, Más acciones › Anular, pestaña Costos), menú "Producción", enlace desde el kardex.
+  - Hecho cuando: `tests/production/integration/test_pantallas.py` y la prueba de aislamiento pasan.
+- [ ] **T9. Accesos.** — spec, Impacto
+  - Se retiran `produccion.recetas` y `produccion.envasado` del catálogo de accesos y de las plantillas de rol; se revisan los escenarios de 0001b/0001c que los nombran.
+  - Hecho cuando: la suite de 0001b y 0001c sigue en verde y `migrate` borra los permisos retirados.
+- [ ] **T10. Escenarios de aceptación y cierre.** — todos
+  - `tests/acceptance/pasos_produccion.py` y `test_e05a.py`; spec, plan y tareas a "implementada"; `MEMORY.md`.
+  - Hecho cuando: los 14 escenarios de 0005a están en verde; suite, lint, formato, contratos y migraciones en verde; cada RF con escenario o test.

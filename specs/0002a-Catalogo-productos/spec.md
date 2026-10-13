@@ -1,6 +1,6 @@
 # Spec 0002a — Catálogo: unidades y productos
 
-Estado: implementada (2026-10-10) · enmienda 1 (ficha estilo Odoo) implementada · enmienda 2 (marcas y listado de maestros) implementada · enmienda 3 (unidades de fábrica) implementada · **enmienda 4 (Bien o Servicio) implementada** · **enmienda 5 (familias → categorías) implementada (2026-10-10)** · **el ISC en la ficha (RF-CAT-45, 46 y 48) lo reemplaza 0002e (impuestos), implementada el 2026-10-12**
+Estado: implementada (2026-10-10) · enmienda 1 (ficha estilo Odoo) implementada · enmienda 2 (marcas y listado de maestros) implementada · enmienda 3 (unidades de fábrica) implementada · **enmienda 4 (Bien o Servicio) implementada** · **enmienda 5 (familias → categorías) implementada (2026-10-10)** · **el ISC en la ficha (RF-CAT-45, 46 y 48) lo reemplaza 0002e (impuestos), implementada el 2026-10-12** · **enmienda 6 (estrategia de salida por producto) implementada (2026-10-12)**
 
 Épica E02 (Catálogo), parte 1 de 3. Depende de: 0001a, 0001c. La usan: 0002b, 0002c y 0003–0008.
 
@@ -151,6 +151,16 @@ El sistema de referencia trata todo como "producto vendible" con stock entero.
 - RF-CAT-49: EL SISTEMA llama **Categoría** a lo que hasta ahora se llamaba "familia", en todas las pantallas, filtros, menú y API. Las reglas de RF-CAT-34 no cambian (nombre único sin mayúsculas, se edita, se activa o desactiva, y se elimina solo si ningún producto la usa). No hay ninguna otra "categoría" en el catálogo: las de ISC se retiraron con la enmienda 4.
 - RF-CAT-50: CUANDO un usuario con `catalogo.producto.gestionar` crea o edita una categoría, EL SISTEMA muestra un formulario propio con **nombre** (obligatorio), **descripción** (opcional, texto libre) y la casilla **Categoría activa**, con los botones Guardar y Cancelar y migas "Inicio / Categorías / Nueva" o "… / Editar". Desactivarla desde el formulario sigue las reglas de RF-CAT-33.
 - RF-CAT-51 (patrón de listado, ADR-12): EL SISTEMA abre "Nuevo …" y el lápiz de todos los maestros (unidades, categorías, marcas) en su propia página de formulario, sin la tabla, como en la referencia del PO.
+
+## Enmienda 6: estrategia de salida por producto (aprobada por el PO, 2026-10-12)
+
+**Pedido del PO (2026-10-12):** "la estrategia de inventario FEFO o FIFO se puede plantear por producto… en la venta se puede establecer el lote de venta; en caso no se registre, se aplica la estrategia por producto."
+
+La estrategia decide **qué lote sale** cuando una operación no indica el lote (rotación física). El **costo** de la salida sigue siendo el promedio ponderado del producto (constitución, art. 4.2): FIFO no es un método de costeo aquí.
+
+- RF-CAT-62: EL SISTEMA muestra en la pestaña Inventario de un **bien** el campo **Estrategia de salida**, con dos opciones: **FEFO** (primero vence, primero sale; por defecto) y **FIFO** (primero entra, primero sale). Un servicio no la tiene. Cambiarla rige para las salidas siguientes; las ya registradas no cambian. Los productos existentes quedan en FEFO.
+- Definiciones: con **FEFO**, sale primero el lote que vence antes (a igual vencimiento, el de ingreso más antiguo) y los lotes sin vencimiento van después, del más antiguo al más nuevo; con **FIFO**, sale primero el lote de ingreso más antiguo, sin mirar el vencimiento. En ambas, un lote vencido no sale salvo por los motivos que lo permiten (0003a, RF-INV-23 y 29) y el stock sin lote sale al último.
+- Ajusta: 0003a RF-INV-22 (la asignación usa la estrategia del producto); 0006b RF-VEN-20 (el usuario puede elegir el lote de cada línea; si no, la estrategia del producto); 0005a RF-PRD-41 y 46 (el lote sugerido de cada componente sigue la estrategia del producto).
 
 ## Requisitos no funcionales
 

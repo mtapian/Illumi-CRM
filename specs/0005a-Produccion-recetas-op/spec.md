@@ -1,161 +1,141 @@
-# Spec 0005a — Producción: recetas y órdenes de producción
+# Spec 0005a — Producción: órdenes de producción
 
-Estado: borrador · **ajuste por 0002a enmienda 4 (OP de cualquier producto, referencia Odoo) en borrador**
+Estado: **aprobada** (PO: "procede", 2026-10-12) · consolidada el 2026-10-12 con la enmienda 4 de 0002a (OP de cualquier producto, referencia Odoo) y las decisiones del PO del 2026-10-11 y 2026-10-12; **absorbe 0005b** (envasado, cierre y costo del lote), que se retira
 
-Épica E05 (Producción), parte 1 de 2. Depende de: 0002a, 0003a. La usan: 0005b, 0006.
+Épica E05 (Producción). Depende de: 0002a (receta, enmienda 4), 0003a (inventario y lotes). La usan: 0008b (costo y pérdidas de producción).
 
 ## Contexto y objetivo
 
-La cervecera produce a pedido: cocina un lote de un estilo (cientos de litros), lo fermenta durante semanas y luego lo envasa en varias presentaciones (botella, lata, barril). Hoy no sabe cuánto le costó cada lote, cuánto se perdió en el camino ni qué lote terminó en manos de qué cliente.
+La cervecera produce a pedido: cocina un lote de un estilo (cientos de litros), lo fermenta durante semanas y luego lo envasa en varias presentaciones (botella, lata, barril). Hoy no sabe cuánto le costó cada lote, cuánto se perdió en el camino ni qué lote terminó en cada botella.
 
-**Objetivo:** conocer el costo real de cada lote y de cada botella o barril, con trazabilidad desde la receta hasta el envasado.
+**Objetivo:** registrar cada producción como una orden (OP) que consume componentes y obtiene un producto con su lote, para conocer el costo real de cada lote y de cada unidad envasada, con trazabilidad del lote desde el granel hasta la botella.
 
 ## Usuarios / actores
 
 | Usuario | Qué hace en esta spec |
 |---|---|
-| Producción (maestro cervecero) | Gestiona recetas, planifica, inicia, termina y cierra OP, registra envasados |
-| Gerente / Administrador | Además anula OP y consulta el costo del lote |
+| Producción (maestro cervecero) | Crea, edita, inicia y finaliza OP |
+| Gerente / Administrador | Además anula OP y consulta sus costos |
 
 ## Historias de usuario
 
-- H1: Como maestro cervecero, quiero recetas versionadas para cambiar una receta sin alterar las OP que ya la usaron.
-- H2: Como maestro cervecero, quiero planificar una OP y ver si me faltan insumos antes de empezar.
-- H3: Como vendedor, quiero que el sistema me sugiera cuántos litros producir para cubrir un pedido.
-- H4: Como maestro cervecero, quiero registrar lo que realmente consumí y los litros que obtuve para conocer el costo por litro del lote.
+- H1: Como maestro cervecero, quiero crear una OP desde la receta del producto y ajustar sus componentes para producir lo que realmente voy a usar.
+- H2: Como maestro cervecero, quiero ver si tengo los componentes disponibles antes de producir.
+- H3: Como maestro cervecero, quiero registrar lo que realmente consumí y lo que obtuve, con su lote, para que el stock y el costo del lote sean reales.
+- H4: Como gerente, quiero ver el costo, la merma y el rendimiento de cada OP.
 
 ## Definiciones
 
-- **Receta:** granel (estilo) + volumen base en litros + insumos con su cantidad para ese volumen. Tiene versiones; cada granel tiene una versión activa.
+- **OP (orden de producción):** fabricación de una cantidad de un **bien que se fabrica** (0002a, RF-CAT-38), a partir de una lista de **componentes** (cualquier producto activo del catálogo). La cocción del granel y el envasado son OP: el envasado es una OP del producto envasado que consume el granel de un lote.
+- **Receta:** componentes por unidad del producto (0002a, RF-CAT-41). Es opcional; la OP copia sus componentes y la copia es de la OP.
+- **Por consumir:** cantidad prevista de un componente = cantidad por unidad × cantidad de la OP, con 4 decimales.
+- **Merma de un componente:** consumido real − por consumir (negativa si se usó menos).
+- **Rendimiento:** cantidad producida / cantidad programada.
+- **Costo unitario del producto:** (costo de los componentes consumidos + costo indirecto) / cantidad producida, con 6 decimales (constitución, art. 4.1). Los bienes se consumen al costo promedio vigente (art. 4.2).
+- **Lote perdido:** OP finalizada con cantidad producida 0: sus componentes se consumieron, pero no se obtuvo producto.
 
-- **OP (orden de producción):** cocción y fermentación de una receta para obtener granel.
-
-- **Lote:** código de trazabilidad del granel producido (`{prefijo}-{correlativo de 4 dígitos}`, p. ej. IPA-0020). Las presentaciones envasadas heredan el mismo código.
-
-- **Rendimiento:** litros reales / litros planificados.
-
-- **Costo por litro del lote:** (costo de insumos consumidos + costo indirecto) / litros reales.
-
-- **Lote perdido:** lote contaminado o descartado cuyos insumos ya se consumieron físicamente.
+**Estados** (PO, 2026-10-11: los mismos nombres que la compra, 0004a):
 
 ```
-Receta (estilo, versión, volumen base, insumos)
-   │
-   ▼
-OP PLANIFICADA ──iniciar──► EN_PROCESO ──terminar──► TERMINADA ──(granel del lote = 0)──► CERRADA
-   │  (sin efecto en stock)   │ salida de insumos      │ entrada de granel (lote)
-   ▼                          │ (+ consumos adicionales)├──► Envasado 1 (botellas)
-ANULADA ◄────────────────────┘ (revierte consumos)     ├──► Envasado 2 (barriles)
-                              └─(0 L, lote perdido)──► CERRADA
+Creada ──► En proceso ──► Finalizada        (Anulada, fuera de la barra)
+   │            │            └─ consume componentes e ingresa el producto con su lote
+   └──► Anulada ◄┘            (todo en una sola operación; antes no hay movimientos)
 ```
 
 ### Ejemplo de referencia (base de los escenarios)
 
-**Receta IPA v1** — volumen base 500 L: Malta Pilsen 100 kg · Malta Caramelo 10 kg · Lúpulo Cascade 1500 g · Levadura US-05 10 sobres.
+**OP-000001 · GRA-IPA (IPA a granel, en L) · 500 L.** Receta por litro: Malta Pilsen 0.2 kg · Malta Caramelo 0.02 kg · Lúpulo Cascade 3 g · Levadura US-05 0.02 sobres.
 
-| Paso | Detalle | Costo |
-|---|---|---|
-| Iniciar OP-000020 (500 L) | Malta Pilsen **102 kg** real × 4.00 = 408.00 · Caramelo 10 × 6.00 = 60.00 · Cascade 1500 × 0.12 = 180.00 · US-05 10 × 15.00 = 150.00 | 798.00 |
-| Terminar | 425 L reales (rendimiento 85 %) + costo indirecto 52.00 | 850.00 → **2.000000 S/ por L** · lote IPA-0020 |
-| Envasado E-000031 | 1000 botellas 330 ml (330 L) + 3 barriles 20 L (60 L) + 19.5 L de merma = 409.5 L de granel | Granel 819.00 → efectivo 819 / 390 = **2.100000 S/ por L** |
-| Costo botella | 0.33 × 2.10 = 0.693 + botella 0.85 + tapa 0.05 + etiqueta 0.20 + caja 0.0417 × 2.40 = 0.10008 | **1.893080** |
-| Costo barril | 20 × 2.10 = 42.00 + precinto 1.50 | **43.500000** |
-| Saldo del lote | 425 − 409.5 = 15.5 L de granel | 31.00 |
+| Componente | Por consumir | Consumido real | Costo promedio | Costo |
+|---|---|---|---|---|
+| Malta Pilsen | 100 kg | **102 kg** (merma 2 kg) | 4.00 | 408.00 |
+| Malta Caramelo | 10 kg | 10 kg | 6.00 | 60.00 |
+| Lúpulo Cascade | 1500 g | 1500 g | 0.12 | 180.00 |
+| Levadura US-05 | 10 sobres | 10 sobres | 15.00 | 150.00 |
 
-Control: entra a terminados 1893.08 + 130.50 = 2023.58 = granel 819.00 + materiales 1204.58 ✔
+Finalizada con **425 L** (rendimiento 85 %) y costo indirecto 52.00: (798.00 + 52.00) / 425 = **2.000000 S/ por L**, lote **IPA-0020**.
+
+**OP-000002 · TER-IPA-330 (botella 330 ml) · 1000 UND.** Componentes: GRA-IPA 0.33 L, botella 1, tapa 1, etiqueta 1, caja x24 0.0417 por unidad.
+
+| Componente | Por consumir | Consumido real | Costo |
+|---|---|---|---|
+| GRA-IPA (lote IPA-0020) | 330 L | **340 L** (merma 10 L) | 340 × 2.00 = 680.00 |
+| Botella ámbar 330 ml | 1000 | 1000 | × 0.85 = 850.00 |
+| Tapa corona | 1000 | 1000 | × 0.05 = 50.00 |
+| Etiqueta IPA | 1000 | 1000 | × 0.20 = 200.00 |
+| Caja x24 | 41.7 | 41.7 | × 2.40 = 100.08 |
+
+Finalizada con 1000 UND: 1880.08 / 1000 = **1.880080 S/ por botella**, lote sugerido **IPA-0020** (el del único componente con lote). Saldo de granel del lote: 425 − 340 = 85 L a 2.000000.
 
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
-### UC-PRD-01 Gestionar recetas versionadas
+### UC-PRD-01 Crear y preparar una OP
 
-- RF-PRD-01: CUANDO un usuario con `produccion.receta.gestionar` crea una receta, EL SISTEMA exige un granel, un volumen base mayor a 0 y al menos un insumo; los insumos deben ser productos `INSUMO` activos (RN-PRD-01).
-- RF-PRD-02: CUANDO se edita una receta ya usada en una OP, EL SISTEMA crea una versión nueva y las OP existentes conservan la suya (RN-PRD-09).
-- RF-PRD-03: EL SISTEMA mantiene una versión activa por granel y permite consultar las anteriores.
+- RF-PRD-36: CUANDO un usuario con `produccion.op.planificar` crea una OP, EL SISTEMA pide el **producto** (un bien activo que se fabrica), la **cantidad** en su unidad (mayor a 0, 4 decimales), la fecha programada, el almacén de origen de los componentes y el de destino del producto (sugerido el almacén principal), el responsable (RF-PRD-35) y un **comentario** opcional de texto libre (p. ej. el pedido que atiende; PO, 2026-10-12: sin vínculo con los pedidos), y la guarda como **Creada** con un número correlativo por empresa (`OP-000001`), sin efecto en el stock.
+- RF-PRD-35: CUANDO se crea una OP, EL SISTEMA le asigna un responsable, que por defecto es quien la crea y puede cambiarse por otro usuario activo de la empresa con `produccion.op.ejecutar`.
+- RF-PRD-37: EL SISTEMA muestra en la OP un campo **Receta**, opcional, que propone la receta del producto si la tiene. CUANDO se elige, EL SISTEMA **copia** sus componentes a la OP con su cantidad por consumir. Si se deja vacío, la OP empieza sin componentes. Editar la lista de la OP no cambia la receta, y cambiar después la receta no altera las OP existentes.
+- RF-PRD-38: MIENTRAS la OP está Creada o En proceso, EL SISTEMA permite agregar, quitar y cambiar componentes con **cualquier producto activo del catálogo** salvo el propio producto, sin mover stock, y cambiar su cantidad, fechas, almacenes, responsable y comentario. Un usuario que además tiene `catalogo.producto.gestionar` puede **guardar los componentes de la OP como la receta del producto** (por unidad = por consumir / cantidad de la OP).
+- RF-PRD-39: EL SISTEMA muestra junto a cada componente que es un bien su disponibilidad: **Disponible** si el stock del almacén de origen cubre lo por consumir, **No disponible** si no. La disponibilidad solo informa: no impide crear ni editar la OP.
+- RF-PRD-44: SI un componente es un **servicio** (p. ej. una maquila de un tercero), ENTONCES EL SISTEMA no le muestra disponibilidad ni le mueve stock, y le pide su costo en S/ (2 decimales, ≥ 0), que suma al costo del producto.
+- RF-PRD-45: CUANDO un usuario con `produccion.op.ejecutar` pasa una OP Creada a **En proceso**, EL SISTEMA solo cambia su estado (indica que la producción empezó) y registra quién y cuándo.
 
-### UC-PRD-02 Planificar OP
+### UC-PRD-02 Finalizar una OP
 
-- RF-PRD-04: CUANDO un usuario con `produccion.op.planificar` crea una OP desde la receta activa (o una versión elegida) con litros, fecha prevista y pedidos vinculados opcionales, EL SISTEMA la guarda como `PLANIFICADA`, sin efecto en el stock.
-- RF-PRD-05: CUANDO se planifica una OP, EL SISTEMA calcula la cantidad teórica de cada insumo = cantidad de la receta × litros planificados / volumen base, con 4 decimales (RN-PRD-02).
-- RF-PRD-06: SI falta stock de algún insumo, ENTONCES EL SISTEMA lo advierte, pero permite planificar (el insumo puede comprarse antes de iniciar).
-- RF-PRD-35 *(2026-10-10, referencia Odoo)*: CUANDO se planifica una OP, EL SISTEMA le asigna un responsable, que por defecto es quien la planifica y puede cambiarse por otro usuario activo de la empresa con `produccion.op.ejecutar`.
-- RF-PRD-07: CUANDO se planifica desde un pedido confirmado, EL SISTEMA sugiere los litros por estilo = Σ max(0, faltante de cada presentación) × contenido − granel disponible sin comprometer. El faltante se calcula por presentación, porque el sobrante de barriles no cubre la falta de botellas. El usuario puede editar los litros.
+- RF-PRD-41: CUANDO un usuario con `produccion.op.ejecutar` **finaliza** una OP En proceso indicando la cantidad real consumida de cada componente (precargada con lo por consumir), el lote a consumir de cada componente con lotes (sugerido según la estrategia de salida del producto, FEFO o FIFO; 0003a y 0002a enmienda 6), la **cantidad producida**, la **fecha de fin** (sugerida hoy, no futura) y el costo indirecto opcional (S/, 2 decimales, ≥ 0; PO, 2026-10-12), EL SISTEMA, en una sola operación: registra la salida de cada componente al costo promedio vigente; ingresa el producto al almacén de destino a su costo unitario (Definiciones), con su **lote obligatorio**; y deja la OP **Finalizada**. Los movimientos y el ingreso del lote llevan la fecha de fin.
+- RF-PRD-46: CUANDO se finaliza una OP, EL SISTEMA sugiere el código del lote del producto: SI la OP consume un solo componente con lote, el de ese componente (la botella de IPA-0020 es IPA-0020); si no, el SKU del producto con un correlativo. Sugiere el vencimiento como la fecha de fin + la vida útil del producto, si la tiene. Ambos son editables; si el lote ya existe para el producto, se suma a él y debe tener el mismo vencimiento (0003a, RF-INV-26).
+- RF-PRD-09: SI algún componente no tiene stock suficiente en el almacén y lote indicados, ENTONCES EL SISTEMA no finaliza la OP, indica cada faltante y no registra ningún movimiento.
+- RF-PRD-12: SI dos usuarios finalizan la misma OP a la vez, ENTONCES EL SISTEMA la finaliza una sola vez y consume los componentes una sola vez.
+- RF-PRD-14: SI la cantidad producida supera la programada, ENTONCES EL SISTEMA lo permite con una advertencia (rendimiento mayor a 100 %).
+- RF-PRD-15: CUANDO se finaliza una OP con cantidad producida 0 y un motivo (**lote perdido**; PO, 2026-10-12, resuelve Q10), EL SISTEMA consume sus componentes, no ingresa producto ni crea lote, y registra el costo total (componentes + costo indirecto) como **pérdida de producción** de la OP a su fecha de fin, para el estado de resultados (0008b). Sin motivo, una cantidad producida 0 se rechaza.
+- RF-PRD-47: SI la OP no tiene componentes, o el producto ya no está activo o ya no se fabrica, ENTONCES EL SISTEMA no la finaliza e indica el motivo.
 
-### UC-PRD-03 Iniciar OP
+### UC-PRD-03 Anular una OP
 
-- RF-PRD-08: CUANDO un usuario con `produccion.op.ejecutar` inicia una OP confirmando las cantidades reales de insumos (precargadas con las teóricas) y el almacén de origen, EL SISTEMA registra la salida de los insumos al costo promedio vigente y pasa la OP a `EN_PROCESO`.
-- RF-PRD-09: SI falta algún insumo, ENTONCES EL SISTEMA no inicia la OP e indica los faltantes.
-- RF-PRD-10: MIENTRAS la OP esté `EN_PROCESO`, EL SISTEMA permite registrar consumos adicionales (p. ej. dry hopping, clarificantes), incluso de insumos fuera de la receta. SI falta stock del insumo, ENTONCES rechaza el consumo adicional.
-- RF-PRD-11: CUANDO una OP se inicia, EL SISTEMA pasa a `EN_PRODUCCION` sus pedidos vinculados que estén `CONFIRMADO` (épica 0006).
-- RF-PRD-12: SI dos usuarios inician la misma OP a la vez, ENTONCES EL SISTEMA la inicia una sola vez y consume los insumos una sola vez.
+- RF-PRD-16: CUANDO un usuario con `produccion.op.anular` anula con motivo una OP Creada o En proceso, EL SISTEMA la deja **Anulada** sin efecto en el stock (aún no tiene movimientos) y registra quién, cuándo y por qué.
+- RF-PRD-18: SI se intenta anular una OP Finalizada, ENTONCES EL SISTEMA lo rechaza: se corrige con un ajuste de inventario trazable (constitución, art. 4.5).
+- RF-PRD-33: SI se intenta una transición distinta de las de Definiciones (p. ej. finalizar una OP Creada, editar una Finalizada o Anulada), ENTONCES EL SISTEMA la rechaza.
 
-### UC-PRD-04 Terminar OP
+### UC-PRD-04 Consultar OP y su costo
 
-- RF-PRD-13: CUANDO un usuario termina una OP con litros reales mayores a 0, fecha de fin, almacén de destino y costo indirecto opcional, EL SISTEMA crea el lote del granel (código sugerido editable y único; vencimiento = fecha de fin + vida útil del granel, si está definida), ingresa el granel al costo por litro del lote y pasa la OP a `TERMINADA` (RN-PRD-04).
-- RF-PRD-14: SI los litros reales superan los planificados, ENTONCES EL SISTEMA lo permite con una advertencia (rendimiento mayor a 100 %).
-- RF-PRD-15: CUANDO se termina una OP con 0 L y motivo (lote perdido), EL SISTEMA no crea lote, pasa la OP a `CERRADA` y registra su costo total como pérdida de producción del período (épica 0008). *Pendiente de aprobación: PRD Q10.*
-
-### UC-PRD-05 Anular OP
-
-- RF-PRD-16: CUANDO un usuario con `produccion.op.anular` anula con motivo una OP `PLANIFICADA`, EL SISTEMA la pasa a `ANULADA` sin efecto en el stock.
-- RF-PRD-17: CUANDO se anula una OP `EN_PROCESO`, EL SISTEMA revierte todos sus consumos (incluidos los adicionales) al costo original.
-- RF-PRD-18: SI se intenta anular una OP `TERMINADA` o `CERRADA`, ENTONCES EL SISTEMA lo rechaza; las correcciones se hacen con ajustes de inventario (RN-PRD-08).
-- RF-PRD-19: CUANDO se anula una OP, EL SISTEMA devuelve a `CONFIRMADO` solo los pedidos vinculados que estén `EN_PRODUCCION` y no tengan otra OP vinculada en proceso; los demás pedidos no cambian (épica 0006, RF-VEN-41).
-
-## Ajuste por 0002a enmienda 4 (borrador): OP de cualquier producto
-
-**Referencia del PO (2026-10-10):** captura de Odoo de una orden de producción, "considerando productos". Con la enmienda 4 de 0002a no hay granel, terminado ni insumo: se produce **cualquier bien que se fabrica**, con su **receta** si la tiene (opcional, 0002a RF-CAT-41), y cualquier producto del catálogo puede ser componente. La receta versionada (UC-PRD-01) y el envasado (0005b) se unifican en esta OP.
-
-```
-[Confirmar] [Anular]                      Borrador ▸ Confirmada ▸ Hecha      │ Historial
-OP-000007                                                                    │ Lucía · 10 oct 18:54
-Producto           TER-IPA-330 IPA botella 330 ml   Fecha programada 10/10   │ Creó la OP
-Cantidad           1000.0000 UND                    Responsable      Mario   │
-Receta   [IPA botella ▾] (opcional: copia sus componentes)  [Guardar como receta del producto]
-┌ Componentes ┬ Pedidos vinculados ┬ Costos ┐
-│ Producto            Disponibilidad    Por consumir   Unidad          🗑   │
-│ GRA-IPA IPA granel  Disponible          330.0000     L (lote IPA-0020)    │
-│ ENV-BOT330 Botella  No disponible      1000.0000     UND                  │
-│ + Agregar una línea   (cualquier producto activo del catálogo)            │
-└───────────────────────────────────────────────────────────────────────────┘
-```
-
-- RF-PRD-36: CUANDO un usuario con `produccion.op.planificar` crea una OP, EL SISTEMA pide el **producto** (un bien activo que se fabrica), la **cantidad** en su unidad (mayor a 0), la fecha programada y el responsable (RF-PRD-35), y la guarda en **Borrador** sin efecto en el stock. Reemplaza RF-PRD-04.
-- RF-PRD-37: EL SISTEMA muestra en la OP un campo **Receta**, opcional, que propone la receta del producto si la tiene. CUANDO se elige una receta, EL SISTEMA **copia** sus componentes a la OP como una lista: por consumir = cantidad por unidad × cantidad de la OP, con 4 decimales (reemplaza RF-PRD-05). Si se deja vacío, la OP empieza sin componentes. La copia es de la OP: editarla no cambia la receta, y cambiar después la receta no altera las OP existentes (reemplaza las versiones de receta, RF-PRD-01 a 03).
-- RF-PRD-38: MIENTRAS la OP está en Borrador, EL SISTEMA permite agregar, quitar y cambiar componentes con **cualquier producto activo del catálogo** (salvo el propio producto), y guardar los componentes de la OP como la receta del producto ("Generar lista de materiales" de la referencia). SI la OP no tiene ningún componente, ENTONCES EL SISTEMA no la confirma.
-- RF-PRD-39: EL SISTEMA muestra junto a cada componente de un bien su disponibilidad: **Disponible** si el stock del almacén de origen cubre lo por consumir, **No disponible** si no (reemplaza RF-PRD-06). Los servicios (p. ej. maquila de un tercero) no tienen disponibilidad: suman su costo sin mover stock.
-- RF-PRD-40: MIENTRAS la OP está Creada o En proceso, EL SISTEMA permite editar su lista de componentes (agregar, quitar, cambiar cantidades, incluso fuera de la receta) sin mover stock; pasar a **En proceso** solo indica que la producción empezó (PO, 2026-10-11; reemplaza RF-PRD-08 y RF-PRD-10).
-- RF-PRD-41: CUANDO un usuario con `produccion.op.ejecutar` **finaliza** la OP con las cantidades reales consumidas (precargadas), para cada componente con lote el lote a consumir (FEFO sugerido), la cantidad real producida (mayor a 0), el almacén de destino y el costo indirecto opcional, EL SISTEMA, en una sola operación, registra la salida de los componentes al costo promedio vigente, la deja **Finalizada** e ingresa el producto (PO, 2026-10-11: todo se mueve al finalizar). SI algún componente no tiene stock suficiente, ENTONCES no finaliza y no mueve nada (RF-PRD-09 y 12 siguen aplicando). El producto entra al costo unitario = (costo de los componentes consumidos + costo indirecto) / cantidad real, con 6 decimales, y registra el **lote obligatorio** del producto obtenido (reemplaza RF-PRD-13). EL SISTEMA sugiere el código: SI la OP consumió un solo componente con lote, el de ese componente (el envasado: la botella de IPA-0020 es IPA-0020; reemplaza RN-PRD-07 de 0005b); si no, uno nuevo con el SKU del producto y un correlativo. El vencimiento se sugiere como fecha de fin + vida útil del producto (si la tiene). Ambos son editables; el código es único por producto (el lote es del ingreso, no del producto: 0002a, RF-CAT-40).
-- RF-PRD-42: EL SISTEMA registra la **merma** de una OP como la diferencia entre lo consumido real y lo por consumir de cada componente; queda en el costo del producto y se informa en la pestaña Costos (reemplaza la merma de envasado de 0005b).
-- RF-PRD-43: CUANDO se planifica desde un pedido confirmado, EL SISTEMA sugiere una OP por cada producto fabricado con faltante = max(0, pedido − stock disponible sin comprometer), y para los componentes de su receta que también se fabrican, otra OP por su faltante (un nivel). Reemplaza RF-PRD-07.
-
-**Estados:** *(PO, 2026-10-11: mismos nombres que la compra, 0004a)* **Creada ▸ En proceso ▸ Finalizada** (y Anulada fuera de la barra), antes Borrador ▸ Confirmada ▸ Hecha; el producto fabricado entra a stock al **finalizar**. **Los componentes se consumen al finalizar, junto con el ingreso del producto** (PO, 2026-10-11): una OP Creada o En proceso no tiene movimientos, así que anularla solo cambia su estado (ajusta RF-PRD-17). Antes: Equivalen a PLANIFICADA, EN_PROCESO y TERMINADA. CERRADA desaparece: el saldo de un lote se ve en el stock. El lote perdido (Q10) pasa a ser "Hecha con 0" y se mantiene pendiente.
-
-**Impacto en 0005b:** el envasado de varias presentaciones a la vez se hace con una OP por presentación, que consumen el mismo lote de granel. 0005b se reduce al cierre y los reportes de costo, y se reescribe tras la aprobación.
-
-**Fuera de alcance de la referencia:** centros de trabajo y tiempos por operación, pestaña Misceláneo, mensajes y actividades.
+- RF-PRD-48: CUANDO un usuario con `produccion.op.ver` abre el listado de OP, EL SISTEMA lo muestra con la grilla estándar (docs/ux.md §5): número, producto, cantidad programada y producida, fecha programada, responsable y estado, con filtros por estado, producto, fechas y número.
+- RF-PRD-34: CUANDO un usuario con `produccion.reporte.ver` consulta una OP Finalizada, EL SISTEMA muestra su pestaña **Costos**: por cada componente, por consumir vs. consumido (cantidad y costo) y su merma (RF-PRD-42); el costo indirecto; la cantidad programada vs. producida y el rendimiento %; el costo total y el costo unitario del producto. Sin `inventario.costo.ver` (0001c, RF-TEN-51) los importes no se muestran.
+- RF-PRD-42: EL SISTEMA calcula la merma de cada componente como consumido real − por consumir; queda en el costo del producto (no se registra aparte).
 
 ## Requisitos no funcionales
 
-- RNF-PRD-02: La interfaz de OP y envasado se usa en una tablet en planta.
+- RNF-PRD-02: La OP se usa en una tablet en planta: se puede crear, editar y finalizar a 768 px de ancho sin scroll horizontal.
 
 ## Casos límite
 
-- Rendimiento mayor a 100 %: se permite con advertencia.
-- Lote perdido: no se anula la OP (eso devolvería al stock insumos que ya se usaron); se termina con 0 L (RF-PRD-15).
-- OP del mismo estilo que se superponen en fermentación: el costo de la botella sale del costo promedio del granel, no exactamente del lote (ver dudas).
+- Rendimiento mayor a 100 %: se permite con advertencia (RF-PRD-14).
+- Lote perdido: la OP no se anula (eso dejaría en stock lo que ya se usó); se finaliza con 0 y motivo (RF-PRD-15).
+- Envasar un lote en varias presentaciones: una OP por presentación; cada una consume del mismo lote de granel, y el saldo del lote se ve en el stock (0003c).
+- Granel de dos OP del mismo estilo en stock a la vez: cada OP de envasado consume al costo promedio del granel (art. 4.2), no al costo exacto del lote; el lote sirve para la trazabilidad.
+- Componente sin stock al crear: se advierte (No disponible), pero la OP se crea; el faltante se valida al finalizar (RF-PRD-09).
+- Un componente que se desactiva después de copiado: sigue en la OP; no tiene stock (0002a no deja desactivar con stock), así que la OP no se finaliza mientras no se quite.
 
 ## Fuera de alcance
 
-Control de proceso (densidades, temperaturas, pH), planificación de tanques y capacidad, mano de obra por OP, recetas multinivel, mermas estándar por receta, producción continua, costeo estándar con variaciones, anulación de envasados.
+Vínculo de la OP con pedidos (sugerir OP desde un pedido, cambiar el estado de los pedidos; solo el comentario libre), recetas versionadas, recetas multinivel y OP encadenadas, control de proceso (densidades, temperaturas, pH), planificación de tanques y capacidad, centros de trabajo y tiempos por operación, mano de obra por OP, mermas estándar por receta, costeo estándar con variaciones, costo específico por lote, anulación de una OP finalizada.
 
 ## Criterios de finalización
 
 - Escenarios de `features/` en verde.
 - Cada RF de esta spec tiene al menos un escenario o una prueba que lo cubre.
+- Prueba de reconciliación: tras varias OP encadenadas (granel → envasado), el kardex reproduce stock y valor de cada producto (constitución, art. 4.6).
+
+## Impacto en otras specs
+
+- **0005b:** se retira; el envasado es una OP (RF-PRD-41, 46), la merma está en RF-PRD-42 y el costo en RF-PRD-34. El cierre de la OP desaparece: el saldo de un lote se ve en el stock.
+- **0001b / 0001c:** las funcionalidades `produccion.recetas` (la receta está en el catálogo, 0002a) y `produccion.envasado` (el envasado es una OP) se retiran del catálogo de accesos; las plantillas de rol se ajustan en el plan.
+- **0006a / 0006b:** los pedidos no cambian de estado por las OP (RF-PRD-11, 19, 27 y 32 se retiran); se revisan al reescribir esas specs.
+- **0008b:** lee la pérdida de producción (RF-PRD-15) y el costo de las OP.
+
+## RF retirados (historia)
+
+RF-PRD-01 a 03 (recetas versionadas: la receta es del producto, 0002a) · RF-PRD-04 a 06 (→ RF-PRD-36, 37, 39) · RF-PRD-07 y 43 (sugerir desde pedidos: fuera de alcance) · RF-PRD-08 y 10 (consumo al iniciar y adicionales → RF-PRD-38, 41) · RF-PRD-11, 19, 27, 32 (estados de pedidos) · RF-PRD-13 (→ RF-PRD-41, 46) · RF-PRD-17 (anular revertía consumos: ya no hay) · RF-PRD-20 a 31 de 0005b (envasado y cierre → OP).
 
 ## Dudas abiertas
 
-- [NECESITA ACLARACIÓN] **PRD Q10:** ¿se aprueba el lote perdido con 0 L (RF-PRD-15)? Escenarios marcados `@pendiente-q10`.
-- [NECESITA ACLARACIÓN] **Contador (PRD Q12):** costeo del granel: ¿promedio del producto (hoy) o costo específico por lote? Con OP superpuestas del mismo estilo, el costo de la botella no es exactamente el del lote.
-- [NECESITA ACLARACIÓN] **Contador (PRD Q12):** el costo indirecto manual por OP puede duplicar gastos de planta registrados como gasto operativo. ¿Se mantiene, se vincula a un gasto o se elimina en el MVP?
-- [NECESITA ACLARACIÓN] Wireframes de la OP y del envasado (no existen; el sistema de referencia no tiene producción).
+- [NECESITA ACLARACIÓN] **Contador (Q12):** el costo indirecto manual por OP (opcional, PO 2026-10-12) puede duplicar gastos de planta registrados como gasto operativo (0008a). ¿Algún reparo?
+- [NECESITA ACLARACIÓN] **Contador:** la pérdida de producción de un lote perdido (RF-PRD-15), ¿va como costo de producción del período o como gasto (desmedro)? ¿Requiere sustento?

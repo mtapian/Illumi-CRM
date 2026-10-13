@@ -149,7 +149,8 @@ class InventarioService:
         self, x: Linea, producto, almacen, motivo, hoy
     ) -> list[tuple[Existencia, Decimal]]:
         """De qué existencias sale `x`: el lote indicado (o el stock sin lote si `exacto`); si
-        no, FEFO cuando hay stock con lote; si no, el stock sin lote (RF-INV-22, 23)."""
+        no, la estrategia del producto (FEFO o FIFO) cuando hay stock con lote; si no, el stock
+        sin lote (RF-INV-22, 23; 0002a enmienda 6)."""
         existencias = self._existencias(x, producto, almacen)
         vacia = Existencia(Decimal("0"), x.lote, producto=producto.sku, almacen=almacen)
         if x.lote or x.exacto:
@@ -157,7 +158,9 @@ class InventarioService:
             validar_salida_de_lote(e, motivo, hoy)
             return [(e, x.cantidad)]
         if any(e.lote for e in existencias):
-            return asignar_fefo(existencias, x.cantidad, hoy, producto.unidad)
+            return asignar_fefo(
+                existencias, x.cantidad, hoy, producto.unidad, producto.estrategia_salida
+            )
         return [(existencias[0] if existencias else vacia, x.cantidad)]
 
     def stock_en(self, producto_id: int, almacen_id: int, lote: str | None) -> Decimal:

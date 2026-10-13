@@ -5,6 +5,7 @@ from django.db.models import F, Q
 from django.db.models.functions import Lower
 
 from catalog.domain.impuestos import AFECTACION, COMPRA, FIJO, ISC, PORCENTAJE, VENTA
+from catalog.domain.producto import ESTRATEGIAS
 from catalog.domain.tipos import TipoProducto as T
 from shared.infrastructure.tenant_models import TenantModel
 
@@ -75,6 +76,9 @@ class Producto(TenantModel):
     precio_venta = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     contenido_litros = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
     vida_util_dias = models.PositiveIntegerField(null=True, blank=True)
+    estrategia_salida = models.CharField(  # RF-CAT-62: qué lote sale si no se indica
+        max_length=4, choices=[(e, e) for e in ESTRATEGIAS], default="FEFO"
+    )
     peso_kg = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     volumen_m3 = models.DecimalField(max_digits=12, decimal_places=6, null=True, blank=True)
     referencia = models.CharField(max_length=60, blank=True)  # RF-CAT-31
@@ -109,6 +113,9 @@ class Producto(TenantModel):
             models.CheckConstraint(
                 condition=Q(vida_util_dias__isnull=True) | Q(vida_util_dias__gt=0),
                 name="vida_util_positiva",
+            ),
+            models.CheckConstraint(
+                condition=Q(estrategia_salida__in=ESTRATEGIAS), name="estrategia_de_salida"
             ),
         ]
         indexes = [models.Index(fields=["empresa", "activo", "tipo"])]

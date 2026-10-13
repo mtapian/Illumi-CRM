@@ -149,3 +149,10 @@ Reglas (constitución, art. 8):
   - Hecho cuando: ningún texto visible dice "familia"; la categoría guarda su descripción; los tests y escenarios de familias pasan con el nombre nuevo.
 - [x] **T43. Formulario propio para nuevo y editar en los maestros (con "activa" en categorías).** — RF-CAT-50, RF-CAT-51
   - Hecho cuando: `?nuevo=1` y `?editar=<id>` muestran solo el formulario con migas, Guardar y Cancelar; un test cubre editar nombre, descripción y estado de una categoría.
+
+## Enmienda 6: estrategia de salida por producto (aprobada, 2026-10-12)
+
+- [x] **T44. Campo `estrategia_salida` (FEFO/FIFO, por defecto FEFO) en el producto, dominio y migración; ficha (pestaña Inventario) y fachada (`ProductoDTO`).** — RF-CAT-62
+  - Hecho cuando: un bien guarda y muestra su estrategia; un servicio no la tiene; los productos existentes quedan en FEFO.
+- [x] **T45. El inventario asigna lotes según la estrategia (`orden_fifo` junto a `orden_fefo`).** — RF-CAT-62; 0003a RF-INV-22
+  - Hecho cuando: el escenario FIFO de 0003a está en verde y los de FEFO siguen en verde.

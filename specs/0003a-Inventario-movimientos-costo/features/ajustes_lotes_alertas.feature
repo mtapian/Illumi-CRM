@@ -21,6 +21,14 @@ Característica: Ajustes, lotes, almacenes y alertas
     Y se asignan 12 UND del lote "IPA-0018"
     Y no se asigna nada del lote "IPA-0012" porque está vencido
 
+  @UC-INV-04 @borde @RF-INV-22 @RF-CAT-62
+  Escenario: Un producto con estrategia FIFO saca primero el lote más antiguo
+    Dado que "TER-IPA-330" tiene la estrategia de salida "FIFO"
+    Y que el lote "IPA-0018" ingresó el "2026-09-01" y el lote "IPA-0015" el "2026-10-01"
+    Cuando se solicita la salida de 60 UND de "TER-IPA-330" sin indicar lote
+    Entonces se asignan 60 UND del lote "IPA-0018"
+    Y no se asigna nada del lote "IPA-0012" porque está vencido
+
   @UC-INV-04 @RN-INV-06 @borde @RF-INV-19 @RF-INV-22
   Escenario: Stock disponible insuficiente sin contar vencidos
     Cuando se solicita la salida de 170 UND de "TER-IPA-330" sin indicar lote

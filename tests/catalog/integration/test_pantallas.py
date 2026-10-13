@@ -349,6 +349,7 @@ def test_impuestos_del_producto_en_la_ficha(client, lucia):
         ids = {(i.nombre, i.tipo): i.id for i in Impuesto.objects.all()}
     nuevo = client.get("/catalogo/productos/nuevo/").content.decode()
     assert 'name="impuestos_venta"' in nuevo and 'name="impuestos_compra"' in nuevo
+    assert nuevo.count('data-etiquetas="Agregar impuesto…"') == 2  # venta y compra como etiquetas
     datos = {"tipo": "BIEN", "se_vende": "on", "se_compra": "on", "sku": "LIB-1", "nombre": "Libro"}
     datos |= {"unidad": "UND", "precio_venta": "50", "impuestos_venta_presente": "1"}
     datos |= {"impuestos_compra_presente": "1"}
@@ -374,3 +375,20 @@ def test_la_empresa_ya_no_edita_el_igv(client, lucia):
     """0002e T7 (0001a RF-TEN-15, 16): el IGV vive en los impuestos del catálogo."""
     html = client.get("/configuracion/empresa/").content.decode()
     assert 'value="igv"' not in html and "/catalogo/impuestos/" in html
+
+
+def test_estrategia_de_salida_en_la_pestana_inventario(client, lucia):
+    """0002a enmienda 6, RF-CAT-62: FEFO por defecto; se guarda FIFO desde la ficha."""
+    datos = {"tipo": "BIEN", "se_compra": "on", "sku": "ROPA-1", "nombre": "Polo", "unidad": "UND"}
+    client.post("/catalogo/productos/nuevo/", datos)
+    with tenant_context(lucia.empresa_id):
+        polo = Producto.objects.get(sku="ROPA-1")
+    assert polo.estrategia_salida == "FEFO"
+    ficha = client.get(f"/catalogo/productos/{polo.id}/").content.decode()
+    assert "FIFO: primero entra, primero sale" in ficha
+    client.post(
+        f"/catalogo/productos/{polo.id}/",
+        datos | {"accion": "guardar", "estrategia_salida": "FIFO"},
+    )
+    polo.refresh_from_db()
+    assert polo.estrategia_salida == "FIFO"

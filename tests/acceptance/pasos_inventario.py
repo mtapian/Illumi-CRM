@@ -330,6 +330,22 @@ def vida_util(ctx, sku, n):
     )
 
 
+@given(re_(r"que {} tiene la estrategia de salida (?P<e>\"FEFO\"|\"FIFO\")", "sku"))
+def estrategia(ctx, sku, e):
+    p = producto(ctx, sku)
+    p.__class__.all_tenants.filter(pk=p.pk).update(estrategia_salida=e.strip('"'))
+
+
+@given(
+    re_(r"que el lote {} ingresó el {} y el lote (?P<otro>\"[^\"]+\") el {}", "lote", "f1", "f2")
+)
+def ingresos(ctx, lote, f1, otro, f2):
+    for codigo, fecha in ((lote, f1), (otro.strip('"'), f2)):
+        Lote.all_tenants.filter(empresa=ctx["empresa"], codigo=codigo).update(
+            fecha_ingreso=date.fromisoformat(fecha)
+        )
+
+
 @when(re_(r"entra un lote {} de (?P<n>[\d.]+) UND de {} sin indicar vencimiento", "lote", "sku"))
 def entra_lote(ctx, lote, n, sku):
     mover(ctx, "ENTRADA", "COMPRA", sku, n, "4", lote)

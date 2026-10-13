@@ -1,101 +1,102 @@
-# Plan 0005a — Producción: recetas y órdenes de producción
+# Plan 0005a — Producción: órdenes de producción
 
-Estado: borrador
+Estado: aprobado (PO: "dale", 2026-10-12), para la spec consolidada aprobada el 2026-10-12 ("procede")
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 
-Contexto: `src/production`. Usa `CatalogoQuery` (recetas, presentaciones, materiales), `InventarioService` (consumos, granel, envasado) y `PedidosPort` (transiciones de pedidos, implementado por épica 0006). Requiere: 0002a, 0003a.
+Contexto nuevo: `src/production` (app `production`), con las mismas capas que compras. Usa la fachada del catálogo (`CatalogoQuery`: producto, receta), el `InventarioService` (0003a) para consumir componentes e ingresar el producto, y los almacenes del inventario. La OP sigue el patrón de la compra (0004a): estados Creada ▸ En proceso ▸ Finalizada, todo el stock se mueve en una sola transacción al finalizar, con la OP bloqueada (`FOR UPDATE`).
 
 ## 1. Archivos y responsabilidades
 
 | Archivo | Responsabilidad | RF |
 |---|---|---|
-| `src/production/domain/receta.py` | Agregado `Receta`: insumos válidos, escalado, versionado | RF-PRD-01 a 03, 05 |
-| `src/production/domain/orden.py` | Agregado `OrdenProduccion`: máquina de estados, consumos, terminar, anular, cerrar | RF-PRD-08 a 19 |
-| `src/production/domain/sugerencia.py` | Litros sugeridos para un pedido | RF-PRD-07 |
-| `src/production/domain/lote.py` | Código de lote sugerido y vencimientos | RF-PRD-13 |
-| `src/production/domain/errores.py` | `TransicionInvalida`, `StockInsuficiente`, `GranelInsuficiente`, `PresentacionDeOtroGranel`, `OpTerminadaNoAnulable`… | todos los `SI … ENTONCES` |
-| `src/production/application/recetas.py` | `CrearReceta`, `EditarReceta` | RF-PRD-01 a 03 |
-| `src/production/application/ordenes.py` | `PlanificarOP`, `IniciarOP`, `RegistrarConsumoAdicional`, `TerminarOP`, `AnularOP`, `CerrarOP` | RF-PRD-04 a 19 |
-| `src/production/application/fachada.py` | `ProduccionService.desvincular_pedido()`, `granel_disponible()`, `ops_en_proceso()` | (épica 0006, RF-VEN-37, 41) |
-| `src/production/application/puertos.py` | `PedidosPort`: `marcar_en_produccion`, `evaluar_tras_op`, `evaluar_listos` | RF-PRD-11, 19 |
-| `src/production/infrastructure/models.py`, `repositorios.py` | Modelos y repositorios | §2 |
-| `src/production/interfaces/views/*.py` + `templates/production/*.html` | Pantallas de §5 (uso en tablet) | RF-PRD-01 a 19 |
+| `src/production/domain/op.py` | Estados y transiciones; `por_consumir`, `copiar_receta`, `validar_componentes`, `merma`, `costo_unitario`, `validar_finalizacion`, `rendimiento_excedido`, `sugerir_lote` (§3) | RF-PRD-33, 36 a 38, 41, 42, 44, 46, 47, 14, 15 |
+| `src/production/domain/errores.py` | `OpInvalida` (con su campo, docs/ux.md §4) | todos los `SI … ENTONCES` |
+| `src/production/application/ordenes.py` | `CrearOp`, `EditarOp` (`produccion.op.planificar`); `PasarAEnProceso`, `FinalizarOp` (`produccion.op.ejecutar`); `AnularOp` (`produccion.op.anular`) | RF-PRD-09, 12, 14 a 16, 18, 33, 35 a 38, 41, 44 a 47 |
+| `src/production/application/puertos.py` | `UsuariosPort` (usuarios activos con `produccion.op.ejecutar`, para el responsable) | RF-PRD-35 |
+| `src/production/infrastructure/models.py`, `repositorios.py`, `contenedor.py`, `apps.py` | `OrdenProduccion`, `OpComponente` (§2); `OrdenesOrm`; registro del contador de OP en curso (0001b, RF-TEN-32) | §2 |
+| `src/production/interfaces/` | `/produccion/` (listado), `/produccion/nueva/`, `/produccion/<id>/` (ficha con componentes y pestaña Costos), menú "Producción" | RF-PRD-34, 36 a 39, 48 |
+| `src/inventory/application/servicio.py` | `existencias_en_orden(producto, almacén, hoy)` (lectura, en el orden de la estrategia de salida del producto, FEFO o FIFO, sin vencidos; 0002a enmienda 6) para disponibilidad y lote sugerido; `consumido(ids)` (producto, lote, cantidad e importe de los movimientos); las salidas guardan `fecha=hoy` como ya lo hacen las entradas | RF-PRD-09, 39, 41, 46 |
+| `src/catalog/application/productos.py` | `GuardarReceta(actor, producto_id, receta)` (`catalogo.producto.gestionar`): valida la receta como `EditarProducto` (ciclos, componentes activos) y registra el historial | RF-PRD-38 |
+| `src/inventory/interfaces/templates/inventory/kardex.html` | Enlace de los movimientos `PRODUCCION` a `/produccion/<id>/` | RF-PRD-34 |
+| `src/shared/domain/accesos.py`, `src/tenancy/domain/plantillas.py` | Se retiran `produccion.recetas` (`produccion.receta.*`) y `produccion.envasado` (`produccion.envasado.registrar`); la sincronización de `migrate` los borra de la base y de los roles | spec, Impacto |
+| `pyproject.toml` | `production` en import-linter (§6) | — |
 
 ## 2. Modelo de datos
 
 | Tabla | Campos | Restricciones | RF |
 |---|---|---|---|
-| `production_receta` | empresa_id, granel_id, nombre, version, volumen_base_l, activa | UNIQUE(empresa_id, granel_id, version); una activa por granel | RF-PRD-01 a 03 |
-| `production_receta_insumo` | receta_id, insumo_id, cantidad | UNIQUE(receta_id, insumo_id); `CHECK > 0` | RF-PRD-01, 05 |
-| `production_op` | empresa_id, numero, receta_id, responsable_id (RF-PRD-35), litros_planificados, litros_reales null, estado, fecha_prevista, fecha_inicio, fecha_fin `DATE`, almacen_origen_id, almacen_destino_id, lote_id null, costo_insumos, costo_indirecto, costo_total, costo_por_litro `NUMERIC(14,6)`, perdida_produccion, motivo, anulado_por, anulado_en | UNIQUE(empresa_id, numero) | RF-PRD-04 a 19 |
-| `production_op_pedido` | op_id, pedido_id | UNIQUE(op_id, pedido_id); varias OP por pedido y varios pedidos por OP | RF-PRD-04, 11, 19 |
-| `production_op_consumo` | op_id, insumo_id, cantidad_teorica null, cantidad_real, costo_unitario, costo_total, movimiento_id | — | RF-PRD-08, 10, 17 |
+| `production_ordenproduccion` | empresa_id, numero, producto_id (FK catálogo), cantidad `NUMERIC(14,4)`, fecha_programada, almacen_origen_id, almacen_destino_id, responsable_id, comentario, estado (`CREADA`/`EN_PROCESO`/`FINALIZADA`/`ANULADA`), creada_por, creada_en, en_proceso_por, en_proceso_en; al finalizar: fecha_fin, cantidad_producida `NUMERIC(14,4)`, costo_indirecto `NUMERIC(14,2)` (default 0), costo_total `NUMERIC(14,2)`, costo_unitario `NUMERIC(14,6)` null, lote_codigo, motivo_perdida, perdida `NUMERIC(14,2)` (default 0), finalizada_por, finalizada_en; anulada_por, anulada_en, motivo_anulacion | UNIQUE(empresa_id, numero); CHECK cantidad > 0, costo_indirecto ≥ 0; CHECK Finalizada ⇔ fecha_fin y cantidad_producida no nulas; CHECK cantidad_producida = 0 ⇔ motivo_perdida ≠ '' y perdida = costo_total (lote perdido) y, si es > 0, lote_codigo ≠ '' y costo_unitario no nulo; CHECK Anulada ⇔ motivo_anulacion ≠ '' | RF-PRD-15, 16, 36, 41 |
+| `production_opcomponente` | empresa_id, op_id, producto_id, por_consumir `NUMERIC(14,4)`, costo_servicio `NUMERIC(14,2)` null (solo servicios); al finalizar: consumido `NUMERIC(14,4)`, lote_codigo, costo `NUMERIC(14,2)` | UNIQUE(op_id, producto_id); CHECK por_consumir ≥ 0, consumido ≥ 0, costo_servicio ≥ 0; trigger: los componentes de una OP Finalizada o Anulada no se cambian ni se borran (como las líneas de compra) | RF-PRD-37, 38, 41, 42, 44 |
 
-## 3. Funciones puras
+Numeración con `SequencePort.siguiente("OP")` → `OP-000001`. Los movimientos llevan `ref_tipo = "OP"` y motivo `PRODUCCION` (salidas de componentes y entrada del producto).
+
+## 3. Funciones puras (`production/domain/op.py`)
 
 | Función | Qué hace | RF |
 |---|---|---|
-| `escalar(receta, litros) -> dict` | `cantidad × litros / volumen_base`, 4 decimales | RF-PRD-05 |
-| `faltantes_de_insumos(teoricos, stock) -> list` | Para advertir al planificar y bloquear al iniciar | RF-PRD-06, 09 |
-| `litros_sugeridos(lineas_pedido, stock_por_presentacion, contenido, granel_libre) -> Decimal` | `Σ max(0, faltante_i) × contenido_i − granel_libre` | RF-PRD-07 |
-| `transicion(estado, accion, litros=None) -> estado` | Máquina de estados de la spec; `TransicionInvalida` en cualquier otro caso | RF-PRD-18 |
-| `costo_por_litro(costo_consumos, indirecto, litros_reales) -> UnitCost` | 6 decimales | RF-PRD-13 |
-| `rendimiento(litros_reales, planificados) -> Decimal` | y si supera 100 % | RF-PRD-14 |
-| `codigo_lote_sugerido(prefijo, correlativo) -> str` | `IPA-0020` | RF-PRD-13 |
-| `vencimiento(fecha_base, vida_util) -> date \| None` | `None` si no hay vida útil | RF-PRD-13 |
-| `pedidos_a_revertir(pedidos, ops_en_proceso) -> list` | Solo `EN_PRODUCCION` sin otra OP en proceso | RF-PRD-19 |
+| `transicion(estado, accion)` | Tabla de Definiciones; cualquier otra → `OpInvalida` con el mensaje de la spec ("La OP debe estar en proceso para finalizarla", "La OP está finalizada: corrígela con un ajuste de inventario", "La OP está anulada") | RF-PRD-16, 18, 33, 45 |
+| `copiar_receta(receta, cantidad)` | Componentes por consumir = cantidad por unidad × cantidad, half-up a 4 decimales | RF-PRD-37 |
+| `validar_componentes(producto_id, componentes, estados)` | Sin el propio producto, sin repetidos, activos, cantidades ≥ 0; servicio con costo ≥ 0 y bien sin costo | RF-PRD-38, 44 |
+| `receta_desde_op(componentes, cantidad)` | Por unidad = por consumir / cantidad (4 decimales), solo bienes y servicios con cantidad > 0 | RF-PRD-38 |
+| `validar_finalizacion(producida, motivo, componentes, fecha_fin, hoy)` | Al menos un componente; producida ≥ 0; 0 exige motivo ("Indica el motivo del lote perdido"); fecha_fin ≤ hoy | RF-PRD-15, 41, 47 |
+| `faltantes(requeridos, disponibles)` | Por componente bien: max(0, requerido − disponible); mensaje "Stock insuficiente: <SKU> faltan <n>; …" con todos | RF-PRD-09 |
+| `costo_unitario(componentes, servicios, indirecto, producida)` | (Σ + indirecto) / producida, half-up a 6 decimales; None si producida = 0 | RF-PRD-41 |
+| `merma(por_consumir, consumido)` | consumido − por_consumir, 4 decimales | RF-PRD-42 |
+| `rendimiento(programada, producida)` y `excede(…)` | % con 2 decimales; advertencia si > 100 % | RF-PRD-14, 34 |
+| `sugerir_lote(lotes_por_componente, sku, correlativo)` | Si exactamente un componente consume exactamente un lote, ese código; si no, `<SKU>-<correlativo de 4 dígitos>` | RF-PRD-46 |
 
 ## 4. Algoritmos clave
 
-**Anular OP** (RF-PRD-16 a 19):
+```
+CrearOp / EditarOp(actor, cmd):                         # sin stock (RF-PRD-36 a 38)
+  producto activo, bien, se fabrica; almacenes activos; responsable con produccion.op.ejecutar
+  crear: si cmd.receta → copiar_receta(catálogo.receta(producto), cantidad)
+         numero = SequencePort.siguiente("OP"); estado CREADA
+  editar: transicion(estado, "editar") (Creada o En proceso); validar_componentes; reemplaza la lista
 
+FinalizarOp(actor, op_id, cmd, hoy):                    # RF-PRD-41, 46, 09, 12, 14, 15, 47
+  en una transacción, con la OP bloqueada (FOR UPDATE):   # la segunda espera y ve FINALIZADA
+    transicion(estado, "finalizar")                     # solo desde EN_PROCESO
+    producto activo y se fabrica; validar_finalizacion(...)
+    disponibles = InventarioService.existencias_en_orden(...) por componente bien y lote indicado
+    faltantes(...) → OpInvalida con todos, sin mover nada
+    ids = InventarioService.registrar_salida("PRODUCCION", "OP", op_id, bienes con su lote o, si no, según la estrategia del producto, hoy=fecha_fin)
+    consumido = InventarioService.consumido(ids)         # importe y lote de cada salida
+    total = Σ importes + Σ costo de servicios + indirecto
+    si producida > 0:
+        lote = cmd.lote or sugerir_lote(lotes de consumido, sku, correlativo del producto)
+        InventarioService.registrar_entrada("PRODUCCION", "OP", op_id,
+            [Linea(producto, destino, producida, costo_unitario(...), lote, cmd.vencimiento)], hoy=fecha_fin)
+    si no: perdida = total                              # lote perdido, para 0008b
+    guarda consumido, lote y costo por componente; estado FINALIZADA
+    advertencia si rendimiento > 100 %
 ```
-AnularOP(op, motivo):
-  op = select_for_update(op); transicion(op.estado, ANULAR)          # TERMINADA/CERRADA → error
-  si EN_PROCESO: InventarioService.revertir('OP', op.id)             # incluye consumos adicionales
-  por p en pedidos_a_revertir(pedidos(op), ops_en_proceso): PedidosPort.revertir_a_confirmado(p)
-```
+
+El diálogo de "Finalizar" muestra el lote sugerido con el mismo `sugerir_lote` sobre la vista previa de esa estrategia (`existencias_en_orden`), y el vencimiento sugerido = fecha de fin + vida útil (lo resuelve `registrar_entrada` si no se indica).
 
 ## 5. Interfaz
 
+Patrón de la compra (docs/ux.md: barra de acciones abajo, "Más acciones" con Anular al final y en rojo, confirmaciones que explican qué ocurre; grilla estándar §5). Pensada para tablet (RNF-PRD-02: 768 px sin scroll horizontal).
+
 | Ruta | Qué se pinta | RF |
 |---|---|---|
-| `/produccion/recetas/` | Listado por granel con versiones; formset de insumos; aviso "se creará la versión N" si ya se usó | RF-PRD-01 a 03 |
-| `/produccion/op/` | Tablero kanban por estado (HTMX) | RF-PRD-04 |
-| `/produccion/op/nueva` | Receta, litros (sugeridos si viene de un pedido), insumos teóricos con disponibilidad y advertencia de faltantes | RF-PRD-04 a 07 |
-| `/produccion/op/<id>` | Acciones según el estado: iniciar (cantidades reales precargadas), consumo adicional, terminar (litros, indirecto, lote sugerido; advertencia > 100 %), anular, cerrar | RF-PRD-08 a 19 |
-
-Pensada para tablet en planta: botones grandes y una acción principal por pantalla (RNF-PRD-02).
-
-**Ficha de la OP (referencia visual: captura de Odoo de una orden de producción, 2026-10-10; patrón "ficha" del ADR-12).** *Con el ajuste por 0002a enmienda 4 (borrador), la ficha vigente es la de la spec (Borrador ▸ Confirmada ▸ Hecha, producto y cantidad, componentes con disponibilidad); este boceto queda como antecedente.*
-
-```
-[Iniciar]                    PLANIFICADA ▸ EN_PROCESO ▸ TERMINADA ▸ CERRADA    │ Historial
-OP-000012                                                                      │ Lucía · 10 oct 17:12
-Granel a producir  IPA a granel       Fecha programada  10/10/2026             │ Planificó la OP
-Litros             500.0000 L         Responsable       Mario (RF-PRD-35)      │ …
-Receta             IPA · versión 3
-┌ Componentes ┬ Pedidos vinculados ┬ Costos ┐
-│ Producto           Por consumir   Consumido   Unidad                   │
-│ Malta Pilsen        110.0000       —          KG                       │
-│ Lúpulo Cascade        2.5000       —          KG                       │
-│ + Agregar línea  (consumo adicional, solo EN_PROCESO; RF-PRD-10)       │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-- **Encabezado:** un solo botón con la acción siguiente según el estado (Iniciar, Terminar, Cerrar); Anular va aparte con su motivo. La barra de estados resalta el estado actual (ANULADA se muestra en rojo, fuera de la barra).
-- **Componentes:** se precargan desde la receta ("Por consumir" = cantidad teórica de RF-PRD-05); al iniciar se confirman las cantidades reales (RF-PRD-08).
-- **Historial:** panel lateral de solo lectura con cada cambio de estado y de consumos (autor, fecha, antes → después), con el mismo componente que la ficha de producto (spec 0002a, RF-CAT-32).
-- **Fuera de alcance de la referencia:** centros de trabajo y tiempos por operación, mensajes y actividades.
+| `/produccion/` | Listado: número, producto, cantidad programada y producida, fecha programada, responsable, estado; filtros por estado, producto, fechas y número | RF-PRD-48 |
+| `/produccion/nueva/` | Producto (bienes que se fabrican), cantidad, fecha programada, almacenes, responsable, comentario y "Usar su receta" (marcado si el producto la tiene) | RF-PRD-35 a 37 |
+| `/produccion/<id>/` (Creada o En proceso) | Barra **Creada ▸ En proceso ▸ Finalizada**; cabecera editable; pestaña Componentes con líneas dinámicas (`<template>` y script corto, como compras): producto, por consumir, unidad, disponibilidad (Disponible / No disponible; nada en servicios) y costo en servicios; "Guardar como receta del producto" solo con `catalogo.producto.gestionar`. Acción principal: "Pasar a en proceso" o "Finalizar" (diálogo: consumido real por componente, lote por componente con el lote sugerido por la estrategia del producto, cantidad producida, fecha de fin `max=hoy`, costo indirecto, lote y vencimiento del producto, motivo si la cantidad es 0) | RF-PRD-38, 39, 41, 44 a 46 |
+| `/produccion/<id>/` (Finalizada o Anulada) | Solo lectura; pestaña Costos con `produccion.reporte.ver` (importes solo con `inventario.costo.ver`); movimientos de kardex de la OP; quién y cuándo en cada paso | RF-PRD-16, 34, 42 |
 
 ## 6. Decisiones técnicas
 
 | Decisión | Alternativa descartada | Motivo |
 |---|---|---|
-| El granel sale al costo promedio del producto | Costeo específico por lote | Un solo método de costeo (art. 4.2); pendiente de Q12 |
-| Una OP terminada o un envasado no se anulan; se corrigen con ajustes | Anulación que revierta el envasado | Constitución art. 4.5 (v1.1.0): revertirlos falsearía el inventario ya vendido |
-| La OP actualiza los pedidos a través de `PedidosPort` | Escribir en las tablas de ventas | Independencia de contextos (art. 7.2) |
+| Contexto nuevo `production`; su aplicación usa solo `catalog.application` (fachada y `GuardarReceta`) e `inventory.application.servicio` (contrato de import-linter como el de compras); nadie depende de producción | Producción dentro del inventario | Mismo patrón que compras; el inventario y el catálogo no conocen a producción |
+| Validar faltantes de todos los componentes antes de mover stock | Dejar que `registrar_salida` falle en el primero | RF-PRD-09 pide indicar cada faltante; la transacción igual protege si cambia entre la lectura y la salida |
+| El costo se toma de los movimientos (`InventarioService.consumido`) | Recalcular promedio × cantidad en producción | Un solo cálculo del costo de salida (art. 4.3), aunque la salida se reparta entre lotes |
+| Lote perdido: la pérdida queda en la OP (`perdida`), sin movimiento aparte | Un ajuste MERMA automático | Las salidas ya están en el kardex con su costo; 0008b lee la pérdida de las OP finalizadas con 0 |
+| "Guardar como receta" llama a `GuardarReceta` del catálogo desde la vista | Escribir la receta desde producción | La receta es del catálogo (0002a): su validación y su historial viven allí |
+| Se retiran `produccion.recetas` y `produccion.envasado` del catálogo de accesos | Dejarlos sin uso | Art. 7.6; la sincronización de `migrate` (0001b) ya borra lo que sale del catálogo |
+| La OP en curso cuenta para el aviso de 0001b (RF-TEN-32): `contadores.registrar` en `apps.py` | — | Lo esperaba 0001b ("falso hasta 0005") |
 
 ## 7. Estrategia de tests (pytest)
 
@@ -103,27 +104,24 @@ Comando: `pytest tests/production tests/acceptance -k "E05a"`.
 
 | Nivel | Archivo | Qué prueba | RF |
 |---|---|---|---|
-| Unitario | `tests/production/unit/test_receta.py` | Escalado, insumos válidos, versionado | RF-PRD-01 a 03, 05 |
-| Unitario | `tests/production/unit/test_maquina_estados.py` | Todas las transiciones válidas e inválidas (parametrizado) | RF-PRD-18, 33 |
-| Unitario | `tests/production/unit/test_sugerencia.py` | Faltante por presentación; 95,84 L del escenario de la épica 0006 | RF-PRD-07 |
-| Caso de uso | `tests/production/usecases/test_ordenes.py` | Planificar con advertencia, iniciar sin insumos, consumo adicional sin stock, terminar, lote perdido, anular (pedidos) | RF-PRD-04, 06, 08 a 19 |
-| Integración | `tests/production/integration/test_concurrencia.py` | Doble inicio de OP; dos envasados del mismo lote | RF-PRD-12, 28 |
-| Aceptación | `features/recetas_y_op.feature` | Escenarios de la spec | ver etiquetas `@RF-…` |
+| Unitario | `tests/production/unit/test_op.py` | Transiciones, copia de receta, componentes inválidos, receta desde la OP, finalización (0 con y sin motivo, fecha futura), faltantes, costo unitario y merma con el ejemplo de la spec, lote sugerido | RF-PRD-14, 15, 33, 37, 38, 41, 42, 44, 46, 47 |
+| Caso de uso | `tests/production/usecases/test_ordenes.py` | Crear con y sin receta, editar sin stock, responsable, en proceso, finalizar (salidas, entrada al costo, lote nuevo y heredado, servicios, indirecto), faltantes sin movimientos, lote perdido, anular, permisos | RF-PRD-09, 15, 16, 18, 35 a 38, 41, 44 a 47 |
+| Integración | `tests/production/integration/test_concurrencia.py` | Dos finalizaciones simultáneas con dos hilos: un solo consumo | RF-PRD-12 |
+| Integración | `tests/production/integration/test_reconciliacion.py` | OP encadenadas (granel → envasado) con semillas: el kardex reproduce stock y valor (art. 4.6) | criterios de finalización |
+| Integración | `tests/production/integration/test_pantallas.py` | Listado y filtros, ficha, disponibilidad, diálogo de finalizar, costos ocultos, aislamiento (rutas en `tests/meta/test_aislamiento.py`) | RF-PRD-34, 39, 48 |
+| Caso de uso | `tests/catalog/usecases/test_receta.py` | `GuardarReceta` (permiso, ciclos, historial) | RF-PRD-38 |
+| Aceptación | `features/ordenes_produccion.feature` | Escenarios de la spec | ver etiquetas `@RF-…` |
 
 ## 8. Cobertura de RF
 
 | RF | Partes del plan |
 |---|---|
-| RF-PRD-01, RF-PRD-02, RF-PRD-03 | §1 `receta.py`, `recetas.py` · §2 recetas · §5 `/produccion/recetas/` · §7 `test_receta.py` |
-| RF-PRD-04, RF-PRD-05, RF-PRD-06, RF-PRD-07 | §1 `ordenes.py`, `sugerencia.py` · §3 `escalar`, `faltantes_de_insumos`, `litros_sugeridos` · §5 nueva OP · §7 |
-| RF-PRD-08, RF-PRD-09, RF-PRD-10, RF-PRD-11, RF-PRD-12 | §1 `orden.py`, `puertos.py` · §3 `faltantes_de_insumos`, `transicion` · §5 detalle OP · §7 |
-| RF-PRD-13, RF-PRD-14, RF-PRD-15 | §3 `costo_por_litro`, `rendimiento`, `codigo_lote_sugerido`, `vencimiento` · §4 costo del lote · §7 |
-| RF-PRD-16, RF-PRD-17, RF-PRD-18, RF-PRD-19 | §3 `transicion`, `pedidos_a_revertir` · §4 anular OP · §7 `test_ordenes.py` |
+| RF-PRD-35, 36, 37, 38, 44, 45 | §1 `ordenes.py` · §3 `copiar_receta`, `validar_componentes`, `receta_desde_op` · §5 · §7 |
+| RF-PRD-39 | §1 `existencias_en_orden` · §5 ficha · §7 pantallas |
+| RF-PRD-09, 12, 14, 15, 41, 42, 46, 47 | §3 · §4 `FinalizarOp` · §6 · §7 |
+| RF-PRD-16, 18, 33 | §3 `transicion` · §7 |
+| RF-PRD-34, 48 | §5 · §7 pantallas |
 
 ## 9. Dependencias de dudas abiertas
 
-- **Q10 (lote perdido):** RF-PRD-15 y la transición `EN_PROCESO → CERRADA`; los tests correspondientes quedan marcados como omitidos hasta la aprobación.
-
-- **Q12 (costeo del granel por lote / costo indirecto):** cambiaría `calcular_envasado` y `TerminarOP`.
-
-- **Wireframes de OP y envasado:** necesarios antes de implementar §5.
+- **Contador (Q12):** costo indirecto manual y tratamiento de la pérdida de producción. No cambian el modelo: si el contador lo pide, el costo indirecto se puede ocultar y la pérdida se clasifica en 0008b.

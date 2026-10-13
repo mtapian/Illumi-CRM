@@ -25,8 +25,8 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0003c](specs/0003c-Inventario-consultas-alertas/) Inventario: stock, kardex y alertas | **implementada** (8 RF) | implementado | 7/7 ✔ | — |
 | [0004a](specs/0004a-Compras-proveedores-registro/) Compras: registro de compras | **implementada** (18 RF) | implementado | 9/9 ✔ | visto bueno del contador sobre la fecha de recepción (Q12) |
 | [0004b](specs/0004b-Compras-anulacion/) Compras: anulación | **implementada** (6 RF) | implementado | 6/6 ✔ | visto bueno del contador sobre Q12 = A |
-| [0005a](specs/0005a-Produccion-recetas-op/) Producción: recetas y órdenes de producción | borrador (19 RF) | borrador | ejemplo (15 tareas) | Q10, Q12 |
-| [0005b](specs/0005b-Produccion-envasado-cierre/) Producción: envasado, cierre y costo del lote | borrador (15 RF) | borrador | ejemplo (13 tareas) | Q12, wireframes |
+| [0005a](specs/0005a-Produccion-recetas-op/) Producción: órdenes de producción | **aprobada** (2026-10-12; 20 RF, absorbe 0005b) | aprobado | 0/10 | contador (costo indirecto, pérdida de producción) |
+| [0005b](specs/0005b-Produccion-envasado-cierre/) Producción: envasado y cierre | **retirada** (fusionada en 0005a, 2026-10-12) | — | — | — |
 | [0006a](specs/0006a-Ventas-clientes-pedidos/) Ventas: clientes y pedidos | borrador (19 RF) | borrador | ejemplo (15 tareas) | wireframe del tablero |
 | [0006b](specs/0006b-Ventas-registro-venta/) Ventas: registro de la venta | borrador (16 RF) | borrador | ejemplo (15 tareas) | Q3 |
 | [0006c](specs/0006c-Ventas-anulacion-correccion/) Ventas: anulación y corrección de cliente | borrador (7 RF) | borrador | ejemplo (9 tareas) | contador (RF-VEN-32) |
@@ -37,6 +37,10 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0008b](specs/0008b-Finanzas-resultados-reportes/) Finanzas: estado de resultados, dashboard y exportación | borrador (11 RF) | borrador | ejemplo (13 tareas) | Q10 |
 
 ## Historial
+
+- **2026-10-12 — Enmienda 6 de 0002a: estrategia de salida por producto (aprobada por el PO, "dale", e implementada: T44 y T45).** Campo `estrategia_salida` (migración `0013`, CHECK), `orden_fifo` en el inventario, campo en la pestaña Inventario; escenario FIFO de 0003a en verde; 645 tests. Propuesta original: Pedido del PO: FEFO o FIFO por producto; en la venta se puede elegir el lote y, si no, se aplica la estrategia del producto. RF-CAT-62 (campo "Estrategia de salida" en la pestaña Inventario de un bien, FEFO por defecto); ajusta 0003a RF-INV-22, 0006b RF-VEN-20 y 0005a RF-PRD-41. Solo decide qué lote sale: el costo sigue siendo el promedio (art. 4.2). Escenario FIFO en 0003a con `@borrador`; tareas T44 y T45 en 0002a.
+
+- **2026-10-12 — 0005a consolidada (borrador, sin código).** Una sola spec de órdenes de producción con la enmienda 4 de 0002a: OP de cualquier bien que se fabrica, receta opcional copiada a la OP, componentes editables hasta finalizar, estados Creada ▸ En proceso ▸ Finalizada (y Anulada), todo el stock se mueve al finalizar con lote obligatorio (sugerido: el del único componente con lote, así el envasado hereda el lote del granel). Decisiones del PO: **lote perdido** = finalizar con 0 y motivo, el costo va a pérdida de producción (resuelve Q10); **costo indirecto** manual opcional (falta el contador); **pedidos**: solo un comentario libre en la OP, sin vínculo; **0005b se fusiona en 0005a** y se retira. El costeo por lote vs. promedio lo resuelve la constitución (art. 4.2, promedio). **Spec aprobada por el PO ("procede")**; plan (contexto `production`, T1–T10) en revisión.
 
 - **2026-10-12 — 0002e implementada (T8).** Specs ajustadas: 0001a RF-TEN-15 y 16 (el IGV se registra como tasa de los dos "IGV 18%"), 0002a RF-CAT-30 (desglose con los impuestos de venta) y RF-CAT-45, 46, 48 reemplazados, 0002c RF-CAT-23 y 27 ajustados y RF-CAT-26 reemplazado, 0004a RF-COM-08 (IGV por el impuesto de compra del producto; el de la empresa solo si el producto no tiene). Todos los RF de 0002e con escenario o test. Falta el visto bueno del contador sobre la enmienda 1.
 

@@ -206,6 +206,23 @@
     label { display: block; font-weight: 600; font-size: .9rem; margin-bottom: .35rem; }
     input:not([type=checkbox]):not([type=hidden]), select, textarea { width: 100%; padding: .6rem .75rem;
       border: 1px solid var(--borde); border-radius: 8px; font: inherit; background: #fff; }
+    /* Selección múltiple como etiquetas (`data-etiquetas`): las casillas siguen siendo lo que se envía. */
+    .etiquetas { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; min-height: 2.4rem;
+      padding: .35rem .5rem; border: 1px solid var(--borde); border-radius: 8px; background: var(--tarjeta); }
+    .etiquetas .chip { display: inline-flex; align-items: center; gap: .3rem; }
+    .etiquetas .chip button { background: none; border: 0; padding: 0 .1rem; color: inherit; font-weight: 700;
+      cursor: pointer; line-height: 1; }
+    .etiquetas { position: relative; cursor: text; }
+    .etiquetas:focus-within { border-color: var(--acento); }
+    .campo { margin: 1rem 0; }
+    .etiquetas .chips { display: contents; }
+    .etiquetas input[type=text] { border: 0; outline: 0; flex: 1; min-width: 10rem; width: auto; padding: .2rem; background: transparent; }
+    .etiquetas .opciones { position: absolute; z-index: 20; left: -1px; right: -1px; top: calc(100% + 2px); margin: 0; padding: .25rem 0;
+      list-style: none; max-height: 14rem; overflow-y: auto; background: var(--tarjeta); border: 1px solid var(--borde);
+      border-radius: 8px; box-shadow: 0 6px 18px rgb(15 27 51 / .12); }
+    .etiquetas .opciones li { padding: .45rem .75rem; cursor: pointer; }
+    .etiquetas .opciones li:hover, .etiquetas .opciones li.activa { background: var(--acento-suave); color: var(--acento); }
+    .etiquetas .vacio { color: var(--tenue); font-size: .9rem; cursor: default; }
     input:focus, select:focus { outline: 2px solid var(--acento-suave); border-color: var(--acento); }
     form p span.chip { display: inline-block; margin: 0; }
     .helptext, form p span:not(.chip) { display: block; color: var(--tenue); font-size: .8rem; margin-top: .25rem; }
@@ -308,6 +325,85 @@
 <script>
   // Reglas de UX comunes (docs/ux.md §5): "Cambios sin guardar", no perderlos al salir y envío único.
   (() => {
+    // Selección múltiple como etiquetas (combo con buscador): las marcadas se ven como etiquetas
+    // con ×; al escribir se filtran las demás y se eligen varias sin cerrar la lista (clic, Enter,
+    // flechas); Retroceso con el buscador vacío quita la última. Las casillas ocultas son lo que se
+    // envía; sin JS quedan visibles.
+    for (const caja of document.querySelectorAll("[data-etiquetas]")) {
+      const casillas = [...caja.querySelectorAll("input[type=checkbox]")];
+      const texto = (c) => c.closest("label").textContent.trim();
+      const editables = casillas.some((c) => !c.disabled);
+      [...caja.children].forEach((h) => (h.hidden = true));
+      const combo = Object.assign(document.createElement("div"), { className: "etiquetas" });
+      const chips = Object.assign(document.createElement("span"), { className: "chips" });
+      const buscar = Object.assign(document.createElement("input"), { type: "text", placeholder: caja.dataset.etiquetas, autocomplete: "off" });
+      const opciones = Object.assign(document.createElement("ul"), { className: "opciones", hidden: true });
+      opciones.setAttribute("role", "listbox");
+      buscar.setAttribute("aria-label", caja.dataset.etiquetas);
+      combo.append(chips, ...(editables ? [buscar] : []), opciones);
+      caja.append(combo);
+      let activa = 0;
+      const libres = () => {
+        const q = buscar.value.trim().toLowerCase();
+        return casillas.filter((c) => !c.checked && !c.disabled && texto(c).toLowerCase().includes(q));
+      };
+      const cambiar = (c, marcada) => {
+        c.checked = marcada;
+        c.dispatchEvent(new Event("change", { bubbles: true }));
+        if (c.form && !c.form.contains(c)) c.form.dispatchEvent(new Event("change"));  // form="…"
+        pintar();
+      };
+      const pintarOpciones = () => {
+        const lista = libres();
+        activa = Math.min(activa, Math.max(lista.length - 1, 0));
+        opciones.replaceChildren(...lista.map((c, n) => {
+          const li = Object.assign(document.createElement("li"), { textContent: texto(c) });
+          li.setAttribute("role", "option");
+          if (n === activa) li.className = "activa";
+          li.addEventListener("mousedown", (e) => { e.preventDefault(); cambiar(c, true); });
+          return li;
+        }));
+        if (!lista.length) opciones.append(Object.assign(document.createElement("li"), { className: "vacio", textContent: buscar.value ? "Sin coincidencias" : "No quedan opciones" }));
+      };
+      const pintar = () => {
+        chips.replaceChildren(...casillas.filter((c) => c.checked).map((c) => {
+          const chip = Object.assign(document.createElement("span"), { className: "chip", textContent: texto(c) });
+          if (!c.disabled) {
+            const quitar = Object.assign(document.createElement("button"), { type: "button", textContent: "×", title: `Quitar ${texto(c)}` });
+            quitar.setAttribute("aria-label", `Quitar ${texto(c)}`);
+            quitar.addEventListener("click", () => cambiar(c, false));
+            chip.append(quitar);
+          }
+          return chip;
+        }));
+        if (!chips.children.length && !editables) chips.append(Object.assign(document.createElement("span"), { className: "vacio", textContent: caja.dataset.vacio || "Ninguno" }));
+        if (!opciones.hidden) pintarOpciones();
+      };
+      const abrir = () => { opciones.hidden = false; pintarOpciones(); };
+      combo.addEventListener("click", (e) => { if (editables && e.target === combo) buscar.focus(); });
+      buscar.addEventListener("focus", abrir);
+      buscar.addEventListener("blur", () => (opciones.hidden = true));
+      buscar.addEventListener("input", () => { activa = 0; abrir(); });
+      buscar.addEventListener("keydown", (e) => {
+        const lista = libres();
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          abrir();
+          activa = (activa + (e.key === "ArrowDown" ? 1 : -1) + lista.length) % Math.max(lista.length, 1);
+          pintarOpciones();
+        } else if (e.key === "Enter") {
+          e.preventDefault();  // no envía la ficha
+          if (lista[activa]) { cambiar(lista[activa], true); buscar.value = ""; abrir(); }
+        } else if (e.key === "Escape") {
+          opciones.hidden = true;
+        } else if (e.key === "Backspace" && !buscar.value) {
+          const ultima = casillas.filter((c) => c.checked && !c.disabled).pop();
+          if (ultima) cambiar(ultima, false);
+        }
+      });
+      pintar();
+    }
+
     let saliendo = false;
     for (const form of document.querySelectorAll("form[data-cambios]")) {
       const marcar = () => {

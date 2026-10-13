@@ -94,3 +94,19 @@ def test_limite_desactivar_y_eliminar():
     assert puede_eliminar(tiene_movimientos=False, referencias=0)
     assert not puede_eliminar(tiene_movimientos=True, referencias=0)
     assert not puede_eliminar(tiene_movimientos=False, referencias=1)
+
+
+def test_estrategia_de_salida_fefo_por_defecto_y_servicio_sin_ella():
+    """0002a enmienda 6, RF-CAT-62."""
+    assert validar_producto(datos()).estrategia_salida == "FEFO"
+    assert validar_producto(datos(estrategia_salida="FIFO")).estrategia_salida == "FIFO"
+    servicio = datos(
+        T.SERVICIO,
+        se_compra=False,
+        se_vende=True,
+        precio_venta=Decimal("8"),
+        estrategia_salida="FIFO",
+    )
+    assert validar_producto(servicio).estrategia_salida == "FEFO"
+    with pytest.raises(ProductoInvalido, match="La estrategia de salida debe ser FEFO o FIFO"):
+        validar_producto(datos(estrategia_salida="LIFO"))
