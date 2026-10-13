@@ -4,7 +4,7 @@ plan 0000 §5: primero `costo_producto` (mutex por producto), después el stock.
 from datetime import datetime
 from decimal import Decimal
 
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from django.utils import timezone
 
 from inventory.application.servicio import Consumo
@@ -124,6 +124,18 @@ class InventarioOrm:
             Consumo(m.producto_id, m.lote.codigo if m.lote else None, m.cantidad, m.costo_total)
             for m in filas
         ]
+
+    def disponibles(self, ids, hoy):
+        """Una consulta agrupada: sin lote, lote sin vencimiento o lote no vencido (RF-INV-23)."""
+        vigente = (
+            Q(lote__isnull=True)
+            | Q(lote__fecha_vencimiento__isnull=True)
+            | Q(lote__fecha_vencimiento__gte=hoy)
+        )
+        filas = Stock.objects.filter(vigente, producto_id__in=ids, cantidad__gt=0)
+        return dict(
+            filas.values("producto_id").annotate(t=Sum("cantidad")).values_list("producto_id", "t")
+        )
 
     def movimientos(self, producto_id):
         return [_mov(m) for m in Movimiento.objects.filter(producto_id=producto_id).order_by("id")]

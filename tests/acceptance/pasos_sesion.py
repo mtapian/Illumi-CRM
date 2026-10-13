@@ -20,7 +20,7 @@ from shared.infrastructure.correo import enviar_pendientes
 from tenancy.domain.plantillas import PLANTILLAS
 from tenancy.infrastructure.contenedor import actor_de
 from tenancy.infrastructure.models import Empresa, Plan, PlanFuncionalidad, Rol, Usuario
-from tenancy.infrastructure.repositorios import AccesosOrm
+from tenancy.infrastructure.repositorios import AccesosOrm, sembrar_tipos_documento
 from tests.acceptance.conftest import contenido
 from tests.conftest import asignar_rol
 
@@ -42,6 +42,7 @@ def empresa_por_nombre(nombre) -> Empresa:
 
 
 def crear_empresa(nombre, limite_usuarios=None, **kw) -> Empresa:
+    sembrar_tipos_documento()  # los tests con transacciones reales vacían el maestro
     ruc = ruc_valido()
     plan = Plan.objects.create(
         nombre=f"Plan {ruc}", slug=f"plan-{ruc}", limite_usuarios=limite_usuarios

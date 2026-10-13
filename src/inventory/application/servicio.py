@@ -61,6 +61,7 @@ class InventarioRepo(Protocol):
         self, producto_id: int, almacen_id: int, bloquear: bool = True
     ) -> list[Existencia]: ...
     def consumos(self, ids: list[int]) -> list[Consumo]: ...
+    def disponibles(self, producto_ids, hoy: date) -> dict[int, Decimal]: ...
     def lote(self, producto_id: int, codigo: str) -> tuple[int, date | None] | None: ...
     def crear_lote(self, producto_id, codigo, ingreso, vencimiento, origen) -> int: ...
     def sumar_stock(self, producto_id, almacen_id, lote_id, cantidad: Decimal) -> None: ...
@@ -189,6 +190,13 @@ class InventarioService:
         ]
         usables.sort(key=ORDEN[producto.estrategia_salida])
         return [(e.lote, e.cantidad) for e in usables]
+
+    def disponibles(self, producto_ids, hoy: date) -> dict[int, Decimal]:
+        """Stock sin vencer de cada producto, sumando todos los almacenes (lectura; 0006a,
+        RF-VEN-45). Un producto sin stock vale 0."""
+        ids = list(dict.fromkeys(producto_ids))
+        encontrados = self._repo.disponibles(ids, hoy) if ids else {}
+        return {i: encontrados.get(i, Decimal("0")) for i in ids}
 
     def consumido(self, ids: list[int]) -> list[Consumo]:
         """Producto, lote, cantidad e importe de los movimientos indicados (0005a, RF-PRD-41)."""

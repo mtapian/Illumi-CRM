@@ -13,6 +13,7 @@ from purchasing.domain.proveedor import (
     validar_proveedor_producto,
 )
 from shared.application.autorizacion import Actor, CasoDeUso
+from shared.domain.documentos import ReglasDocumento
 from shared.domain.errores import NoEncontrado
 
 GESTIONAR = "compras.proveedor.gestionar"
@@ -32,9 +33,17 @@ class ProveedoresRepo(Protocol):
 class _Base(CasoDeUso):
     permiso_requerido = GESTIONAR
 
-    def __init__(self, repo: ProveedoresRepo, puertos: Puertos, catalogo: CatalogoQuery, atomic):
+    def __init__(
+        self,
+        repo: ProveedoresRepo,
+        puertos: Puertos,
+        catalogo: CatalogoQuery,
+        atomic,
+        documentos: Callable[[str], ReglasDocumento | None] = lambda _: None,
+    ):
         self._repo, self._puertos, self._catalogo = repo, puertos, catalogo
         self._atomic: Callable = atomic
+        self._documentos = documentos  # reglas del maestro de tipos de documento (RF-VEN-49)
 
     def _activo(self, proveedor_id: int) -> bool:
         activo = self._repo.activo(proveedor_id)
@@ -49,7 +58,12 @@ class GuardarProveedor(_Base):
     def ejecutar(self, actor: Actor, proveedor_id: int | None, datos: DatosProveedor) -> int:
         if proveedor_id is not None:
             self._activo(proveedor_id)
-        datos = validar_proveedor(datos)
+        reglas = self._documentos(datos.tipo_doc)
+        if reglas is not None and not reglas.activo and proveedor_id is None:
+            raise ProveedorInvalido(
+                f"El tipo de documento {reglas.nombre} está inactivo", "tipo_doc"
+            )
+        datos = validar_proveedor(datos, reglas)
         if self._repo.existe_documento(datos.tipo_doc, datos.num_doc, proveedor_id):
             raise ProveedorInvalido(
                 f"Ya existe un proveedor con el {datos.tipo_doc} {datos.num_doc}", "num_doc"

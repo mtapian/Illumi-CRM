@@ -12,8 +12,7 @@
     <h2>Datos generales</h2>
     <div class="dos-columnas">
     <label>Tipo de documento *<select name="tipo_doc">
-      <option value="RUC"{% if valores.tipo_doc != "DNI" %} selected{% endif %}>RUC</option>
-      <option value="DNI"{% if valores.tipo_doc == "DNI" %} selected{% endif %}>DNI</option></select></label>
+      {% for t in tipos_documento %}<option value="{{ t.abreviatura }}"{% if valores.tipo_doc == t.abreviatura or not valores.tipo_doc and t.abreviatura == "RUC" %} selected{% endif %}>{{ t.nombre }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.tipo_doc %}</label>
     <label>Número *<input name="num_doc" required maxlength="11" inputmode="numeric" value="{{ valores.num_doc }}">{% include "listados/_error.html" with error=request.errores_campo.num_doc %}</label>
     <label class="ancho">Razón social *<input name="razon_social" required maxlength="200" value="{{ valores.razon_social }}">{% include "listados/_error.html" with error=request.errores_campo.razon_social %}</label>
     </div>

@@ -5,6 +5,7 @@ from datetime import date
 from django.db import transaction
 
 from shared.application.autorizacion import Actor
+from tenancy.application.documentos import GuardarTipoDocumento
 from tenancy.application.empresa import ActualizarEmpresa, CambiarIgv
 from tenancy.application.fachada import TenancyService
 from tenancy.application.operaciones_en_curso import contadores
@@ -21,12 +22,17 @@ from tenancy.infrastructure.repositorios import (
     PlataformaOrm,
     RegistroOrm,
     RolesOrm,
+    TiposDocumentoOrm,
     roles_de_usuario,
 )
 
 
 def tenancy_service() -> TenancyService:
-    return TenancyService(ParametrosOrm(), EmpresasOrm(), HabilitacionesOrm())
+    return TenancyService(ParametrosOrm(), EmpresasOrm(), HabilitacionesOrm(), TiposDocumentoOrm())
+
+
+def guardar_tipo_documento() -> GuardarTipoDocumento:
+    return GuardarTipoDocumento(TiposDocumentoOrm(), transaction.atomic)
 
 
 def registrar_empresa(registro: RegistroSembradores | None = None) -> RegistrarEmpresa:

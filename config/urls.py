@@ -8,6 +8,7 @@ urlpatterns = [
     path("", include("purchasing.interfaces.urls")),
     path("", include("inventory.interfaces.urls")),
     path("", include("production.interfaces.urls")),
+    path("", include("sales.interfaces.urls")),
 ]
 
 if settings.SERVIR_MEDIA:

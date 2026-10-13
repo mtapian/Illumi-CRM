@@ -85,6 +85,15 @@ def _ajeno_op(otra):
     return op.id
 
 
+def _ajeno_pedido(otra):
+    from sales.infrastructure.models import Cliente, Pedido
+
+    cliente = Cliente.all_tenants.create(empresa=otra, nombre="Ajeno", tipo_doc="SD")
+    return Pedido.all_tenants.create(
+        empresa=otra, numero=1, cliente=cliente, fecha_entrega="2026-11-10"
+    ).id
+
+
 RUTAS = {
     "usuarios/<int:usuario_id>/": _ajeno_usuario,
     "roles/<int:rol_id>/": _ajeno_rol,
@@ -92,6 +101,7 @@ RUTAS = {
     "inventario/ajustes/<int:ajuste_id>/": _ajeno_ajuste,
     "compras/<int:compra_id>/": _ajeno_compra,
     "produccion/<int:op_id>/": _ajeno_op,
+    "ventas/pedidos/<int:pedido_id>/": _ajeno_pedido,
 }
 
 

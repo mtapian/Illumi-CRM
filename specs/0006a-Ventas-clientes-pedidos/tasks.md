@@ -1,65 +1,36 @@
 # Tareas 0006a — Ventas: clientes y pedidos
 
-Estado: borrador (ejemplo). **No ejecutar:** `spec.md` y `plan.md` siguen en borrador (constitución, art. 2.1).
+Estado: aprobado (PO: "go", 2026-10-13) · **todas las tareas hechas (2026-10-13)**.
 
-Spec: `./spec.md` · Plan: `./plan.md`
+Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y parar (art. 8.1).
 
-Reglas (constitución, art. 8):
-- Una tarea a la vez, de 30 minutos como máximo.
-- Primero el test en rojo; después el código, hasta que el test pase a verde; marcar la tarea y parar.
-- Además de su "Hecho cuando", cada tarea exige `ruff check`, `ruff format --check`, `lint-imports` y `python manage.py makemigrations --check` en verde.
-
-## Dominio puro
-
-- [ ] **T1. Implementar la validación del documento del cliente (DNI, RUC, CE).** — RF-VEN-01, RF-VEN-02
-  - Hecho cuando: "Validación del documento del cliente" está en verde como test unitario y de aceptación.
-
-- [ ] **T2. Implementar `transicion_pedido(estado, evento)` con la tabla de transiciones.** — RF-VEN-16
-  - Hecho cuando: `test_pedido.py` prueba parametrizado cada fila de la tabla y rechaza cualquier otra transición.
-
-- [ ] **T3. Implementar `atrasado(fecha_entrega, estado, hoy)` y el faltante por línea.** — RF-VEN-08, RF-VEN-15
-  - Hecho cuando: un test comprueba que un pedido `ENTREGADO` o `CANCELADO` nunca está atrasado y que el faltante cuenta solo stock sin vencer de todos los almacenes.
-
-## Persistencia
-
-- [ ] **T4. Crear los modelos de cliente, pedido, línea de pedido y vínculo con OP.** — RF-VEN-01, RF-VEN-06, RF-VEN-42
-  - Hecho cuando: la migración se aplica y un test comprueba la numeración `P-000001` y que un pedido puede vincularse a varias OP.
-
-- [ ] **T5. Crear el sembrador del cliente "Clientes varios" y registrarlo en 0001a.** — RF-VEN-03
-  - Hecho cuando: después de registrar una empresa existe el cliente genérico.
-
-## Casos de uso
-
-- [ ] **T6. Crear el CRUD de clientes y su ficha.** — RF-VEN-01, RF-VEN-02, RF-VEN-04, RF-VEN-05
-  - Hecho cuando: un test comprueba la ficha con pedidos, ventas, total de 90 días y última compra, y que un cliente con documentos no se elimina.
-
-- [ ] **T7. Crear `CrearPedido` y la edición libre en `BORRADOR`.** — RF-VEN-06, RF-VEN-07
-  - Hecho cuando: un test crea un pedido con precios precargados desde el precio de lista y lo edita en `BORRADOR`.
-
-- [ ] **T8. Crear `ConfirmarPedido` con faltantes y propuesta de producción o compra.** — RF-VEN-08 a RF-VEN-11
-  - Hecho cuando: "Confirmar pedido muestra faltantes y propone producir", "Pedido confirmado no se edita" y "Faltante de mercadería se compra, no se produce" están en verde.
-
-- [ ] **T9. Implementar `PedidosPort` para producción (pasar a `EN_PRODUCCION`, `LISTO` o de vuelta a `CONFIRMADO`).** — RF-VEN-12, RF-VEN-13, RF-VEN-41, RF-VEN-42
-  - Hecho cuando: "El pedido avanza con la producción vinculada", "Envasado que no cubre el pedido completo" y "Pedido en producción sin OP activa y sin stock suficiente vuelve a CONFIRMADO" están en verde.
-
-- [ ] **T10. Permitir marcar `LISTO` manualmente si el stock cubre el pedido.** — RF-VEN-13
-  - Hecho cuando: un test comprueba que se acepta con stock suficiente y se rechaza sin él.
-
-- [ ] **T11. Crear `CancelarPedido`, que desvincula las OP sin anularlas.** — RF-VEN-37
-  - Hecho cuando: "Cancelar pedido en producción desvincula la OP" y "Un pedido entregado no se cancela" están en verde.
-
-## Pantallas
-
-- [ ] **T12. Crear el tablero de pedidos por estado con atrasos.** — RF-VEN-15
-  - Hecho cuando: "Alerta de pedidos atrasados" está en verde (pendiente del wireframe del tablero).
-
-- [ ] **T13. Crear las pantallas de clientes y del pedido con líneas dinámicas (HTMX).** — RF-VEN-01, RF-VEN-06 a RF-VEN-11
-  - Hecho cuando: un test de vista crea, edita y confirma un pedido de 3 líneas.
-
-- [ ] **T14. Crear la API `GET /api/v1/pedidos`.** — RF-VEN-06, (RF-TEN-48)
-  - Hecho cuando: un test con token devuelve solo los pedidos de la empresa, paginados.
-
-## Cierre
-
-- [ ] **T15. Verificar la spec completa.** — RF-VEN-01 a RF-VEN-16, RF-VEN-37, RF-VEN-41, RF-VEN-42
-  - Hecho cuando: `pytest tests/sales tests/acceptance -k E06a` en verde; lint en verde; `MEMORY.md` actualizado.
+- [x] **T1. Reglas de documento genéricas.** — RF-VEN-02, 49
+  - `ReglasDocumento` y `validar_numero` en `shared/domain/documentos.py` (especial `RUC`).
+  - Hecho cuando: `test_documentos.py` cubre DNI, CE, RUC, pasaporte y sin documento con sus mensajes.
+- [x] **T2. Maestro de tipos de documento (plataforma).** — RF-VEN-49
+  - Modelo, migración con los cinco tipos, `GuardarTipoDocumento`, fachada y pantalla `/plataforma/tipos-documento/`.
+  - Hecho cuando: sus tests de caso de uso y de pantalla pasan (abreviatura y código fijos; desactivar).
+- [x] **T3. Proveedores con el maestro.** — 0002d RF-COM-01
+  - El proveedor valida con las reglas del maestro y ofrece los tipos activos.
+  - Hecho cuando: los tests y escenarios de 0002d, 0004a y 0004b siguen en verde.
+- [x] **T4. App `sales`, modelos y migraciones; "Clientes varios".** — RF-VEN-01, 03, 05, 06, 11
+  - Tablas de §2 con sus CHECK y el trigger de líneas; sembrador del genérico y migración para las empresas existentes; import-linter.
+  - Hecho cuando: un test prueba cada constraint y el trigger, y una empresa nueva y una existente tienen "Clientes varios".
+- [x] **T5. Clientes: casos de uso (CRU) y búsqueda.** — RF-VEN-01, 02, 05, 44, 50
+  - `GuardarCliente`, `CambiarEstadoCliente` y la búsqueda por nombre o documento; sin eliminar.
+  - Hecho cuando: `test_clientes.py` cubre documento único, genérico siempre activo, búsqueda y permisos.
+- [x] **T6. Pedido: dominio y casos de uso.** — RF-VEN-06 a 08, 11, 14, 16, 37, 48
+  - Estados, líneas, total; `CrearPedido`, `EditarPedido`, `AprobarPedido`, `CancelarPedido`.
+  - Hecho cuando: `test_pedido.py` y `test_pedidos.py` cubren transiciones, aprobar exige stock (todos los faltantes), líneas fijas al aprobar, cancelar con motivo y permisos.
+- [x] **T7. Disponibilidad e indicadores.** — RF-VEN-15, 45, 46
+  - `InventarioService.disponibles`; faltante, quiebre, listo y atrasado.
+  - Hecho cuando: los tests cubren stock vencido, servicios, varios almacenes y dos pedidos que comparten stock.
+- [x] **T8. Pantallas de clientes.** — RF-VEN-01 a 05, 43, 44
+  - `/ventas/clientes/` con grilla, formulario y ficha con pedidos; menú "Ventas".
+  - Hecho cuando: el test de pantalla y la prueba de aislamiento pasan.
+- [x] **T9. Pantallas de pedidos y alerta del inicio.** — RF-VEN-06 a 08, 11, 15, 37, 45 a 48, 50
+  - Lista y Kanban con filtros, alta y ficha con disponibilidad, selector de cliente con búsqueda y registro al vuelo, acciones; alerta "pedidos con quiebre de stock".
+  - Hecho cuando: el test de pantalla y la prueba de aislamiento pasan.
+- [x] **T10. Escenarios de aceptación y cierre.** — todos
+  - `tests/acceptance/pasos_ventas.py` y `test_e06a.py`; spec, plan y tareas a "implementada"; `MEMORY.md`.
+  - Hecho cuando: los escenarios de 0006a están en verde; suite, lint, formato, contratos y migraciones en verde; cada RF con escenario o test.

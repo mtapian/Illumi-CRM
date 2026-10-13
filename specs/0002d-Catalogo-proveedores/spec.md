@@ -1,6 +1,6 @@
 # Spec 0002d — Catálogo: proveedores y proveedores del producto
 
-Estado: implementada (2026-10-10)
+Estado: (0006a, 2026-10-13: el tipo de documento del proveedor sale del maestro de la plataforma, RF-VEN-49) · implementada (2026-10-10)
 
 Épica E02 (Catálogo), parte 4 de 4. Depende de: 0001c, 0002a. La usan: 0004a (compras) y la pestaña "Compras" de la ficha de producto (0002a, enmienda 1).
 

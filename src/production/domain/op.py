@@ -9,6 +9,7 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from production.domain.errores import OpInvalida
+from shared.domain.stock import faltantes
 
 CREADA, EN_PROCESO, FINALIZADA, ANULADA = "CREADA", "EN_PROCESO", "FINALIZADA", "ANULADA"
 SERVICIO = "SERVICIO"
@@ -127,16 +128,6 @@ def validar_finalizacion(producida: Decimal, motivo: str, fecha_fin: date, hoy: 
         raise OpInvalida("Indica el motivo del lote perdido", "motivo_perdida")
     if fecha_fin > hoy:
         raise OpInvalida("La fecha de fin no puede ser futura", "fecha_fin")
-
-
-def faltantes(requeridos: dict[str, Decimal], disponibles: dict[str, Decimal]) -> str | None:
-    """RF-PRD-09: todos los faltantes en un mensaje, o None si alcanza."""
-    partes = [
-        f"{sku} faltan {_cuatro(q - disponibles.get(sku, Decimal('0')))}"
-        for sku, q in requeridos.items()
-        if q > disponibles.get(sku, Decimal("0"))
-    ]
-    return f"Stock insuficiente: {'; '.join(partes)}" if partes else None
 
 
 def validar_stock(requeridos, disponibles) -> None:

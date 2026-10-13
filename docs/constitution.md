@@ -2,9 +2,9 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 1.1.0 |
+| Versión | 1.2.0 |
 | Ratificada | 2026-10-10 |
-| Última enmienda | 2026-10-10 (v1.1.0) |
+| Última enmienda | 2026-10-13 (v1.2.0) |
 | Dueño | Product Owner (tapiafiis@gmail.com) |
 
 La constitución es la primera fase del flujo SDD y está por encima de todas las specs, planes y tareas. Si una spec o un plan la contradicen, gana la constitución, hasta que se enmiende según el artículo 9.
@@ -13,7 +13,7 @@ La constitución es la primera fase del flujo SDD y está por encima de todas la
 
 ## Artículo 1 — Propósito
 
-Illumi-CRM es un CRM/ERP SaaS multiempresa para PYMEs productoras en Perú. El cliente piloto es una cervecera artesanal que produce a pedido y revende mercadería. Su razón de ser: que la empresa **compre, produzca, venda, facture y conozca su utilidad real en un solo sistema, sin planillas paralelas**. Visión y alcance: [PRD.md](../PRD.md).
+Illumi-CRM es un **ERP lite**: un CRM/ERP SaaS multiempresa para PYMEs productoras en Perú, con lo esencial de un ERP y nada más (artículo 10). El cliente piloto es una cervecera artesanal que produce a pedido y revende mercadería. Su razón de ser: que la empresa **compre, produzca, venda, facture y conozca su utilidad real en un solo sistema, sin planillas paralelas**. Visión y alcance: [PRD.md](../PRD.md).
 
 ## Artículo 2 — La spec manda
 
@@ -77,9 +77,17 @@ Illumi-CRM es un CRM/ERP SaaS multiempresa para PYMEs productoras en Perú. El c
 2. Versionado: **mayor** si se elimina o contradice un principio; **menor** si se agrega un principio o artículo; **parche** si se aclara la redacción sin cambiar su sentido.
 3. Toda enmienda actualiza la tabla de cabecera, se registra en el historial y en `MEMORY.md`, y revisa las specs y planes afectados en el mismo cambio.
 
+## Artículo 10 — ERP lite
+
+1. **Lo esencial, no todo:** se construye lo que una PYME necesita para comprar, producir, vender, facturar, cobrar y conocer su utilidad. Lo propio de un ERP grande (multimoneda, contabilidad completa, reservas de stock, entregas parciales, aprobaciones en varios niveles, entre otros) queda fuera salvo que una spec aprobada lo incluya.
+2. **Documentos con estados lineales:** compras, órdenes de producción y pedidos avanzan por estados en una sola dirección (p. ej. Creado ▸ Aprobado ▸ Facturado ▸ Entregado), cada paso con su acción explícita y su permiso. Lo que ya produjo efectos (stock, comprobantes) no se edita: se anula o se corrige según el artículo 4.5.
+3. **Doble validación:** lo que depende de datos que cambian (el stock, un producto o un cliente activo) se valida al aprobar o preparar el documento y otra vez al ejecutar su efecto (facturar, finalizar, recibir). No se reserva stock: la segunda validación es la que manda.
+4. **Maestros, no listas fijas:** los catálogos normativos (p. ej. tipos de documento de SUNAT) y las listas del negocio (p. ej. métodos de pago) son maestros mantenibles: de la plataforma si son iguales para todas las empresas, de cada empresa si cada una elige los suyos. En el código solo queda lo algorítmico (p. ej. el dígito verificador del RUC), elegible desde el maestro. Complementa el artículo 5.1.
+
 ## Historial de enmiendas
 
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0.0 | 2026-10-10 | Ratificación inicial. Se separa de `AGENTS.md` y se consolidan los principios del PRD (RN-GEN), de la arquitectura y del flujo SDD |
+| 1.2.0 | 2026-10-13 | Artículo 10 "ERP lite": alcance esencial, documentos con estados lineales, doble validación sin reservas y catálogos en maestros mantenibles; el artículo 1 define el producto como ERP lite. Pedido del PO ("estamos haciendo un ERP lite, déjalo en constitución"). Specs revisadas: 0006a y 0006b ya lo siguen; las implementadas (0004a, 0005a) ya cumplen la doble validación |
 | 1.1.0 | 2026-10-10 | Excepciones explícitas tras la validación de specs: datos de plataforma para el super admin (art. 3.1); corrección por ajuste cuando la anulación falsearía el inventario (art. 4.5); comprobante interno en la prueba gratuita y tratamiento de rechazados (art. 5.2); token de API visible una sola vez (art. 6.2). Aprobada por el PO |

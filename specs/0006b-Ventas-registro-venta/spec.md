@@ -64,6 +64,16 @@ La cervecera vende sobre todo a pedido (bares, restaurantes, distribuidores) y e
   - *Ajuste pendiente por 0002e (borrador):* el motivo de la entrega gratuita se elige de una lista cerrada que define el código de afectación del comprobante: degustación o muestras (`14`), regalo vinculado a una venta (`15`), regalo a trabajadores (`16`) y retiro sin sustento (`13`); `21` si el producto es exonerado; si es inafecto (propuesta, a confirmar): degustación `36`, promoción `31`, trabajadores y retiro general `32`. El ISC se calcula con el impuesto ISC de venta del producto (0002e), ya no con litros × tarifa.
 - RF-VEN-31: CUANDO se registra una venta, EL SISTEMA permite imprimir el comprobante en A4 o ticket de 80 mm.
 
+## Ajuste pendiente del PO (2026-10-13): pedido de venta, cobranza y pagos
+
+**Modelo del PO:** el pedido pasa por **Creado ▸ Aprobado ▸ Facturado ▸ Entregado** (0006a). **Facturar** emite el comprobante, **descuenta el stock** y genera una **cobranza** por el total; luego se **confirma la entrega**. La cobranza se cubre con **uno o varios pagos** (métodos de un **maestro mantenible**: efectivo, Yape, Plin, tarjeta, transferencia) y pasa de **Pendiente** a **Pagada** cuando sus pagos suman su total. La **venta directa** (B2C, mostrador) crea el pedido ya **Facturado y Entregado** con su cobranza **Pagada** con el método elegido. Los pagos se gestionan en un **listado de cobranzas**, donde se registran los pagos de una cobranza pendiente (B2B: después de la entrega). Esta spec se reescribe con este modelo al alinearla (después de 0006a): facturar, entregar, venta directa, cobranza, pagos y maestro de métodos de pago por empresa.
+
+Dudas a resolver con el PO al alinear:
+- ~~¿Facturar exige stock?~~ **Resuelta (PO, 2026-10-13):** aprobar exige stock suficiente y facturar lo vuelve a validar (doble validación); sin facturación parcial.
+- En efectivo, ¿un pago mayor al saldo se acepta y calcula el vuelto? Con otros métodos, ¿se rechaza un pago que supere el saldo?
+- ¿Cómo encajan las cuotas de una venta a crédito (RF-VEN-27) con la cobranza (vencimientos)?
+- ¿Un pago registrado se puede anular (con motivo)? ¿Qué permiso registra pagos?
+
 ## Requisitos no funcionales
 
 - RNF-VEN-01: La caída del PSE o de SUNAT nunca impide registrar una venta (PRD §7).

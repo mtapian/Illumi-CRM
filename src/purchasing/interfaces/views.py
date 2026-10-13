@@ -71,7 +71,12 @@ def proveedores(request):
     migas = MIGAS + [("Proveedores", None)]
     if nuevo or editando:
         migas = MIGAS + [("Proveedores", request.path), ("Editar" if editando else "Nuevo", None)]
+    tipos = tenancy_service().tipos_documento()  # maestro de la plataforma (RF-VEN-49)
+    actual = valores.get("tipo_doc") or (editando.tipo_doc if editando else "")
+    if actual and actual not in {t.abreviatura for t in tipos}:  # inactivo: lo conserva
+        tipos.append(tenancy_service().reglas_documento(actual))
     contexto = {
+        "tipos_documento": [t for t in tipos if t],
         "filas": [(f, puertos.compras.tiene_compras(f.id)) for f in filas],
         "q": q,
         "nuevo": nuevo,

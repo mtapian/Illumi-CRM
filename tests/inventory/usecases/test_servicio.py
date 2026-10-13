@@ -160,3 +160,18 @@ def test_existencias_en_orden_consumido_y_fecha_de_la_salida(inv):
     ]
     fechas = {timezone.localtime(m.fecha).date() for m in Movimiento.objects.filter(pk__in=ids)}
     assert fechas == {HOY}
+
+
+def test_disponibles_suma_almacenes_y_excluye_vencidos(inv):
+    """0006a, T7 (RF-VEN-45): stock sin vencer por producto, sumando almacenes; 0 sin stock."""
+    from inventory.infrastructure.models import Almacen
+
+    taproom = Almacen.objects.create(nombre="Taproom").id
+    entra(inv, "ipa", "10", "4", lote="IPA-0012", vencimiento=date(2026, 10, 30))  # vencido
+    entra(inv, "ipa", "48", "4", lote="IPA-0015", vencimiento=date(2026, 12, 15))
+    linea = Linea(inv["ipa"], taproom, D("5"), D("4"))
+    inventario().registrar_entrada("COMPRA", "COMPRA", 3, [linea], inv["admin"].id, HOY)
+    assert inventario().disponibles([inv["ipa"], inv["malta"]], HOY) == {
+        inv["ipa"]: D("53.0000"),
+        inv["malta"]: D("0"),
+    }

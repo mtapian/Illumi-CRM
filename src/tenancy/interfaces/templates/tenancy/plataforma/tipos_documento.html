@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% comment %}Maestro de tipos de documento de la plataforma (0006a, RF-VEN-49; ADR-12). Abreviatura y código SUNAT
+fijos una vez creados; un tipo no se elimina, se desactiva.{% endcomment %}
+{% block titulo %}Tipos de documento{% endblock %}
+{% block contenido %}
+{% if nuevo or editando %}
+<h1>{% if editando %}Editar {{ editando.nombre }}{% else %}Nuevo tipo de documento{% endif %}</h1>
+<form method="post" class="tarjeta" data-cambios id="form-tipo">{% csrf_token %}
+  {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
+  <p class="requerido-nota">Los campos con * son obligatorios.</p>
+  <div class="tres-columnas">
+    <label>Abreviatura *<input name="abreviatura" maxlength="10" required value="{{ valores.abreviatura|default:'' }}"{% if editando %} readonly{% endif %}></label>
+    <label>Código SUNAT (catálogo 06) *<input name="codigo_sunat" maxlength="2" required value="{{ valores.codigo_sunat|default:'' }}"{% if editando %} readonly{% endif %}></label>
+    <label>Nombre *<input name="nombre" maxlength="60" required value="{{ valores.nombre|default:'' }}"></label>
+    <label class="check"><input type="checkbox" name="exige_numero"{% if not valores or valores.exige_numero %} checked{% endif %}> Exige número</label>
+    <label>Longitud mínima<input name="longitud_min" type="number" min="0" max="20" value="{{ valores.longitud_min|default:'1' }}"></label>
+    <label>Longitud máxima<input name="longitud_max" type="number" min="0" max="20" value="{{ valores.longitud_max|default:'15' }}"></label>
+    <label>Caracteres<select name="caracteres">{% for v, n in caracteres %}<option value="{{ v }}"{% if valores.caracteres == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+    <label>Validación especial<select name="validacion">{% for v, n in validaciones %}<option value="{{ v }}"{% if valores.validacion == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+    <label class="check"><input type="checkbox" name="activo"{% if not valores or valores.activo %} checked{% endif %}> Activo</label>
+  </div>
+  <small class="subtitulo">La abreviatura y el código SUNAT no se cambian una vez creados. Un tipo inactivo deja de ofrecerse; los clientes y proveedores que ya lo tienen lo conservan.</small>
+</form>
+<div class="acciones-documento">
+  <a class="boton secundario" href="{% url 'plataforma_tipos_documento' %}" data-descartar>Cancelar</a>
+  <button type="submit" form="form-tipo">Guardar</button>
+</div>
+{% else %}
+<div class="encabezado-listado">
+  <div><h1>Tipos de documento</h1><p class="subtitulo">Catálogo 06 de SUNAT: los usan los clientes y los proveedores de todas las empresas.</p></div>
+  <div class="acciones-listado"><a class="boton principal" href="?nuevo=1">+ Nuevo tipo</a></div>
+</div>
+<div class="tarjeta tabla">
+<table><thead><tr><th>Código</th><th>Abreviatura</th><th>Nombre</th><th>Número</th><th>Validación</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for t in filas %}<tr>
+  <td>{{ t.codigo_sunat }}</td><td>{{ t.abreviatura }}</td><td>{{ t.nombre }}</td>
+  <td>{% if t.exige_numero %}{% if t.longitud_min == t.longitud_max %}{{ t.longitud_min }}{% else %}{{ t.longitud_min }} a {{ t.longitud_max }}{% endif %} {% if t.caracteres == "DIGITOS" %}dígitos{% else %}letras o números{% endif %}{% else %}Sin número{% endif %}</td>
+  <td>{% if t.validacion == "RUC" %}Dígito verificador del RUC{% else %}—{% endif %}</td>
+  <td><span class="chip {% if t.activo %}ok{% else %}error{% endif %}">{% if t.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+  <td class="acciones"><a class="boton secundario chico" href="?editar={{ t.id }}">Editar</a></td>
+</tr>{% endfor %}
+</tbody></table>
+</div>
+{% endif %}
+{% endblock %}

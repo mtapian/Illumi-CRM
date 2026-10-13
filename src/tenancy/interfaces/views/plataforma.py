@@ -11,11 +11,18 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from shared.domain.accesos import CATALOGO, MODULOS
+from shared.domain.documentos import (
+    ALFANUMERICO,
+    DIGITOS,
+    NINGUNA,
+    VALIDACION_RUC,
+    ReglasDocumento,
+)
 from shared.domain.errores import DomainError
 from tenancy.domain.habilitaciones import estado_funcionalidad, funcionalidades_de_modulo
 from tenancy.domain.suscripcion import Estado
-from tenancy.infrastructure.contenedor import plataforma
-from tenancy.infrastructure.models import Actividad, AuditoriaAcceso, Empresa, Plan
+from tenancy.infrastructure.contenedor import guardar_tipo_documento, plataforma
+from tenancy.infrastructure.models import Actividad, AuditoriaAcceso, Empresa, Plan, TipoDocumento
 from tenancy.infrastructure.repositorios import HabilitacionesOrm, funcionalidades_de_plan
 from tenancy.interfaces.views.auditoria_tokens import filas_auditoria
 
@@ -191,3 +198,52 @@ def modulos(request, empresa_id):
         for m in _modulos_con_funcionalidades(incluir_core=True)
     ]
     return render(request, "tenancy/plataforma/modulos.html", contexto)
+
+
+# --- 0006a: tipos de documento (RF-VEN-49) ---
+
+CAMPOS_TIPO = ("abreviatura", "codigo_sunat", "nombre", "longitud_min", "longitud_max")
+CAMPOS_TIPO += ("caracteres", "validacion")
+
+
+def _entero(texto) -> int:
+    return int(texto) if str(texto).strip().isdigit() else 0
+
+
+@solo_super
+def tipos_documento(request):
+    """Listado de maestro (ADR-12) y formulario; sin eliminar: un tipo se desactiva."""
+    editar = request.GET.get("editar", "")
+    if request.method == "POST":
+        p = request.POST
+        id_ = int(p["id"]) if p.get("id", "").isdigit() else None
+        reglas = ReglasDocumento(
+            p.get("abreviatura", ""),
+            p.get("codigo_sunat", ""),
+            p.get("nombre", ""),
+            p.get("exige_numero") == "on",
+            _entero(p.get("longitud_min")),
+            _entero(p.get("longitud_max")),
+            p.get("caracteres", ""),
+            p.get("validacion", ""),
+            p.get("activo") == "on",
+        )
+        try:
+            guardar_tipo_documento().ejecutar(id_, reglas)
+            messages.success(request, "Tipo de documento guardado.")
+            return redirect("plataforma_tipos_documento")
+        except DomainError as e:
+            messages.error(request, e.mensaje)
+            editar = str(id_ or "")
+    filas = TipoDocumento.objects.order_by("codigo_sunat")
+    editando = get_object_or_404(TipoDocumento, pk=editar) if editar.isdigit() else None
+    valores = request.POST if request.method == "POST" else editando
+    contexto = {
+        "filas": filas,
+        "editando": editando,
+        "nuevo": "nuevo" in request.GET or (request.method == "POST" and not editando),
+        "valores": valores,
+        "caracteres": [(DIGITOS, "Solo dígitos"), (ALFANUMERICO, "Letras y números")],
+        "validaciones": [(NINGUNA, "Ninguna"), (VALIDACION_RUC, "Dígito verificador del RUC")],
+    }
+    return render(request, "tenancy/plataforma/tipos_documento.html", contexto)

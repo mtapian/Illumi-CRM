@@ -3,9 +3,11 @@ from datetime import date
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
 
+from shared.domain.documentos import TIPOS_INICIALES, ReglasDocumento
 from shared.domain.errores import NoEncontrado
 from tenancy.domain.errores import EmailDuplicado, RucDuplicado
 from tenancy.domain.habilitaciones import Ajuste
@@ -23,6 +25,7 @@ from tenancy.infrastructure.models import (
     PlanFuncionalidad,
     Rol,
     RolPermiso,
+    TipoDocumento,
     Usuario,
     UsuarioRol,
 )
@@ -298,3 +301,54 @@ class AccesosOrm(RolesOrm):
 def roles_de_usuario(usuario_id: int) -> list[RolDominio]:
     filas = Rol.all_tenants.filter(usuarios__id=usuario_id).prefetch_related("permisos")
     return [_rol_de_dominio(r) for r in filas]
+
+
+_REGLAS = (
+    "abreviatura",
+    "codigo_sunat",
+    "nombre",
+    "exige_numero",
+    "longitud_min",
+    "longitud_max",
+    "caracteres",
+    "validacion",
+    "activo",
+)
+
+
+def _reglas(t) -> ReglasDocumento:
+    return ReglasDocumento(**{c: getattr(t, c) for c in _REGLAS})
+
+
+class TiposDocumentoOrm:
+    """Maestro de la plataforma (RF-VEN-49): sin empresa."""
+
+    def tipo(self, id_):
+        return _reglas(get_object_or_404(TipoDocumento, pk=id_))
+
+    def existe(self, campo, valor, excluir_id):
+        filas = TipoDocumento.objects.filter(**{campo: valor})
+        return filas.exclude(pk=excluir_id).exists() if excluir_id else filas.exists()
+
+    def guardar(self, id_, reglas) -> int:
+        datos = {c: getattr(reglas, c) for c in _REGLAS}
+        if id_ is None:
+            return TipoDocumento.objects.create(**datos).id
+        TipoDocumento.objects.filter(pk=id_).update(**datos)
+        return id_
+
+    def todos(self, solo_activos: bool) -> list[ReglasDocumento]:
+        filas = TipoDocumento.objects.order_by("codigo_sunat")
+        return [_reglas(t) for t in (filas.filter(activo=True) if solo_activos else filas)]
+
+    def por_abreviatura(self, abreviatura) -> ReglasDocumento | None:
+        t = TipoDocumento.objects.filter(abreviatura=abreviatura).first()
+        return _reglas(t) if t else None
+
+
+def sembrar_tipos_documento() -> None:
+    """Los tipos iniciales, si faltan (la migración los siembra; los tests con transacciones
+    reales vacían la tabla)."""
+    for t in TIPOS_INICIALES:
+        datos = {c: getattr(t, c) for c in _REGLAS if c != "abreviatura"}
+        TipoDocumento.objects.get_or_create(abreviatura=t.abreviatura, defaults=datos)

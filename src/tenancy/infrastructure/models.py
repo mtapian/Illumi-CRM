@@ -2,7 +2,7 @@
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 from django.db.models.functions import Lower
 from django.utils import timezone
 
@@ -288,3 +288,30 @@ class ApiToken(TenantModel):
 
     def __str__(self):
         return f"{self.nombre} ({self.prefijo}…)"
+
+
+class TipoDocumento(models.Model):
+    """Maestro de tipos de documento de identidad de la plataforma (0006a, RF-VEN-49;
+    catálogo 06 de SUNAT). Lo mantiene el super admin; no se elimina."""
+
+    abreviatura = models.CharField(max_length=10, unique=True)
+    codigo_sunat = models.CharField(max_length=2, unique=True)
+    nombre = models.CharField(max_length=60)
+    exige_numero = models.BooleanField(default=True)
+    longitud_min = models.PositiveSmallIntegerField(default=1)
+    longitud_max = models.PositiveSmallIntegerField(default=15)
+    caracteres = models.CharField(max_length=12, default="ALFANUMERICO")
+    validacion = models.CharField(max_length=10, default="NINGUNA")
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(longitud_min__lte=F("longitud_max"))
+                & (Q(exige_numero=True) | Q(longitud_min=0, longitud_max=0)),
+                name="tipo_documento_longitud",
+            )
+        ]
+
+    def __str__(self):
+        return self.nombre

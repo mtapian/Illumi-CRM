@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% comment %}Pedido (plan 0006a §5; docs/ux.md): cliente con búsqueda por nombre o documento y registro al vuelo
+(RF-VEN-50), líneas dinámicas con precio precargado, disponibilidad y faltante por línea (RF-VEN-45) y total.
+Barra Creado ▸ Aprobado ▸ Facturado ▸ Entregado; acción principal "Aprobar" (exige stock); Más acciones ›
+Cancelar. Aprobado: solo fecha de entrega y comentario.{% endcomment %}
+{% block titulo %}{% if pedido %}Pedido {{ numero }}{% else %}Nuevo pedido{% endif %}{% endblock %}
+{% block contenido %}
+{% include "catalog/_migas.html" %}
+<div class="encabezado-documento">
+  <div>
+    <h1>{% if pedido %}Pedido {{ numero }} · {{ pedido.cliente.nombre }}{% else %}Nuevo pedido{% endif %}</h1>
+    {% if indicadores %}<p>{% for i in indicadores %}<span class="chip {% if i == 'Listo para facturar' %}ok{% else %}error{% endif %}">{{ i }}</span> {% endfor %}</p>{% endif %}
+  </div>
+  {% if pedido %}<span class="chip {% if pedido.estado == 'ENTREGADO' %}ok{% elif pedido.estado == 'CANCELADO' %}error{% endif %}">{{ estado_texto }}</span>{% endif %}
+</div>
+{% if pedido %}<ol class="barra-estados" aria-label="Secuencia de estados">{% for v, n in estados %}<li{% if pedido.estado == v %} aria-current="step" class="actual"{% endif %}>{{ n }}</li>{% endfor %}</ol>{% endif %}
+
+{% if editable or not pedido %}
+<form method="post" id="form-pedido" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+  <section class="tarjeta">
+    <h2>Datos del pedido</h2>
+    <p class="requerido-nota">Los campos con * son obligatorios.</p>
+    <div class="tres-columnas">
+      <div class="selector-cliente">
+        <label for="cliente-buscar">Cliente *</label>
+        <input type="hidden" name="cliente" id="cliente-id" value="{{ cliente_elegido.id|default:'' }}">
+        <input type="search" id="cliente-buscar" autocomplete="off" placeholder="Nombre o documento" value="{{ cliente_elegido.nombre|default:'' }}" aria-describedby="cliente-ayuda">
+        <ul id="cliente-sugerencias" class="sugerencias" hidden></ul>
+        <small id="cliente-ayuda" class="subtitulo">Escribe para buscar.{% if puede_registrar_cliente %} <button type="button" class="enlace" onclick="document.getElementById('nuevo-cliente').showModal()">+ Nuevo cliente</button>{% endif %}</small>
+        {% include "listados/_error.html" with error=request.errores_campo.cliente %}
+      </div>
+      <label>Fecha de entrega *<input type="date" name="fecha_entrega" required value="{{ valores.fecha_entrega }}">{% include "listados/_error.html" with error=request.errores_campo.fecha_entrega %}</label>
+      <label>Comentario<input name="comentario" maxlength="250" value="{{ valores.comentario|default:'' }}"></label>
+    </div>
+  </section>
+  <section class="tarjeta">
+    <h2>Productos</h2>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio (con impuestos)</th><th class="num">Subtotal</th><th><span class="oculto">Quitar</span></th></tr></thead>
+    <tbody id="lineas">{% for f in filas %}{% include "sales/_linea_pedido.html" %}{% endfor %}</tbody></table></div>
+    {% if accion_fallida != "cancelar" %}{% include "listados/_error.html" with error=request.errores_campo.lineas %}{% endif %}
+    <template id="linea-vacia">{% include "sales/_linea_pedido.html" with f=None %}</template>
+    <p><button type="button" class="secundario" onclick="agregarLinea()">+ Agregar producto</button></p>
+    <div class="caja-totales" aria-live="polite"><dl><dt class="total">Total</dt><dd class="total" id="total">S/ 0.00</dd></dl>
+      <small class="subtitulo">Los precios incluyen impuestos; el sistema recalcula al guardar.</small></div>
+  </section>
+</form>
+{% elif pedido %}
+<section class="tarjeta">
+  <h2>Datos del pedido</h2>
+  {% if fecha_editable %}
+  <form method="post" id="form-pedido" data-cambios class="tres-columnas">{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    <input type="hidden" name="cliente" value="{{ pedido.cliente_id }}">
+    {% for x in lineas_info %}<input type="hidden" name="producto" value="{{ x.linea.producto_id }}"><input type="hidden" name="cantidad" value="{{ x.linea.cantidad }}"><input type="hidden" name="precio" value="{{ x.linea.precio }}">{% endfor %}
+    <div><span class="etiqueta">Cliente</span><p>{{ pedido.cliente.nombre }} · {{ pedido.cliente.tipo_doc }} {{ pedido.cliente.num_doc }}</p></div>
+    <label>Fecha de entrega *<input type="date" name="fecha_entrega" required value="{{ pedido.fecha_entrega|date:'Y-m-d' }}"></label>
+    <label>Comentario<input name="comentario" maxlength="250" value="{{ pedido.comentario }}"></label>
+  </form>
+  {% else %}
+  <dl>
+    <dt>Cliente</dt><dd>{{ pedido.cliente.nombre }} · {{ pedido.cliente.tipo_doc }} {{ pedido.cliente.num_doc }}</dd>
+    <dt>Fecha de entrega</dt><dd>{{ pedido.fecha_entrega|date:"Y-m-d" }}</dd>
+    {% if pedido.comentario %}<dt>Comentario</dt><dd>{{ pedido.comentario }}</dd>{% endif %}
+  </dl>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if pedido %}
+<section class="tarjeta">
+  <h2>{% if pedido.estado == "CREADO" or pedido.estado == "APROBADO" %}Stock del pedido{% else %}Productos{% endif %}</h2>
+  {% if pedido.estado == "CREADO" or pedido.estado == "APROBADO" %}<p class="subtitulo">Stock sin vencer de hoy en todos los almacenes. No se reserva: otros pedidos pueden contar el mismo stock.</p>{% endif %}
+  <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Precio</th><th class="num">Subtotal</th>{% if pedido.estado == "CREADO" or pedido.estado == "APROBADO" %}<th class="num">Disponible</th><th class="num">Faltante</th><th>Alerta</th>{% endif %}</tr></thead><tbody>
+  {% for x in lineas_info %}<tr data-sku="{{ x.linea.producto.sku }}"><td>{{ x.linea.producto.sku }} · {{ x.linea.producto.nombre }}</td><td class="num">{{ x.linea.cantidad.normalize }} {{ x.linea.producto.unidad.abreviatura }}</td><td class="num">S/ {{ x.linea.precio }}</td><td class="num">S/ {{ x.linea.subtotal }}</td>
+    <td class="num">{% if x.disponible is None %}—{% else %}{{ x.disponible.normalize }}{% endif %}</td><td class="num">{{ x.faltante.normalize }}</td><td>{% if x.faltante %}<span class="chip error">Quiebre de stock</span>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="7" class="subtitulo">Sin productos.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <div class="pie-productos"><span></span><div class="caja-totales"><dl><dt class="total">Total</dt><dd class="total">S/ {{ pedido.total }}</dd></dl></div></div>
+</section>
+{% if pedido.estado == "CANCELADO" %}<p class="aviso">Cancelado por {{ pedido.cancelado_por.email|default:"—" }} el {{ pedido.cancelado_en|date:"Y-m-d H:i" }}. Motivo: {{ pedido.motivo_cancelacion }}</p>{% endif %}
+{% endif %}
+
+<div class="acciones-documento">
+  {% if not pedido %}
+    <a class="boton secundario" href="{% url 'pedidos' %}" data-descartar>Cancelar</a>
+    <button type="submit" form="form-pedido">Crear pedido</button>
+  {% else %}
+    {% if editable or fecha_editable %}<span class="estado-cambios" data-aviso-cambios="form-pedido" role="status">Sin cambios pendientes</span>
+    <button type="submit" form="form-pedido" class="secundario" data-con-cambios disabled>Guardar cambios</button>{% else %}<a class="boton secundario" href="{% url 'pedidos' %}">Volver al listado</a>{% endif %}
+    {% if puede_aprobar %}<button type="submit" form="form-pedido" name="accion" value="aprobar">Aprobar</button>{% endif %}
+    {% if editable or puede_cancelar %}
+    <details class="mas-acciones">
+      <summary>Más acciones ▾</summary>
+      <div class="menu">
+        {% if editable %}<a href="{{ request.path }}" data-descartar>Descartar cambios</a>{% endif %}
+        {% if puede_cancelar %}<hr><button type="button" class="peligro" onclick="document.getElementById('cancelar-pedido').showModal()">Cancelar pedido</button>{% endif %}
+      </div>
+    </details>
+    {% endif %}
+  {% endif %}
+</div>
+
+{% if puede_cancelar %}
+<dialog id="cancelar-pedido" class="tarjeta" aria-labelledby="titulo-cancelar">
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="cancelar">
+    <h2 id="titulo-cancelar">Cancelar pedido {{ numero }}</h2>
+    <p>El pedido <strong>{{ numero }}</strong> de <strong>{{ pedido.cliente.nombre }}</strong> quedará cancelado. No mueve stock. La cancelación no se puede deshacer: para retomarlo, crea otro pedido.</p>
+    <label>Motivo *<input name="motivo" required maxlength="200" value="{% if accion_fallida == 'cancelar' %}{{ request.POST.motivo }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.motivo %}</label>
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit" class="peligro">Confirmar cancelación</button></p>
+  </form>
+</dialog>
+{% endif %}
+
+{% if editable or not pedido %}
+{% if puede_registrar_cliente %}
+<dialog id="nuevo-cliente" class="tarjeta" aria-labelledby="titulo-cliente">
+  <form id="form-cliente-rapido">{% csrf_token %}
+    <h2 id="titulo-cliente">Nuevo cliente</h2>
+    <p class="subtitulo">Datos mínimos; el resto se completa en la ficha del cliente.</p>
+    <label>Nombre o razón social *<input name="nombre" required maxlength="200"></label>
+    <label>Tipo de documento *<select name="tipo_doc">{% for t in tipos %}<option value="{{ t.abreviatura }}"{% if t.abreviatura == "DNI" %} selected{% endif %}>{{ t.nombre }}</option>{% endfor %}</select></label>
+    <label>Número<input name="num_doc" maxlength="20"></label>
+    <label>Teléfono<input name="telefono" maxlength="40"></label>
+    <label>Email<input name="email" maxlength="120"></label>
+    <label>Comentarios<input name="comentarios" maxlength="500"></label>
+    <p class="error" id="cliente-errores" role="alert" hidden></p>
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit">Registrar y elegir</button></p>
+  </form>
+</dialog>
+{% endif %}
+<script>
+  // Líneas dinámicas con el precio de lista precargado y total informativo (como la compra).
+  function agregarLinea() {
+    document.getElementById("lineas").appendChild(document.getElementById("linea-vacia").content.cloneNode(true));
+  }
+  function quitarLinea(boton) {
+    if (document.getElementById("lineas").rows.length > 1) boton.closest("tr").remove();
+    document.getElementById("form-pedido").dispatchEvent(new Event("input"));
+  }
+  function precargarPrecio(select) {
+    const precio = select.closest("tr").querySelector("[name=precio]");
+    if (!precio.value && select.selectedOptions[0]) precio.value = select.selectedOptions[0].dataset.precio || "";
+  }
+  function recalcular() {
+    let total = 0;
+    for (const fila of document.getElementById("lineas").rows) {
+      const sub = Math.round(Number(fila.querySelector("[name=cantidad]").value) * Number(fila.querySelector("[name=precio]").value) * 100) / 100;
+      fila.querySelector(".subtotal").textContent = "S/ " + sub.toFixed(2);
+      total += sub;
+    }
+    document.getElementById("total").textContent = "S/ " + total.toFixed(2);
+  }
+  document.getElementById("form-pedido").addEventListener("input", recalcular);
+  document.getElementById("form-pedido").addEventListener("change", recalcular);
+  recalcular();
+
+  // Cliente: búsqueda por nombre o documento y registro al vuelo (RF-VEN-50).
+  (() => {
+    const buscar = document.getElementById("cliente-buscar"), id = document.getElementById("cliente-id");
+    const lista = document.getElementById("cliente-sugerencias");
+    const elegir = (c) => {
+      id.value = c.id; buscar.value = c.nombre; lista.hidden = true;
+      document.getElementById("form-pedido").dispatchEvent(new Event("change"));
+    };
+    let espera;
+    buscar.addEventListener("input", () => {
+      id.value = "";
+      clearTimeout(espera);
+      espera = setTimeout(async () => {
+        const q = buscar.value.trim();
+        if (!q) { lista.hidden = true; return; }
+        const r = await fetch("{% url 'buscar_clientes' %}?q=" + encodeURIComponent(q));
+        const { clientes } = await r.json();
+        lista.replaceChildren(...(clientes.length ? clientes.map((c) => {
+          const li = Object.assign(document.createElement("li"), { textContent: `${c.nombre} · ${c.documento}` });
+          li.addEventListener("mousedown", (e) => { e.preventDefault(); elegir(c); });
+          return li;
+        }) : [Object.assign(document.createElement("li"), { className: "vacio", textContent: "Sin coincidencias" })]));
+        lista.hidden = false;
+      }, 200);
+    });
+    buscar.addEventListener("blur", () => (lista.hidden = true));
+    const rapido = document.getElementById("form-cliente-rapido");
+    if (rapido) rapido.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const r = await fetch("{% url 'cliente_rapido' %}", { method: "POST", body: new FormData(rapido) });
+      const datos = await r.json();
+      const errores = document.getElementById("cliente-errores");
+      if (!r.ok) { errores.textContent = Object.values(datos.errores || { e: datos.error }).join(" "); errores.hidden = false; return; }
+      errores.hidden = true; rapido.reset(); rapido.closest("dialog").close(); elegir(datos);
+    });
+  })();
+</script>
+<style>
+  .selector-cliente { position: relative; display: flex; flex-direction: column; gap: .25rem; }
+  .sugerencias { position: absolute; top: 4.2rem; left: 0; right: 0; z-index: 20; margin: 0; padding: .25rem 0; list-style: none;
+    background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 8px; box-shadow: 0 6px 18px rgb(15 27 51 / .12); max-height: 14rem; overflow-y: auto; }
+  .sugerencias li { padding: .45rem .75rem; cursor: pointer; }
+  .sugerencias li:hover { background: var(--acento-suave); color: var(--acento); }
+  .sugerencias .vacio { color: var(--tenue); cursor: default; }
+  button.enlace { background: none; border: 0; padding: 0; color: var(--acento); font-weight: 600; cursor: pointer; }
+</style>
+{% endif %}
+{% if accion_fallida == "cancelar" %}
+<script>document.getElementById("cancelar-pedido")?.showModal();</script>
+{% endif %}
+{% endblock %}

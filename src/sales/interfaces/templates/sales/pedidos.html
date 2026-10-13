@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% comment %}Pedidos (plan 0006a §5; RF-VEN-46): vista Lista (grilla estándar) o Kanban (columnas por estado, sin
+arrastrar), con los mismos filtros e indicadores. La vista queda en la dirección (`?vista=`).{% endcomment %}
+{% block titulo %}Pedidos{% endblock %}
+{% block contenido %}
+<style>
+  .kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; align-items: start; }
+  .kanban .columna { background: var(--fondo); border: 1px solid var(--borde); border-radius: var(--radio); padding: .75rem; }
+  .kanban .columna h2 { font-size: 1rem; margin: 0 0 .5rem; display: flex; justify-content: space-between; }
+  .kanban .tarjeta-pedido { display: block; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 8px; padding: .6rem .75rem; margin-bottom: .5rem; color: var(--texto); font-weight: 400; }
+  .kanban .tarjeta-pedido:hover { border-color: var(--acento); }
+  .vistas { display: inline-flex; gap: .25rem; }
+  .vistas a[aria-current] { background: var(--acento); color: #fff; }
+</style>
+{% include "catalog/_migas.html" %}
+<div class="encabezado-listado">
+  <div><h1>Pedidos</h1><p class="subtitulo">Creado ▸ Aprobado ▸ Facturado ▸ Entregado. Aprobar exige stock; facturar lo vuelve a validar.</p></div>
+  <div class="acciones-listado">
+    <span class="vistas" role="group" aria-label="Vista">
+      <a class="boton secundario" href="?{{ consulta }}{% if consulta %}&{% endif %}vista=lista"{% if vista == "lista" %} aria-current="page"{% endif %}>Lista</a>
+      <a class="boton secundario" href="?{{ consulta }}{% if consulta %}&{% endif %}vista=kanban"{% if vista == "kanban" %} aria-current="page"{% endif %}>Kanban</a>
+    </span>
+    {% if puede_crear %}<a class="boton principal" href="{% url 'nuevo_pedido' %}">+ Nuevo pedido</a>{% endif %}
+  </div>
+</div>
+<form method="get" class="tarjeta barra-filtros"><input type="hidden" name="vista" value="{{ vista }}">
+  <label class="buscar">N.° de pedido<input type="search" name="q" value="{{ filtro.q }}" placeholder="P-000012"></label>
+  <label>Estado<select name="estado"><option value="">Todos</option>{% for v, n in estados %}<option value="{{ v }}"{% if filtro.estado == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+  <label>Cliente<select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}"{% if filtro.cliente == c.id|stringformat:"s" %} selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></label>
+  <label class="check"><input type="checkbox" name="atrasados" value="1"{% if filtro.atrasados %} checked{% endif %}> Solo atrasados</label>
+  <label class="check"><input type="checkbox" name="quiebre" value="1"{% if filtro.quiebre %} checked{% endif %}> Solo con quiebre de stock</label>
+  <div class="acciones-filtro">
+    <details class="mas-filtros"{% if filtro.desde or filtro.hasta %} data-activos{% endif %}>
+      <summary>Más filtros</summary>
+      <div class="panel-filtros">
+        <label>Entrega desde<input type="date" name="desde" value="{{ filtro.desde }}"></label>
+        <label>Entrega hasta<input type="date" name="hasta" value="{{ filtro.hasta }}"></label>
+      </div>
+    </details>
+    <button type="submit">Filtrar</button>
+  </div>
+</form>
+{% include "listados/_aplicados.html" %}
+{% if vista == "kanban" %}
+<div class="kanban">
+{% for v, n, lista in columnas %}<section class="columna" data-estado="{{ v }}"><h2>{{ n }} <span class="chip neutro">{{ lista|length }}</span></h2>
+  {% for p in lista %}<a class="tarjeta-pedido" href="{% url 'pedido' p.id %}" data-pedido="{{ p.numero_texto }}"><strong>{{ p.numero_texto }}</strong> · {{ p.cliente.nombre }}<br><small class="subtitulo">Entrega {{ p.fecha_entrega|date:"Y-m-d" }} · S/ {{ p.total }}</small>
+    {% if p.indicadores %}<br>{% for i in p.indicadores %}<span class="chip {% if i == 'Listo para facturar' %}ok{% else %}error{% endif %}">{{ i }}</span> {% endfor %}{% endif %}</a>
+  {% empty %}<p class="subtitulo">Sin pedidos.</p>{% endfor %}
+</section>{% endfor %}
+</div>
+{% else %}
+<div class="tarjeta tabla">
+<table><thead><tr><th>Pedido</th><th>Cliente</th><th>Entrega</th><th class="num">Total</th><th>Estado</th><th>Indicadores</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for p in pagina %}<tr data-pedido="{{ p.numero_texto }}">
+  <td><a href="{% url 'pedido' p.id %}">{{ p.numero_texto }}</a></td><td>{{ p.cliente.nombre }}</td><td>{{ p.fecha_entrega|date:"Y-m-d" }}</td><td class="num">S/ {{ p.total }}</td>
+  <td><span class="chip {% if p.estado == 'ENTREGADO' %}ok{% elif p.estado == 'CANCELADO' %}error{% else %}neutro{% endif %}">{% for v, n in estados %}{% if v == p.estado %}{{ n }}{% endif %}{% endfor %}</span></td>
+  <td class="indicadores">{% for i in p.indicadores %}<span class="chip {% if i == 'Listo para facturar' %}ok{% else %}error{% endif %}">{{ i }}</span> {% endfor %}</td>
+  <td class="acciones"><a class="boton secundario chico" href="{% url 'pedido' p.id %}">Abrir</a></td>
+</tr>{% empty %}<tr><td colspan="7" class="subtitulo">{% if aplicados %}No hay pedidos con esos filtros.{% else %}Aún no hay pedidos.{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+{% include "listados/_pie.html" with nombres="pedido,pedidos" %}
+</div>
+{% endif %}
+{% endblock %}

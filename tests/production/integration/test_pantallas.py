@@ -23,8 +23,8 @@ def web(client, ej, empresa_produccion):  # noqa: F811
 
 
 def test_crear_editar_y_finalizar_con_dos_salidas_desde_la_pantalla(web):
-    """RF-PRD-36 a 41, RF-PRD-48 (listado) y enmienda 1 (RF-PRD-49 a 52 y RF-PRD-53, costos por salida): el indirecto
-    se reparte por producida × factor; un lote por producto."""
+    """RF-PRD-36 a 41, RF-PRD-48 (listado) y enmienda 1 (RF-PRD-49 a 52; RF-PRD-53, costos
+    por salida): el indirecto se reparte por producida × factor; un lote por producto."""
     client, (actor, almacen, ids), empresa = web
     with tenant_context(empresa.id):
         apa = Producto.objects.create(

@@ -12,7 +12,13 @@ from tenancy.infrastructure.contenedor import tenancy_service
 
 def caso_de_uso(clase):
     """`caso_de_uso(proveedores.GuardarProveedor).ejecutar(actor, …)`."""
-    return clase(ProveedoresOrm(), puertos, catalogo_query(), transaction.atomic)
+    return clase(
+        ProveedoresOrm(),
+        puertos,
+        catalogo_query(),
+        transaction.atomic,
+        tenancy_service().reglas_documento,
+    )
 
 
 def caso_de_compra(clase):

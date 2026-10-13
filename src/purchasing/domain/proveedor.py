@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 from decimal import ROUND_HALF_UP, Decimal
 
 from purchasing.domain.errores import ProveedorInvalido
-from shared.domain.documentos import validar_documento
+from shared.domain.documentos import ReglasDocumento, validar_numero
 from shared.domain.errores import DocumentoInvalido
 
 DOS_DECIMALES = Decimal("0.01")
@@ -21,10 +21,13 @@ class DatosProveedor:
     direccion: str = ""
 
 
-def validar_proveedor(d: DatosProveedor) -> DatosProveedor:
-    """Documento válido (RUC o DNI) y razón social; devuelve los datos sin espacios."""
+def validar_proveedor(d: DatosProveedor, reglas: ReglasDocumento | None) -> DatosProveedor:
+    """Documento válido según su tipo del maestro (0006a, RF-VEN-49) y razón social; devuelve
+    los datos sin espacios."""
+    if reglas is None:
+        raise ProveedorInvalido("Elige un tipo de documento", "tipo_doc")
     try:
-        num_doc = validar_documento(d.tipo_doc, d.num_doc)
+        num_doc = validar_numero(reglas, d.num_doc)
     except DocumentoInvalido as e:
         e.campo = "num_doc"  # el error va junto al número (docs/ux.md §4)
         raise

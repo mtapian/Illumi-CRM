@@ -3,6 +3,7 @@
 from datetime import date
 from decimal import Decimal
 
+from shared.domain.documentos import ReglasDocumento
 from shared.domain.tenant import empresa_actual
 from shared.domain.vigencia import SinValorVigente, valor_vigente
 from tenancy.application.puertos import EmpresasRepo, HabilitacionesRepo, ParametrosRepo
@@ -12,11 +13,24 @@ from tenancy.domain.suscripcion import puede_operar
 
 class TenancyService:
     def __init__(
-        self, parametros: ParametrosRepo, empresas: EmpresasRepo, habilitaciones: HabilitacionesRepo
+        self,
+        parametros: ParametrosRepo,
+        empresas: EmpresasRepo,
+        habilitaciones: HabilitacionesRepo,
+        documentos=None,
     ):
         self._parametros = parametros
         self._empresas = empresas
         self._habilitaciones = habilitaciones
+        self._documentos = documentos  # maestro de tipos de documento (0006a, RF-VEN-49)
+
+    def tipos_documento(self, solo_activos: bool = True) -> list[ReglasDocumento]:
+        """Los tipos del maestro de la plataforma; por defecto, los que se ofrecen."""
+        return self._documentos.todos(solo_activos)
+
+    def reglas_documento(self, abreviatura: str) -> ReglasDocumento | None:
+        """Las reglas de un tipo, activo o no: quien ya lo usa lo conserva."""
+        return self._documentos.por_abreviatura(abreviatura)
 
     def parametro_vigente(self, clave: str, fecha: date) -> Decimal:
         """Valor propio de la empresa actual si tiene uno vigente; si no, el de la plataforma."""

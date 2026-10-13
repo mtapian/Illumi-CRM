@@ -7,6 +7,7 @@ from catalog.application.puertos import puertos
 from purchasing.application.puertos import puertos as puertos_compras
 from tenancy.infrastructure.contenedor import sembrador_roles
 from tenancy.infrastructure.models import Empresa, Plan, Rol, UsuarioRol
+from tenancy.infrastructure.repositorios import sembrar_tipos_documento
 
 
 @pytest.fixture
@@ -14,6 +15,7 @@ def crear_empresa(db):
     """Crea una empresa con su propio plan (para tests de integración)."""
 
     def _crear(ruc="20601234565", razon_social="Cervecería Andina S.A.C.", **kw):
+        sembrar_tipos_documento()  # los tests con transacciones reales vacían el maestro
         plan = Plan.objects.create(nombre=f"Plan {ruc}", slug=f"plan-{ruc}")
         return Empresa.objects.create(ruc=ruc, razon_social=razon_social, plan=plan, **kw)
 

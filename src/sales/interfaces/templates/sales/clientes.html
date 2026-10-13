@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% comment %}Clientes (plan 0006a §5): grilla estándar, formulario en su propia página y ficha con sus pedidos.
+CRU: no se eliminan, se desactivan (RF-VEN-05).{% endcomment %}
+{% block titulo %}Clientes{% endblock %}
+{% block contenido %}
+{% include "catalog/_migas.html" %}
+{% if nuevo or editando %}
+<h1>{% if editando %}{{ editando.nombre }}{% else %}Nuevo cliente{% endif %}</h1>
+<section class="tarjeta formulario-maestro">
+  <form method="post" id="form-cliente" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% endif %}
+    <p class="requerido-nota">Los campos con * son obligatorios.</p>
+    <div class="dos-columnas">
+      <label class="ancho">Nombre o razón social *<input name="nombre" required maxlength="200" value="{{ valores.nombre }}"{% if not gestiona %} disabled{% endif %}>{% include "listados/_error.html" with error=request.errores_campo.nombre %}</label>
+      <label>Tipo de documento *<select name="tipo_doc"{% if not gestiona %} disabled{% endif %}>{% for t in tipos %}<option value="{{ t.abreviatura }}"{% if valores.tipo_doc == t.abreviatura or not valores.tipo_doc and t.abreviatura == "DNI" %} selected{% endif %}>{{ t.nombre }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.tipo_doc %}</label>
+      <label>Número<input name="num_doc" maxlength="20" value="{{ valores.num_doc }}"{% if not gestiona %} disabled{% endif %}>{% include "listados/_error.html" with error=request.errores_campo.num_doc %}</label>
+      <label>Teléfono<input name="telefono" maxlength="40" value="{{ valores.telefono }}"{% if not gestiona %} disabled{% endif %}></label>
+      <label>Email<input name="email" maxlength="120" value="{{ valores.email }}"{% if not gestiona %} disabled{% endif %}>{% include "listados/_error.html" with error=request.errores_campo.email %}</label>
+      <label class="ancho">Comentarios<textarea name="comentarios" maxlength="500"{% if not gestiona %} disabled{% endif %}>{{ valores.comentarios }}</textarea></label>
+      <label>Dirección fiscal<input name="direccion" maxlength="250" value="{{ valores.direccion }}"{% if not gestiona %} disabled{% endif %}></label>
+      <label>Contacto<input name="contacto" maxlength="120" value="{{ valores.contacto }}"{% if not gestiona %} disabled{% endif %}></label>
+      <label>Canal<select name="canal"{% if not gestiona %} disabled{% endif %}><option value="">—</option><option value="B2B"{% if valores.canal == "B2B" %} selected{% endif %}>B2B</option><option value="B2C"{% if valores.canal == "B2C" %} selected{% endif %}>B2C</option></select>{% include "listados/_error.html" with error=request.errores_campo.canal %}</label>
+      <label class="check"><input type="checkbox" name="activo"{% if not editando or valores.activo %} checked{% endif %}{% if not gestiona or editando.es_generico %} disabled{% endif %}> Activo</label>{% if editando.es_generico %}<input type="hidden" name="activo" value="on">{% endif %}
+      {% include "listados/_error.html" with error=request.errores_campo.activo %}
+    </div>
+  </form>
+</section>
+{% if editando %}
+<section class="tarjeta">
+  <h2>Pedidos</h2>
+  <div class="tabla"><table><thead><tr><th>Pedido</th><th>Entrega</th><th class="num">Total</th><th>Estado</th></tr></thead><tbody>
+  {% for p in pedidos %}<tr><td><a href="{% url 'pedido' p.id %}">P-{{ p.numero|stringformat:"06d" }}</a></td><td>{{ p.fecha_entrega|date:"Y-m-d" }}</td><td class="num">S/ {{ p.total }}</td><td>{% for v, n in estados.items %}{% if v == p.estado %}{{ n }}{% endif %}{% endfor %}</td></tr>
+  {% empty %}<tr><td colspan="4" class="subtitulo">Aún no tiene pedidos.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <p class="subtitulo">Sus ventas, el total de los últimos 90 días y la última compra llegan con la facturación (0006b).</p>
+</section>
+{% endif %}
+<div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-cliente" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{{ request.path }}" data-descartar>Volver</a>{% if gestiona %} <button type="submit" form="form-cliente" data-con-cambios disabled>Guardar</button>{% endif %}</div>
+{% else %}
+<div class="encabezado-listado"><div><h1>Clientes</h1><p class="subtitulo">Un cliente no se elimina: se desactiva y deja de ofrecerse en pedidos nuevos.</p></div>
+  {% if gestiona %}<div class="acciones-listado"><a class="boton principal" href="?nuevo=1">+ Nuevo cliente</a></div>{% endif %}</div>
+<form method="get" class="tarjeta barra-filtros">
+  <label class="buscar">Buscar cliente<input type="search" name="q" value="{{ filtro.q }}" placeholder="Nombre o documento"></label>
+  <label>Canal<select name="canal"><option value="">Todos</option><option value="B2B"{% if filtro.canal == "B2B" %} selected{% endif %}>B2B</option><option value="B2C"{% if filtro.canal == "B2C" %} selected{% endif %}>B2C</option></select></label>
+  <label>Estado<select name="estado"><option value="">Todos</option><option value="activo"{% if filtro.estado == "activo" %} selected{% endif %}>Activos</option><option value="inactivo"{% if filtro.estado == "inactivo" %} selected{% endif %}>Inactivos</option></select></label>
+  <div class="acciones-filtro"><button type="submit">Filtrar</button></div>
+</form>
+<div class="tarjeta tabla">
+<table><thead><tr><th>Cliente</th><th>Documento</th><th>Teléfono</th><th>Email</th><th>Canal</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for c in pagina %}<tr>
+  <td><a href="?editar={{ c.id }}"><strong>{{ c.nombre }}</strong></a></td><td>{{ c.tipo_doc }} {{ c.num_doc }}</td><td>{{ c.telefono }}</td><td>{{ c.email }}</td><td>{{ c.canal }}</td>
+  <td><span class="chip {% if c.activo %}ok{% else %}error{% endif %}">{% if c.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+  <td class="acciones"><a class="boton secundario chico" href="?editar={{ c.id }}">{% if gestiona %}Editar{% else %}Ver{% endif %}</a>
+    {% if gestiona and not c.es_generico %}<details class="mas-acciones abajo"><summary aria-label="Más acciones">⋯</summary>
+      <form method="post" class="menu">{% csrf_token %}<input type="hidden" name="id" value="{{ c.id }}">
+        {% if c.activo %}<button type="submit" name="accion" value="desactivar">Desactivar</button>{% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
+      </form></details>{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="7" class="subtitulo">{% if filtro.q %}Sin resultados para "{{ filtro.q }}".{% else %}Aún no hay clientes.{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+{% include "listados/_pie.html" with nombres="cliente,clientes" %}
+</div>
+{% endif %}
+{% endblock %}

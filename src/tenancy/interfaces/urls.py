@@ -43,6 +43,11 @@ urlpatterns = [
     ),
     path("plataforma/planes/", plataforma.planes, name="plataforma_planes"),
     path("plataforma/planes/<int:plan_id>/", plataforma.plan, name="plataforma_plan"),
+    path(
+        "plataforma/tipos-documento/",
+        plataforma.tipos_documento,
+        name="plataforma_tipos_documento",
+    ),
 ]
 
 menu.agregar(None, "Inicio", "/dashboard/", orden=0, icono="inicio")
@@ -77,3 +82,11 @@ menu.agregar(
     None, "Empresas", "/plataforma/empresas/", orden=0, ambito="plataforma", icono="empresa"
 )
 menu.agregar(None, "Planes", "/plataforma/planes/", orden=10, ambito="plataforma", icono="planes")
+menu.agregar(
+    None,
+    "Tipos de documento",
+    "/plataforma/tipos-documento/",
+    orden=20,
+    ambito="plataforma",
+    icono="token",
+)
