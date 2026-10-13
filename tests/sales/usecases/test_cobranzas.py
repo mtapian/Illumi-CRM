@@ -76,9 +76,13 @@ def test_pagos_que_no_se_aceptan(v, previo, monto, mensaje):
 
 @pytest.mark.django_db
 def test_fecha_futura_y_metodo_inactivo(v):
-    """RF-VEN-54 y 59."""
+    """RF-VEN-54 (fecha entre la emisión y hoy) y 59."""
     with pytest.raises(CobranzaInvalida, match="La fecha del pago no puede ser futura"):
         pagar(v, "10.00", fecha=date(2026, 12, 2))
+    with pytest.raises(
+        CobranzaInvalida, match=r"no puede ser anterior a la emisión \(2026-12-01\)"
+    ):
+        pagar(v, "10.00", fecha=date(2026, 11, 30))
     MetodoPago.objects.filter(nombre="Plin").update(activo=False)
     with pytest.raises(CobranzaInvalida, match="El método de pago no existe o está inactivo"):
         pagar(v, "10.00", "Plin")

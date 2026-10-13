@@ -39,7 +39,7 @@
   <form method="post" id="form-pago" class="tres-columnas">{% csrf_token %}<input type="hidden" name="accion" value="pagar">
     <label>Método *<select name="metodo">{% for m in metodos %}<option value="{{ m.id }}"{% if request.POST.metodo == m.id|stringformat:"s" %} selected{% endif %}>{{ m.nombre }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.metodo %}</label>
     <label>Monto *<input name="monto" type="number" min="0" step="0.01" required value="{% if accion_fallida == 'pagar' %}{{ request.POST.monto }}{% else %}{{ cobranza.saldo }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.monto %}</label>
-    <label>Fecha *<input name="fecha" type="date" required max="{{ hoy|date:'Y-m-d' }}" value="{% if accion_fallida == 'pagar' %}{{ request.POST.fecha }}{% else %}{{ hoy|date:'Y-m-d' }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.fecha %}</label>
+    <label>Fecha *<input name="fecha" type="date" required min="{{ cobranza.emision|date:'Y-m-d' }}" max="{{ hoy|date:'Y-m-d' }}" value="{% if accion_fallida == 'pagar' %}{{ request.POST.fecha }}{% else %}{{ hoy|date:'Y-m-d' }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.fecha %}</label>
     <label>Referencia<input name="referencia" maxlength="80" placeholder="N.° de operación" value="{% if accion_fallida == 'pagar' %}{{ request.POST.referencia }}{% endif %}"></label>
   </form>
 </section>

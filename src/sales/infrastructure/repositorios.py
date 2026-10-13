@@ -177,7 +177,7 @@ class CobranzasOrm:
 
     def bloquear(self, cobranza_id):
         c = get_object_or_404(Cobranza.objects.select_for_update(), pk=cobranza_id)
-        return c.estado, c.total, c.pagado
+        return c.estado, c.total, c.pagado, c.emision
 
     def metodo_activo(self, metodo_id) -> bool:
         return MetodoPago.objects.filter(pk=metodo_id, activo=True).exists()

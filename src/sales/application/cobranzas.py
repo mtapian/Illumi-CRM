@@ -23,9 +23,8 @@ class DatosPago:
 
 
 class CobranzasRepo(Protocol):
-    def bloquear(
-        self, cobranza_id: int
-    ) -> tuple[str, Decimal, Decimal]: ...  # estado, total, pagado
+    # estado, total, pagado y emisión; FOR UPDATE
+    def bloquear(self, cobranza_id: int) -> tuple[str, Decimal, Decimal, date]: ...
     def metodo_activo(self, metodo_id: int) -> bool: ...
     def registrar_pago(self, cobranza_id: int, datos: DatosPago, usuario_id: int) -> int: ...
     def actualizar(self, cobranza_id: int, pagado: Decimal, estado: str) -> None: ...
@@ -56,7 +55,12 @@ class RegistrarPago(_Base):
             raise CobranzaInvalida("La fecha del pago no puede ser futura", "fecha")
         if not self._repo.metodo_activo(datos.metodo_id):
             raise CobranzaInvalida("El método de pago no existe o está inactivo", "metodo")
-        estado, total, pagado = self._repo.bloquear(cobranza_id)
+        estado, total, pagado, emision = self._repo.bloquear(cobranza_id)
+        if datos.fecha < emision:
+            raise CobranzaInvalida(
+                f"La fecha del pago no puede ser anterior a la emisión ({emision:%Y-%m-%d})",
+                "fecha",
+            )
         dom.validar_pago(estado, datos.monto, total - pagado)
         datos = DatosPago(datos.metodo_id, datos.monto, datos.fecha, datos.referencia.strip())
         pago_id = self._repo.registrar_pago(cobranza_id, datos, actor.usuario_id)
@@ -73,7 +77,7 @@ class AnularPago(_Base):
             raise CobranzaInvalida("Indica el motivo de la anulación", "motivo")
         with self._atomic():
             cobranza_id, _, _ = self._repo.pago(pago_id)
-            _, total, pagado = self._repo.bloquear(cobranza_id)
+            _, total, pagado, _ = self._repo.bloquear(cobranza_id)
             _, monto, anulado = self._repo.pago(pago_id)  # releído con la cobranza bloqueada
             if anulado:
                 raise CobranzaInvalida("El pago ya está anulado")

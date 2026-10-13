@@ -135,9 +135,10 @@ def clientes(request):
     return render(request, "sales/clientes.html", contexto)
 
 
-@requiere(up.GESTIONAR)
+@requiere(uc.VER)
 def buscar(request):
-    """RF-VEN-50: hasta 10 clientes activos por nombre o documento, en JSON."""
+    """RF-VEN-50: hasta 10 clientes activos por nombre o documento, en JSON. Buscar es ver
+    clientes: lo usan el pedido y la venta directa (un rol de mostrador no gestiona pedidos)."""
     filas = buscar_clientes(request.actor.empresa_id, request.GET.get("q", ""))
     datos = [
         {"id": c.id, "nombre": c.nombre, "documento": f"{c.tipo_doc} {c.num_doc}".strip()}

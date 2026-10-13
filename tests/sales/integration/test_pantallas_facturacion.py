@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from sales.infrastructure.contenedor import sembrar_metodos_pago
 from sales.infrastructure.models import MetodoPago, Pedido
-from tenancy.infrastructure.models import Usuario
+from tenancy.infrastructure.models import Rol, RolPermiso, Usuario, UsuarioRol
 from tests.conftest import asignar_rol
 from tests.sales.usecases.test_facturacion import aprobado, preparar
 
@@ -110,3 +110,27 @@ def test_venta_directa(web):
     assert (p.estado, p.cobranza.estado) == ("ENTREGADO", "PAGADA")
     client.post("/ventas/venta-directa/", datos)  # doble envío
     assert Pedido.objects.count() == 1
+
+
+def test_cajero_busca_clientes_sin_gestionar_pedidos(web, client):
+    """E1 (revisión de ventas): buscar un cliente es verlo; un rol de mostrador con
+    `ventas.venta.registrar` y `ventas.cliente.ver` lo busca sin `ventas.pedido.gestionar`."""
+    _, v = web
+    empresa_id = v["actor"].empresa_id
+    rol = Rol.objects.create(nombre="Cajero")
+    for p in ("core.dashboard.ver", "ventas.venta.registrar", "ventas.cliente.ver"):
+        RolPermiso.objects.create(rol=rol, permiso_id=p)
+    cajero = Usuario.objects.create_user("caja@andina.pe", "x", empresa_id=empresa_id)
+    UsuarioRol.objects.create(usuario=cajero, rol=rol)
+    client.force_login(cajero, BACKEND)
+    r = client.get("/ventas/clientes/buscar/", {"q": "lúpulo"})
+    assert r.status_code == 200 and r.json()["clientes"][0]["nombre"] == "Bar El Lúpulo"
+
+
+def test_kardex_enlaza_la_venta_con_su_pedido(web):
+    """U1 (revisión de ventas): como compras, ajustes y OP, la salida VENTA lleva a su pedido."""
+    client, v = web
+    id_ = aprobado(v, ("TER-IPA-330", "24", "12"))
+    client.post(f"/ventas/pedidos/{id_}/", {"accion": "facturar", "almacen": v["almacen"]})
+    kardex = client.get("/inventario/kardex/", {"producto": v["ids"]["TER-IPA-330"]})
+    assert f'href="/ventas/pedidos/{id_}/"' in kardex.content.decode()

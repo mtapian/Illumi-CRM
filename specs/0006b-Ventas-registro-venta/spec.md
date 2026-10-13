@@ -80,15 +80,24 @@ La cervecera vende sobre todo a pedido (bares, restaurantes, distribuidores), co
 - RF-VEN-60 (PO, 2026-10-13): EL SISTEMA muestra la cobranza asociada a su pedido: la ficha del pedido facturado muestra su cobranza (código, estado, saldo y cuotas) con acceso a la ficha de la cobranza para registrar pagos, y la ficha de la cobranza muestra su código, su pedido (con enlace), cliente, cuotas y pagos.
 
 - RF-VEN-53: EL SISTEMA lista las cobranzas (grilla estándar) con código, número de pedido (enlace a su pedido), cliente, forma de pago, emisión, próximo vencimiento (el de la primera cuota no cubierta por los pagos), total, pagado, saldo, monto vencido y estado, con el indicador **Vencida** y los filtros estado, cliente, fechas de vencimiento y "solo vencidas"; a quien tenga `ventas.cobranza.ver`.
-- RF-VEN-54: CUANDO un usuario con `ventas.cobranza.gestionar` registra un pago en una cobranza Pendiente o Parcial (método activo, monto, fecha no futura y referencia opcional), EL SISTEMA lo guarda y pasa la cobranza a **Parcial** si aún queda saldo o a **Pagada** si el saldo llega a 0.
+- RF-VEN-54: CUANDO un usuario con `ventas.cobranza.gestionar` registra un pago en una cobranza Pendiente o Parcial (método activo, monto, fecha no futura ni anterior a la emisión de la cobranza y referencia opcional), EL SISTEMA lo guarda y pasa la cobranza a **Parcial** si aún queda saldo o a **Pagada** si el saldo llega a 0.
 - RF-VEN-55: SI el monto del pago es 0 o menos, o mayor al saldo, ENTONCES EL SISTEMA lo rechaza e indica "El pago debe ser mayor a 0 y no superar el saldo (<saldo>)" (PO, 2026-10-13: nunca mayor al saldo; el vuelto se maneja fuera del sistema).
-- RF-VEN-56: CUANDO un usuario con `ventas.cobranza.gestionar` anula un pago con motivo, EL SISTEMA lo marca anulado (no lo borra), guarda quién, cuándo y por qué, y recalcula el estado de la cobranza: **Pendiente** si lo pagado vuelve a 0, **Parcial** si queda algo pagado. Un pago anulado no se anula dos veces.
+- RF-VEN-56: CUANDO un usuario con `ventas.cobranza.anular` (RF-VEN-61) anula un pago con motivo, EL SISTEMA lo marca anulado (no lo borra), guarda quién, cuándo y por qué, y recalcula el estado de la cobranza: **Pendiente** si lo pagado vuelve a 0, **Parcial** si queda algo pagado. Un pago anulado no se anula dos veces.
 - RF-VEN-57: SI se intenta registrar un pago en una cobranza Pagada, ENTONCES EL SISTEMA lo rechaza e indica "La cobranza ya está pagada".
 
 ### UC-VEN-10 Métodos de pago
 
 - RF-VEN-58: EL SISTEMA crea en cada empresa nueva, y en las existentes, los métodos de pago Efectivo, Yape, Plin, Tarjeta y Transferencia (constitución art. 10.4: lista del negocio, maestro de cada empresa).
-- RF-VEN-59: CUANDO un usuario con `ventas.cobranza.gestionar` crea, renombra, activa o desactiva un método de pago, EL SISTEMA lo guarda; el nombre es único en la empresa sin distinguir mayúsculas. Un método no se elimina. Un método inactivo no se ofrece en pagos nuevos; los pagos que ya lo usan lo conservan.
+- RF-VEN-59: CUANDO un usuario con `ventas.metodo_pago.gestionar` (RF-VEN-64) crea, renombra, activa o desactiva un método de pago, EL SISTEMA lo guarda; el nombre es único en la empresa sin distinguir mayúsculas. Un método no se elimina. Un método inactivo no se ofrece en pagos nuevos; los pagos que ya lo usan lo conservan.
+
+### Enmienda 1 (PO, 2026-10-13): revisión de ventas — aprobada (PO: "ok a todo")
+
+Tras la revisión de ventas el PO pidió segregar funciones en la cobranza (C1), un aviso de cobranzas vencidas en el inicio (U2) y el estado de cobro en los pedidos (U3). El plazo de crédito por cliente (U4) no se agrega: los días de cada cuota ya se editan al facturar (PO: "son editables").
+
+- RF-VEN-61 (C1, segregación de funciones): EL SISTEMA exige el permiso `ventas.cobranza.anular`, distinto de `ventas.cobranza.gestionar`, para anular un pago. La plantilla de rol Gerente (y el Administrador) lo tienen; la de Ventas no: quien registra pagos no los anula. Ventas sigue registrando pagos (`ventas.cobranza.gestionar`); los roles son editables. Los roles existentes que ya anulan ventas (`ventas.venta.anular`) reciben `ventas.cobranza.anular` y `ventas.metodo_pago.gestionar`.
+- RF-VEN-64 (Q3): EL SISTEMA exige `ventas.metodo_pago.gestionar` (Gerente y Administrador) para crear, renombrar, activar o desactivar métodos de pago (ajusta RF-VEN-59): el maestro lo administra quien administra, no quien opera.
+- RF-VEN-62 (U2): MIENTRAS haya cobranzas vencidas (solo vencidas; sin aviso de próximas a vencer), EL SISTEMA muestra en el inicio, a quien tenga `ventas.cobranza.ver`, el aviso "N cobranzas vencidas", que lleva al listado de cobranzas filtrado por "solo vencidas". Sin cobranzas vencidas, no muestra el aviso.
+- RF-VEN-63 (U3): EL SISTEMA muestra en la Lista y el Kanban de pedidos, para cada pedido Facturado o Entregado con saldo, su estado de cobro: **Por cobrar** (cobranza Pendiente) o **Cobro parcial** (Parcial), y además **Cobro vencido** si su cobranza está vencida. Un pedido pagado no lleva marca (las ventas directas no agregan ruido). Sin filtro nuevo: para eso está el listado de cobranzas.
 
 ## Requisitos no funcionales
 

@@ -163,10 +163,35 @@ Característica: Facturación, entrega y cobranza de pedidos
     Cuando abro las cobranzas con el filtro "solo vencidas"
     Entonces veo la cobranza de "Bar El Lúpulo" marcada Vencida con monto vencido 44.00
 
-  @UC-VEN-10 @RF-VEN-58 @RF-VEN-59
+  @UC-VEN-10 @RF-VEN-58 @RF-VEN-59 @RF-VEN-64
   Escenario: Métodos de pago de la empresa
     Entonces la empresa tiene los métodos de pago "Efectivo, Yape, Plin, Tarjeta, Transferencia"
     Cuando desactivo el método de pago "Plin"
     Entonces "Plin" no se ofrece en un pago nuevo
     Cuando creo el método de pago "yape"
     Entonces el resultado es "Ya existe un método de pago con ese nombre"
+
+  @UC-VEN-09 @RF-VEN-61 @borrador
+  Escenario: Quien registra pagos no los anula
+    Dado un pedido facturado de "Bar El Lúpulo" con 24 "TER-IPA-330" y costo total 45.43
+    Y un pago de 288.00 por "Efectivo"
+    Cuando como usuario "ventas" intento anular el pago con el motivo "Error"
+    Entonces el resultado es "Acceso denegado"
+    Cuando como usuario "gerente" anulo el pago con el motivo "Error"
+    Entonces la cobranza queda Pendiente con saldo 288.00
+
+  @UC-VEN-09 @RF-VEN-62 @borrador
+  Escenario: Aviso de cobranzas vencidas en el inicio
+    Dado un pedido de "Bar El Lúpulo" facturado a crédito el "2026-11-01" con las cuotas:
+      | monto  | vence      |
+      | 288.00 | 2026-11-16 |
+    Cuando abro el inicio
+    Entonces veo la alerta "1 cobranza vencida"
+    Y la alerta lleva al listado de cobranzas filtrado por "solo vencidas"
+
+  @UC-VEN-09 @RF-VEN-63 @borrador
+  Escenario: Estado de cobro en el listado de pedidos
+    Dado un pedido facturado de "Bar El Lúpulo" con 24 "TER-IPA-330" y costo total 45.43
+    Y un pago de 100.00 por "Efectivo"
+    Cuando abro el listado de pedidos
+    Entonces el pedido facturado muestra "Cobro parcial"

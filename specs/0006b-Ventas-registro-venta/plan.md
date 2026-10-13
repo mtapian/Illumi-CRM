@@ -82,6 +82,13 @@ VentaDirecta(actor, datos, pagos, token, hoy):
 - **Ficha del cliente:** comprado en 90 días, última compra y saldo por cobrar.
 - Menú "Ventas": Venta directa, Cobranzas, Métodos de pago. Rutas con id en la prueba de aislamiento.
 
+### Enmienda 1 (revisión de ventas)
+
+- **C1 (RF-VEN-61, 64):** permisos `ventas.cobranza.anular` y `ventas.metodo_pago.gestionar` en la funcionalidad "Ventas"; `AnularPago` y los casos de uso de métodos de pago pasan a ellos; plantilla Gerente; migración que los da a los roles con `ventas.venta.anular`; botones y menú solo con el permiso.
+- **U2 (RF-VEN-62):** `avisos.agregar("cobranzas_vencidas", …, permiso=ventas.cobranza.ver)` con la misma consulta del filtro "solo vencidas" (cuotas vencidas − pagado > 0, en la base); `_aviso_vencidas.html` enlaza a `/ventas/cobranzas/?vencidas=1`.
+- **U3 (RF-VEN-63):** `disponibilidad()` suma a los indicadores de un pedido Facturado o Entregado con saldo su estado de cobro (sin marca si está pagado), con una sola consulta de cobranzas (y sus cuotas) para la página.
+- Correcciones de la revisión (sin RF nuevo): la búsqueda de clientes exige `ventas.cliente.ver` (no `ventas.pedido.gestionar`); un pago no puede ser anterior a la emisión (RF-VEN-54); el kardex enlaza la salida `VENTA` con su pedido.
+
 ## 6. Decisiones técnicas
 
 - **Sin tabla de venta ni de comprobante** (§2): la venta es el pedido facturado.
