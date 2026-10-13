@@ -1,5 +1,5 @@
 # language: es
-@E06 @E06b @mvp @borrador
+@E06 @E06b @mvp
 Característica: Facturación, entrega y cobranza de pedidos
   Como vendedor
   Quiero facturar y entregar los pedidos, vender en mostrador y cobrar
@@ -8,7 +8,7 @@ Característica: Facturación, entrega y cobranza de pedidos
   Antecedentes:
     Dado que soy usuario "ventas" de "Cervecería Andina"
     Y la fecha de hoy es "2026-12-01"
-    Y el cliente "Bar El Lúpulo" con RUC "20512345671" y canal "Bar"
+    Y el cliente "Bar El Lúpulo" con RUC "20512345671" y canal "B2B"
     Y el cliente "Ana Torres" con DNI "45678912"
     Y "TER-IPA-330" se vende a 12.00 con "IGV 18%", costo promedio 1.893080 y stock en "Principal":
       | lote     | vence      | cantidad |
@@ -144,12 +144,12 @@ Característica: Facturación, entrega y cobranza de pedidos
       | 100.00 | 0.00   | El pago debe ser mayor a 0 y no superar el saldo (188.00)     |
       | 288.00 | 1.00   | La cobranza ya está pagada                                    |
 
-  @UC-VEN-09 @RF-VEN-54 @RF-VEN-56
+  @UC-VEN-09 @RF-VEN-54 @RF-VEN-56 @RF-VEN-61
   Escenario: Anular un pago recalcula el estado de la cobranza
     Dado un pedido facturado de "Bar El Lúpulo" con 24 "TER-IPA-330" y costo total 45.43
     Y un pago de 100.00 por "Efectivo"
     Y un pago de 188.00 por "Yape"
-    Cuando anulo el pago de 188.00 con el motivo "Monto mal digitado"
+    Cuando como usuario "gerente" anulo el pago de 188.00 con el motivo "Monto mal digitado"
     Entonces la cobranza queda Parcial con saldo 188.00
     Y el pago queda anulado con su motivo
 
@@ -166,12 +166,12 @@ Característica: Facturación, entrega y cobranza de pedidos
   @UC-VEN-10 @RF-VEN-58 @RF-VEN-59 @RF-VEN-64
   Escenario: Métodos de pago de la empresa
     Entonces la empresa tiene los métodos de pago "Efectivo, Yape, Plin, Tarjeta, Transferencia"
-    Cuando desactivo el método de pago "Plin"
+    Cuando como usuario "gerente" desactivo el método de pago "Plin"
     Entonces "Plin" no se ofrece en un pago nuevo
-    Cuando creo el método de pago "yape"
+    Cuando como usuario "gerente" creo el método de pago "yape"
     Entonces el resultado es "Ya existe un método de pago con ese nombre"
 
-  @UC-VEN-09 @RF-VEN-61 @borrador
+  @UC-VEN-09 @RF-VEN-61
   Escenario: Quien registra pagos no los anula
     Dado un pedido facturado de "Bar El Lúpulo" con 24 "TER-IPA-330" y costo total 45.43
     Y un pago de 288.00 por "Efectivo"
@@ -180,7 +180,7 @@ Característica: Facturación, entrega y cobranza de pedidos
     Cuando como usuario "gerente" anulo el pago con el motivo "Error"
     Entonces la cobranza queda Pendiente con saldo 288.00
 
-  @UC-VEN-09 @RF-VEN-62 @borrador
+  @UC-VEN-09 @RF-VEN-62
   Escenario: Aviso de cobranzas vencidas en el inicio
     Dado un pedido de "Bar El Lúpulo" facturado a crédito el "2026-11-01" con las cuotas:
       | monto  | vence      |
@@ -189,7 +189,7 @@ Característica: Facturación, entrega y cobranza de pedidos
     Entonces veo la alerta "1 cobranza vencida"
     Y la alerta lleva al listado de cobranzas filtrado por "solo vencidas"
 
-  @UC-VEN-09 @RF-VEN-63 @borrador
+  @UC-VEN-09 @RF-VEN-63
   Escenario: Estado de cobro en el listado de pedidos
     Dado un pedido facturado de "Bar El Lúpulo" con 24 "TER-IPA-330" y costo total 45.43
     Y un pago de 100.00 por "Efectivo"

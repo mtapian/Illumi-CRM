@@ -1,6 +1,6 @@
 # Plan 0006b — Ventas: facturación, entrega y cobranza
 
-Estado: aprobado (PO: "ok", 2026-10-13), para la spec aprobada el 2026-10-13 (PO: "ok")
+Estado: implementado (2026-10-13) · aprobado (PO: "ok", 2026-10-13), para la spec aprobada el 2026-10-13 (PO: "ok")
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.2.0)
 

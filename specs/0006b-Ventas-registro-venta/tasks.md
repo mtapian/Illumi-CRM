@@ -1,6 +1,6 @@
 # Tareas 0006b — Ventas: facturación, entrega y cobranza
 
-Estado: aprobado (PO: "ok", 2026-10-13).
+Estado: aprobado (PO: "ok", 2026-10-13) · **todas las tareas hechas (2026-10-13)**.
 
 Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y parar (art. 8.1).
 
@@ -41,6 +41,6 @@ Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y par
 - [x] **T14. Búsqueda de productos y lectora de código de barras (enmienda 2).** — RF-VEN-65
   - Buscador en el pedido y la venta directa; Enter con código exacto agrega o suma 1.
   - Hecho cuando: el test de pantalla ve el buscador y los datos de búsqueda de cada producto en las dos pantallas, y la verificación manual en Docker escanea, suma y avisa si no existe.
-- [ ] **T9. Escenarios de aceptación y cierre.** — todos (después de T11–T13)
+- [x] **T9. Escenarios de aceptación y cierre.** — todos (después de T11–T13)
   - `tests/acceptance/pasos_ventas.py` y `test_e06b.py`; se quita `@borrador`; spec, plan y tareas a "implementada"; `MEMORY.md`; Docker.
   - Hecho cuando: los escenarios de 0006b y los de 0006a están en verde; suite, lint, formato, contratos y migraciones en verde; cada RF con escenario o test.

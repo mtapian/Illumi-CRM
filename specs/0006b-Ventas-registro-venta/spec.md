@@ -1,6 +1,6 @@
 # Spec 0006b — Ventas: facturación, entrega y cobranza
 
-Estado: **aprobada** (PO: "ok", 2026-10-13) · reescrita el 2026-10-13 con el modelo de venta del PO (pedido de venta y cobranza) y la constitución v1.2.0 (art. 10, ERP lite)
+Estado: **implementada** (2026-10-13; T1–T14) · aprobada (PO: "ok", 2026-10-13) · reescrita el 2026-10-13 con el modelo de venta del PO (pedido de venta y cobranza) y la constitución v1.2.0 (art. 10, ERP lite)
 
 Épica E06 (Ventas y pedidos), parte 2 de 3. Depende de: 0006a (clientes y pedidos), 0002e (impuestos), 0003a (stock y lotes). La usan: 0006c (anulación), 0007a (emisión del comprobante), 0008b (resultados).
 
