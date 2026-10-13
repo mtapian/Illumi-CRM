@@ -121,8 +121,8 @@ class _Base(CasoDeUso):
         """RF-COM-08 y 09 (ajustado por RF-CAT-61): el IGV de cada línea sale del impuesto de
         compra de su producto a la fecha de la compra. `igv_pct` guarda el mayor % usado."""
         empresa = self._igv.igv_vigente(datos.fecha)
-        # ponytail: sin impuestos de compra (datos previos a 0002e), el IGV de la empresa;
-        # la conversión de T6 (RF-CAT-60) los asigna a todos.
+        # Un producto sin impuesto de compra (la conversión de 0002e los asignó a todos) toma
+        # el IGV de la empresa.
         tasas = [
             self._catalogo.igv_de_compra(x.producto_id, datos.fecha) or ("PORCENTAJE", empresa)
             for x in datos.lineas

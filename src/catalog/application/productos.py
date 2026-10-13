@@ -3,8 +3,6 @@ servicio, casillas y receta)."""
 
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import date
-from decimal import Decimal
 from typing import Protocol
 
 from catalog.application.puertos import Puertos
@@ -12,9 +10,7 @@ from catalog.domain.errores import (
     AgrupacionInvalida,
     CampoInmutable,
     CodigoBarrasDuplicado,
-    ContenidoInmutable,
     ImpuestoInvalido,
-    IscInvalido,
     LimiteProductosPlan,
     NoSePuedeDesactivar,
     NoSePuedeEliminar,
@@ -40,8 +36,6 @@ from shared.application.autorizacion import Actor, CasoDeUso
 
 GESTIONAR = "catalogo.producto.gestionar"
 ISC = "catalogo.isc.gestionar"
-SIN_TASA = "Registra la tasa de ISC con su fecha de vigencia"
-Tasa = tuple[Decimal, date]  # (monto por litro, vigente desde)
 UNIDADES = "catalogo.unidad.gestionar"
 AGRUPACIONES = ("categoria", "marca")  # RF-CAT-33, 34, 49
 NOMBRE = {"categoria": "categoría", "marca": "marca"}  # para los mensajes
@@ -93,9 +87,6 @@ class CatalogoRepo(Protocol):
 
     def estados(self, ids) -> dict[int, tuple[TipoProducto, bool]]: ...
     def grafo_recetas(self) -> dict[int, set[int]]: ...
-    def existe_tasa(self, producto_id: int, desde: date) -> bool: ...
-    def agregar_tasa(self, producto_id: int, monto: Decimal, desde: date, actor_id: int): ...
-    def tasas_isc(self, producto_id: int) -> list: ...
     def receta(self, producto_id: int) -> Receta: ...
     def guardar_receta(self, producto_id: int, receta: Receta) -> None: ...
     def sku_con_codigo_barras(self, codigo: str, excluir_id: int | None = None) -> str | None: ...
@@ -146,29 +137,6 @@ class _Base(CasoDeUso):
             cambia = original is None or getattr(original, f"{tipo}_id") != id_
             if id_ and cambia and not self._repo.agrupacion_activa(tipo, id_):
                 raise ProductoInvalido(f"La {NOMBRE[tipo]} no existe o está inactiva", tipo)
-
-    def _exigir_permiso_isc(self, actor: Actor, d, original, tasa) -> None:
-        """Gestionar el ISC es de quien tiene `catalogo.isc.gestionar` (0001c; RF-CAT-45)."""
-        campos = ("isc_sistema", "isc_codigo_tipo_sistema", "contenido_litros")
-        cambia = original is None and d.afecto_isc
-        cambia |= original is not None and any(
-            getattr(d, c) != getattr(original, c) for c in campos
-        )
-        if cambia or tasa:
-            actor.exige(ISC)
-
-    def _agregar_tasa(self, actor: Actor, producto_id: int, tasa: Tasa) -> None:
-        """Un cambio de tasa es una tasa nueva; las anteriores no se editan (RF-CAT-46)."""
-        monto, desde = tasa
-        if monto is None or monto <= 0:
-            raise IscInvalido("La tasa de ISC por litro debe ser mayor a 0", "tasa_monto")
-        if desde is None:
-            raise IscInvalido("La fecha de vigencia de la tasa es obligatoria", "tasa_desde")
-        if self._repo.existe_tasa(producto_id, desde):
-            raise IscInvalido(
-                f"Ya hay una tasa de ISC vigente desde {desde:%Y-%m-%d}", "tasa_desde"
-            )
-        self._repo.agregar_tasa(producto_id, monto, desde, actor.usuario_id)
 
     def _validar_receta(self, producto_id: int | None, receta: Receta) -> None:
         """Cualquier producto activo, sin repetidos, sin el propio producto ni ciclos."""
@@ -229,18 +197,14 @@ class CrearProducto(_Base):
         actor: Actor,
         datos: DatosProducto,
         receta: Receta | None = None,
-        tasa: Tasa | None = None,
         impuestos_venta: list[int] | None = None,
         impuestos_compra: list[int] | None = None,
     ) -> int:
         d = validar_producto(datos)
-        self._exigir_permiso_isc(actor, d, None, tasa)
         listas = {
             VENTA: self._impuestos(actor, d, VENTA, impuestos_venta, None),
             COMPRA: self._impuestos(actor, d, COMPRA, impuestos_compra, None),
         }
-        if d.afecto_isc and not tasa:
-            raise IscInvalido(SIN_TASA, "tasa_monto")
         self._validar_agrupaciones(d, None)
         receta = tuple(receta or ()) if d.se_fabrica else ()
         self._validar_receta(None, receta)
@@ -254,8 +218,6 @@ class CrearProducto(_Base):
             if receta:
                 self._repo.guardar_receta(producto_id, receta)
             self._guardar_impuestos(producto_id, listas)
-            if d.afecto_isc:
-                self._agregar_tasa(actor, producto_id, tasa)
             self._repo.registrar_historial(producto_id, actor.usuario_id, "creado", None, None)
             return producto_id
 
@@ -270,33 +232,19 @@ class EditarProducto(_Base):
         producto_id: int,
         datos: DatosProducto,
         receta: Receta | None = None,
-        tasa: Tasa | None = None,
         impuestos_venta: list[int] | None = None,
         impuestos_compra: list[int] | None = None,
     ) -> None:
         original = self._repo.producto(producto_id)
         d = replace(validar_producto(datos), activo=original.activo)
-        self._exigir_permiso_isc(actor, d, original, tasa)
         listas = {
             t: self._impuestos(actor, d, t, ids, self._repo.impuestos_de(producto_id, t))
             for t, ids in ((VENTA, impuestos_venta), (COMPRA, impuestos_compra))
         }
-        if d.afecto_isc and not tasa and not self._repo.tasas_isc(producto_id):
-            raise IscInvalido(SIN_TASA, "tasa_monto")
         self._validar_agrupaciones(d, original)
         movimientos = self._puertos.inventario.tiene_movimientos(producto_id)
         if prohibidos := cambios_prohibidos(original, d, movimientos):
             raise CampoInmutable(INMUTABLE, prohibidos[0])
-        if (
-            movimientos
-            and original.contenido_litros
-            and (d.contenido_litros != original.contenido_litros)
-        ):
-            raise ContenidoInmutable(  # RF-CAT-46 (antes RF-CAT-18)
-                "No se puede cambiar el contenido en litros de un producto con movimientos: "
-                "define el ISC de las unidades ya producidas o compradas",
-                "contenido_litros",
-            )
         previa = self._repo.receta(producto_id)
         if receta is not None and d.se_fabrica:
             receta = tuple(receta)
@@ -311,8 +259,6 @@ class EditarProducto(_Base):
                 # Rige para producciones futuras; el costo ya congelado no cambia (RF-CAT-18).
                 self._repo.guardar_receta(producto_id, receta)
             self._guardar_impuestos(producto_id, listas)
-            if tasa and d.afecto_isc:
-                self._agregar_tasa(actor, producto_id, tasa)
             antes, despues = solo_cambios(
                 instantanea(original, previa), instantanea(d, previa if receta is None else receta)
             )
@@ -320,18 +266,6 @@ class EditarProducto(_Base):
                 self._repo.registrar_historial(
                     producto_id, actor.usuario_id, "editado", antes, despues
                 )
-
-
-class AgregarTasaIsc(_Base):
-    """Tasa nueva con su vigencia para un producto afecto a ISC (RF-CAT-46)."""
-
-    permiso_requerido = ISC
-
-    def ejecutar(self, actor: Actor, producto_id: int, monto: Decimal, desde: date) -> None:
-        if not self._repo.producto(producto_id).afecto_isc:
-            raise IscInvalido("El producto no está afecto a ISC")
-        with self._atomic():
-            self._agregar_tasa(actor, producto_id, (monto, desde))
 
 
 class CambiarEstadoProducto(_Base):

@@ -5,7 +5,12 @@ from decimal import Decimal as D
 import pytest
 
 from catalog.domain.errores import RecetaInvalida
-from catalog.domain.receta import componentes_para, hay_ciclo, validar_receta
+from catalog.domain.receta import (
+    componentes_para,
+    contenido_sugerido,
+    hay_ciclo,
+    validar_receta,
+)
 from catalog.domain.tipos import TipoProducto as T
 
 ACTIVOS = {2: (T.BIEN, True), 3: (T.BIEN, True), 4: (T.SERVICIO, True), 5: (T.BIEN, False)}
@@ -43,3 +48,9 @@ def test_componentes_para_una_cantidad():
     receta = ((2, D("0.33")), (3, D("0.0417")))
     assert componentes_para(receta, D("1000")) == {2: D("330.0000"), 3: D("41.7000")}
     assert componentes_para(receta, D("3")) == {2: D("0.9900"), 3: D("0.1251")}
+
+
+def test_contenido_sugerido_desde_la_receta_33_centilitros():
+    """Litros por unidad (informativo, 0002e RF-CAT-58): suma de los componentes en L."""
+    receta = [(1, D("0.33")), (2, D("1"))]
+    assert contenido_sugerido(receta, {1: "L", 2: "UND"}) == D("0.3300")

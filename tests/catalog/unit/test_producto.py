@@ -28,14 +28,12 @@ def test_un_bien_nuevo_se_compra_por_defecto_y_normaliza_textos():
     assert (d.sku, d.nombre, d.codigo_barras) == ("INS-1", "Malta", "775")
 
 
-def test_si_no_se_vende_se_descartan_precio_e_isc():
-    d = validar_producto(
-        datos(precio_venta=Decimal("5"), isc_sistema="ESPECIFICO", contenido_litros=Decimal("1"))
-    )
-    assert (d.precio_venta, d.isc_sistema, d.contenido_litros) == (None, None, None)
+def test_si_no_se_vende_se_descartan_precio_y_litros():
+    d = validar_producto(datos(precio_venta=Decimal("5"), contenido_litros=Decimal("1")))
+    assert (d.precio_venta, d.contenido_litros) == (None, None)
 
 
-def test_un_servicio_no_lleva_inventario_ni_isc():
+def test_un_servicio_no_lleva_inventario():
     d = validar_producto(
         datos(
             T.SERVICIO,
@@ -46,12 +44,11 @@ def test_un_servicio_no_lleva_inventario_ni_isc():
             vida_util_dias=10,
             peso_kg=Decimal("1"),
             volumen_m3=Decimal("1"),
-            isc_sistema="ESPECIFICO",
             contenido_litros=Decimal("1"),
         )
     )
     assert d.stock_minimo == 0
-    assert (d.vida_util_dias, d.peso_kg, d.volumen_m3, d.isc_sistema) == (None,) * 4
+    assert (d.vida_util_dias, d.peso_kg, d.volumen_m3, d.contenido_litros) == (None,) * 4
 
 
 def test_peso_volumen_y_vida_util_son_opcionales():
@@ -68,10 +65,6 @@ def test_peso_volumen_y_vida_util_son_opcionales():
         (datos(vida_util_dias=0), "La vida útil debe ser mayor a 0 días"),
         (datos(peso_kg=Decimal("-1")), "El peso no puede ser negativo"),
         (datos(volumen_m3=Decimal("-1")), "El volumen no puede ser negativo"),
-        (
-            datos(se_vende=True, precio_venta=Decimal("3"), isc_sistema="ESPECIFICO"),
-            "Un producto con ISC por litro requiere el contenido en litros por unidad",
-        ),
         (datos(sku=" "), "El SKU es obligatorio"),
     ],
 )

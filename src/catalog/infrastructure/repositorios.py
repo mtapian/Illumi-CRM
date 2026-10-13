@@ -4,7 +4,6 @@ from django.db import IntegrityError, transaction
 
 from catalog.application.fachada import EntradaHistorial, ProductoDTO
 from catalog.domain.errores import SkuDuplicado
-from catalog.domain.isc import Tarifa
 from catalog.domain.producto import DatosProducto
 from catalog.domain.tipos import TipoProducto
 from catalog.infrastructure.models import (
@@ -15,7 +14,6 @@ from catalog.infrastructure.models import (
     Producto,
     ProductoHistorial,
     ProductoImpuesto,
-    ProductoIscTasa,
     RecetaComponente,
     Unidad,
 )
@@ -35,8 +33,6 @@ _CAMPOS = (
     "se_fabrica",
     "precio_venta",
     "contenido_litros",
-    "isc_sistema",
-    "isc_codigo_tipo_sistema",
     "vida_util_dias",
     "peso_kg",
     "volumen_m3",
@@ -196,21 +192,6 @@ class CatalogoOrm:
             componente_id=producto_id, producto__empresa_id=empresa_actual()
         ).count()
 
-    def tasas_isc(self, producto_id) -> list[Tarifa]:
-        filas = ProductoIscTasa.objects.filter(producto_id=producto_id).order_by("-vigente_desde")
-        return [Tarifa(d, m) for d, m in filas.values_list("vigente_desde", "monto_por_litro")]
-
-    def existe_tasa(self, producto_id, desde) -> bool:
-        return ProductoIscTasa.objects.filter(producto_id=producto_id, vigente_desde=desde).exists()
-
-    def agregar_tasa(self, producto_id, monto, desde, actor_id) -> None:
-        ProductoIscTasa.objects.create(
-            producto_id=producto_id,
-            monto_por_litro=monto,
-            vigente_desde=desde,
-            creado_por_id=actor_id,
-        )
-
     # --- Impuestos del producto (spec 0002e, RF-CAT-56) ---
 
     def impuestos_estado(self, ids):
@@ -239,11 +220,6 @@ class CatalogoOrm:
             (i.nombre, i.codigo, i.criterio, [(t.vigente_desde, t.importe) for t in i.tasas.all()])
             for i in filas
         ]
-
-    def isc_de_producto(self, producto_id):
-        """(código de tipo de sistema, litros por unidad) o None si no está afecto."""
-        p = Producto.objects.filter(pk=producto_id, isc_sistema__isnull=False).first()
-        return (p.isc_codigo_tipo_sistema, p.contenido_litros) if p else None
 
     def unidades_de(self, ids) -> dict[int, str]:
         filas = Producto.objects.filter(pk__in=ids).values_list("id", "unidad__abreviatura")

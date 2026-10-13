@@ -5,9 +5,8 @@ from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Protocol
 
-from catalog.domain.errores import ImpuestoInvalido, IscSinTarifaVigente
+from catalog.domain.errores import ImpuestoInvalido
 from catalog.domain.impuestos import AFECTACION, COMPRA, FIJO, ISC, VENTA, Tasa, desglose_linea
-from catalog.domain.isc import CODIGO_TRIBUTO, Tarifa, isc_linea, tarifa_aplicable
 from catalog.domain.precio import Desglose
 from catalog.domain.receta import Receta, componentes_para
 from catalog.domain.tipos import TipoProducto
@@ -39,21 +38,9 @@ class EntradaHistorial:
     cambios: list[str]
 
 
-@dataclass(frozen=True)
-class IscDTO:
-    """Lo que necesitan ventas y facturación para una línea con ISC (RF-CAT-25)."""
-
-    monto_por_litro: Decimal
-    contenido_litros: Decimal
-    codigo_tributo: str
-    codigo_tipo_sistema: str
-
-
 class ConsultaRepo(Protocol):
     def productos(self, ids=None, casillas=None, solo_activos=False) -> list[ProductoDTO]: ...
     def receta(self, producto_id: int) -> Receta: ...
-    def isc_de_producto(self, producto_id: int) -> tuple[str, Decimal] | None: ...
-    def tasas_isc(self, producto_id: int) -> list[Tarifa]: ...
     def impuestos_del_producto(self, producto_id: int, tipo: str) -> list: ...
 
 
@@ -78,20 +65,6 @@ class CatalogoQuery:
     def componentes_para(self, producto_id: int, cantidad: Decimal) -> dict[int, Decimal]:
         """Componentes de la receta para producir `cantidad`: la OP los copia (0005a)."""
         return componentes_para(self._repo.receta(producto_id), cantidad)
-
-    def isc_aplicable(self, producto_id: int, fecha: date) -> IscDTO | None:
-        """None si el producto no está afecto (RF-CAT-27); la tasa vigente a la fecha de
-        emisión si lo está (RF-CAT-25, 46)."""
-        datos = self._repo.isc_de_producto(producto_id)
-        if datos is None:
-            return None
-        codigo_tipo_sistema, contenido = datos
-        tarifa = tarifa_aplicable(self._repo.tasas_isc(producto_id), fecha)
-        if tarifa is None:
-            raise IscSinTarifaVigente(
-                f"El producto no tiene tasa de ISC vigente al {fecha:%Y-%m-%d}"
-            )
-        return IscDTO(tarifa.monto_por_litro, contenido, CODIGO_TRIBUTO, codigo_tipo_sistema)
 
     def _vigentes(self, producto_id: int, tipo: str, fecha: date) -> dict[str, Tasa]:
         """Código → (criterio, importe vigente) de los impuestos del producto (RF-CAT-59)."""
@@ -123,14 +96,10 @@ class CatalogoQuery:
 
     def isc_de_linea(self, producto_id: int, cantidad: Decimal, fecha: date) -> Decimal:
         """Con un ISC de monto fijo entre sus impuestos de venta, cantidad × monto; un ISC
-        porcentual depende del precio: usar `desglose_de_linea`."""
+        porcentual depende del precio: usar `desglose_de_linea`. Sin ISC, 0."""
         criterio, importe = self._vigentes(producto_id, VENTA, fecha).get(ISC, (None, None))
         if criterio == FIJO:
             return (cantidad * importe).quantize(Decimal("0.01"), ROUND_HALF_UP)
         if criterio is not None:
             raise ImpuestoInvalido("El ISC porcentual depende del precio de la línea")
-        # ponytail: ISC por litro de la enmienda 4 hasta la conversión de T6 (RF-CAT-60).
-        isc = self.isc_aplicable(producto_id, fecha)
-        if isc is None:
-            return isc_linea(cantidad, Decimal("0"), None)
-        return isc_linea(cantidad, isc.contenido_litros, Tarifa(fecha, isc.monto_por_litro))
+        return Decimal("0.00")

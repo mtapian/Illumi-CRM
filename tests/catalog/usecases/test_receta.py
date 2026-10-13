@@ -7,7 +7,7 @@ import pytest
 from django.db import IntegrityError, transaction
 
 from catalog.application import productos as uc
-from catalog.domain.errores import ContenidoInmutable, NoSePuedeEliminar, RecetaInvalida
+from catalog.domain.errores import NoSePuedeEliminar, RecetaInvalida
 from catalog.domain.producto import DatosProducto
 from catalog.domain.tipos import TipoProducto as T
 from catalog.infrastructure.contenedor import caso_de_uso, catalogo_query
@@ -106,13 +106,13 @@ def test_componente_usado_no_se_elimina_pero_se_desactiva(base):
     caso_de_uso(uc.CambiarEstadoProducto).ejecutar(actor, ids["granel"], False)
 
 
-def test_contenido_en_litros_bloqueado_con_movimientos(base):
+def test_con_movimientos_la_receta_y_los_litros_se_editan(base):
+    """Los litros por unidad son informativos (0002e, RF-CAT-58): ya no se bloquean."""
     actor, ids, inventario = base
     datos = replace(IPA_BOTELLA, contenido_litros=Decimal("0.33"))
     ipa = crear(actor, datos, receta_botella(ids))
     inventario.con_movimientos.add(ipa)
-    with pytest.raises(ContenidoInmutable):
-        editar(actor, ipa, replace(datos, contenido_litros=Decimal("0.5")))
+    editar(actor, ipa, replace(datos, contenido_litros=Decimal("0.5")))
     editar(actor, ipa, replace(datos, nombre="IPA botella 330"), ((ids["botella"], Decimal(1)),))
     assert catalogo_query().receta(ipa) == ((ids["botella"], Decimal("1.0000")),)
 

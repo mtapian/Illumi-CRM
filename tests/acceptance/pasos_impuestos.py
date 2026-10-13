@@ -15,16 +15,26 @@ from purchasing.infrastructure.models import Proveedor
 from shared.domain.errores import DomainError
 from shared.domain.tenant import tenant_context
 from shared.domain.vigencia import valor_vigente
+from tenancy.infrastructure.models import Usuario
 from tests.acceptance import pasos_compras
 from tests.acceptance.pasos_accesos import actor, re_
 from tests.acceptance.pasos_catalogo import EMAIL, crear_directo
+from tests.acceptance.pasos_sesion import crear_usuario
 
+ADMIN = "admin.impuestos@andina.pe"
 TIPO = {"venta": "VENTA", "compra": "COMPRA"}
 CRITERIO = {"porcentaje": "PORCENTAJE", "monto fijo": "FIJO"}
 
 
 def impuesto(ctx, nombre, tipo="venta") -> Impuesto:
     return Impuesto.all_tenants.get(empresa=ctx["empresa"], nombre=nombre, tipo=TIPO[tipo])
+
+
+def admin(ctx) -> str:
+    """Los "Dado" preparan datos como Administrador, con o sin el rol del escenario."""
+    if not Usuario.objects.filter(email=ADMIN).exists():
+        crear_usuario(ADMIN, ctx["empresa"], "Administrador")
+    return ADMIN
 
 
 def intentar(ctx, accion):
@@ -37,20 +47,20 @@ def intentar(ctx, accion):
         ctx["textos"] = [e.mensaje]
 
 
-def definir(ctx, nombre, tipo, codigo, tasa=None, desde=None):
+def definir(ctx, nombre, tipo, codigo, tasa=None, desde=None, email=EMAIL):
     def accion():
         id_ = caso_de_impuestos(uc.GuardarImpuesto).ejecutar(
-            actor(EMAIL), None, nombre, TIPO[tipo.lower()], codigo
+            actor(email), None, nombre, TIPO[tipo.lower()], codigo
         )
         if tasa:
-            agregar(id_, tasa, desde)
+            agregar(id_, tasa, desde, email)
 
     intentar(ctx, accion)
 
 
-def agregar(id_, tasa, desde):
+def agregar(id_, tasa, desde, email=EMAIL):
     caso_de_impuestos(uc.AgregarTasa).ejecutar(
-        actor(EMAIL), id_, Decimal(tasa), date.fromisoformat(desde)
+        actor(email), id_, Decimal(tasa), date.fromisoformat(desde)
     )
 
 
@@ -75,7 +85,7 @@ def defino_impuesto(ctx, nombre, tipo, codigo):
 
 @given(re_(r"el impuesto {} de monto fijo (?P<tasa>[\d.]+) desde {}", "nombre", "desde"))
 def impuesto_isc(ctx, nombre, tasa, desde):
-    definir(ctx, nombre, "venta", "ISC", tasa, desde)
+    definir(ctx, nombre, "venta", "ISC", tasa, desde, admin(ctx))
     assert not ctx["textos"], ctx["textos"]
 
 
@@ -130,10 +140,10 @@ def nombres(texto: str) -> list[str]:
 def asegurar_isc(ctx, nombre):
     """Los ejemplos usan "ISC 330 ml" sin definirlo: S/ 0.8283 desde 2024-07-01."""
     if not Impuesto.all_tenants.filter(empresa=ctx["empresa"], nombre=nombre).exists():
-        definir(ctx, nombre, "venta", "ISC", "0.8283", "2024-07-01")
+        definir(ctx, nombre, "venta", "ISC", "0.8283", "2024-07-01", admin(ctx))
 
 
-def crear_con_impuestos(ctx, sku, tipo, lista, texto, precio="1"):
+def crear_con_impuestos(ctx, sku, tipo, lista, texto, precio="1", email=EMAIL):
     ids = []
     for n in nombres(texto):
         if n.startswith("ISC"):
@@ -151,7 +161,7 @@ def crear_con_impuestos(ctx, sku, tipo, lista, texto, precio="1"):
     )
     listas = {f"impuestos_{lista}": ids}
     intentar(
-        ctx, lambda: caso_de_uso(uc_productos.CrearProducto).ejecutar(actor(EMAIL), datos, **listas)
+        ctx, lambda: caso_de_uso(uc_productos.CrearProducto).ejecutar(actor(email), datos, **listas)
     )
 
 
@@ -162,7 +172,7 @@ def crear_con_impuestos(ctx, sku, tipo, lista, texto, precio="1"):
     )
 )
 def bien_que_se_vende_con(ctx, sku, precio, texto):
-    crear_con_impuestos(ctx, sku, "bien", "venta", texto, precio)
+    crear_con_impuestos(ctx, sku, "bien", "venta", texto, precio, admin(ctx))
     assert not ctx["textos"], ctx["textos"]
 
 

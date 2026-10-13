@@ -1,6 +1,5 @@
 from django import forms
 
-from catalog.domain.isc import ESPECIFICO
 from catalog.domain.producto import CASILLAS, DatosProducto
 from catalog.domain.receta import Receta
 from catalog.domain.tipos import TipoProducto
@@ -16,11 +15,7 @@ PESTANAS = [
 ENCABEZADO = ("tipo", *CASILLAS)  # van arriba de las pestañas (RF-CAT-38)
 _PESTANA_DE = {
     "precio_venta": "ventas",
-    "afecto_isc": "ventas",
-    "isc_codigo_tipo_sistema": "ventas",
     "contenido_litros": "ventas",
-    "tasa_monto": "ventas",
-    "tasa_desde": "ventas",
     "stock_minimo": "inventario",
     "vida_util_dias": "inventario",
     "peso_kg": "inventario",
@@ -54,22 +49,11 @@ class ProductoForm(forms.Form):
     precio_venta = forms.DecimalField(
         label="Precio de lista (con IGV e ISC)", decimal_places=2, required=False
     )
-    # ISC en la ficha (RF-CAT-45, 46): Sistema Específico, S/ por litro.
-    afecto_isc = forms.BooleanField(label="Afecto a ISC (Sistema Específico)", required=False)
-    isc_codigo_tipo_sistema = forms.CharField(
-        label="Código de tipo de sistema", max_length=2, required=False
-    )
-    contenido_litros = forms.DecimalField(
-        label="Litros por unidad (unidad de control)",
+    contenido_litros = forms.DecimalField(  # informativo (0002e, RF-CAT-58)
+        label="Litros por unidad",
         decimal_places=4,
         required=False,
         help_text="Botella 330 ml = 0.33; caja de 12 × 330 ml = 3.96",
-    )
-    tasa_monto = forms.DecimalField(
-        label="Nueva tasa (S/ por litro)", decimal_places=4, required=False
-    )
-    tasa_desde = forms.DateField(
-        label="Vigente desde", required=False, widget=forms.DateInput(attrs={"type": "date"})
     )
     impuestos_venta = forms.MultipleChoiceField(
         label="Impuestos de venta", required=False, widget=forms.CheckboxSelectMultiple
@@ -192,8 +176,6 @@ class ProductoForm(forms.Form):
             marca_id=int(marca) if marca else None,
             stock_minimo=c.get("stock_minimo") or 0,
             precio_venta=c.get("precio_venta"),
-            isc_sistema=ESPECIFICO if c.get("afecto_isc") else None,
-            isc_codigo_tipo_sistema=c.get("isc_codigo_tipo_sistema", ""),
             contenido_litros=c.get("contenido_litros"),
             vida_util_dias=c.get("vida_util_dias"),
             peso_kg=c.get("peso_kg"),
@@ -207,13 +189,6 @@ class ProductoForm(forms.Form):
         if f"{campo}_presente" not in self.data:
             return None
         return [int(i) for i in self.cleaned_data.get(campo, [])]
-
-    def tasa(self):
-        """(monto, desde) de una tasa nueva, o None si no se ingresó (RF-CAT-46)."""
-        c = self.cleaned_data
-        if c.get("tasa_monto") is None and c.get("tasa_desde") is None:
-            return None
-        return c.get("tasa_monto"), c.get("tasa_desde")
 
     def receta(self) -> Receta | None:
         """None si no se fabrica: la receta guardada no se toca (enmienda 4)."""

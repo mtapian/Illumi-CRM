@@ -4,7 +4,6 @@ from dataclasses import asdict, dataclass, replace
 from decimal import Decimal
 
 from catalog.domain.errores import ProductoInvalido
-from catalog.domain.isc import ESPECIFICO
 from catalog.domain.tipos import TipoProducto as T
 
 CASILLAS = ("se_vende", "se_compra", "se_fabrica")  # RF-CAT-38
@@ -25,19 +24,13 @@ class DatosProducto:
     se_compra: bool = True  # un bien nuevo se compra por defecto (RF-CAT-38)
     se_fabrica: bool = False
     precio_venta: Decimal | None = None
-    isc_sistema: str | None = None  # "ESPECIFICO" = afecto a ISC (RF-CAT-45); None = no afecto
-    isc_codigo_tipo_sistema: str = ""  # para el comprobante (01 o 02: dato del producto)
-    contenido_litros: Decimal | None = None  # unidad de control del ISC (RF-CAT-26, 45)
+    contenido_litros: Decimal | None = None  # informativo (0002e, RF-CAT-58)
     vida_util_dias: int | None = None  # solo sugiere el vencimiento del lote (RF-CAT-40)
     peso_kg: Decimal | None = None  # RF-CAT-42
     volumen_m3: Decimal | None = None
     referencia: str = ""  # RF-CAT-31
     codigo_barras: str = ""
     marca_id: int | None = None  # RF-CAT-33
-
-    @property
-    def afecto_isc(self) -> bool:
-        return self.isc_sistema is not None
 
 
 def validar_producto(d: DatosProducto) -> DatosProducto:
@@ -64,8 +57,6 @@ def validar_producto(d: DatosProducto) -> DatosProducto:
             vida_util_dias=None,
             peso_kg=None,
             volumen_m3=None,
-            isc_sistema=None,
-            isc_codigo_tipo_sistema="",
             contenido_litros=None,
         )
     if not any(getattr(d, c) for c in CASILLAS):
@@ -74,8 +65,6 @@ def validar_producto(d: DatosProducto) -> DatosProducto:
         d = replace(
             d,
             precio_venta=None,
-            isc_sistema=None,
-            isc_codigo_tipo_sistema="",
             contenido_litros=None,
         )
     elif d.precio_venta is None or d.precio_venta <= 0:
@@ -90,21 +79,6 @@ def validar_producto(d: DatosProducto) -> DatosProducto:
         raise ProductoInvalido("El peso no puede ser negativo", "peso_kg")
     if d.volumen_m3 is not None and d.volumen_m3 < 0:
         raise ProductoInvalido("El volumen no puede ser negativo", "volumen_m3")
-    if d.isc_sistema is None:
-        d = replace(d, isc_codigo_tipo_sistema="")
-    elif d.isc_sistema != ESPECIFICO:
-        raise ProductoInvalido(
-            "El MVP solo admite el ISC por Sistema Específico", "afecto_isc"
-        )  # RF-CAT-23
-    elif not d.contenido_litros:
-        raise ProductoInvalido(
-            "Un producto con ISC por litro requiere el contenido en litros por unidad",
-            "contenido_litros",
-        )  # RF-CAT-26
-    elif not d.isc_codigo_tipo_sistema.strip():
-        raise ProductoInvalido(
-            "Indica el código de tipo de sistema del ISC", "isc_codigo_tipo_sistema"
-        )
     if d.contenido_litros is not None and d.contenido_litros <= 0:
         raise ProductoInvalido("El contenido en litros debe ser mayor a 0", "contenido_litros")
     return d

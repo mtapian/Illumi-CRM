@@ -43,3 +43,9 @@ def hay_ciclo(grafo: dict[int, set[int]], producto_id: int, componentes: set[int
 def componentes_para(receta: Receta, cantidad: Decimal) -> dict[int, Decimal]:
     """Componente → cantidad para producir `cantidad` (4 decimales, half-up). La usa 0005a."""
     return {m: (c * cantidad).quantize(CUATRO_DECIMALES, ROUND_HALF_UP) for m, c in receta}
+
+
+def contenido_sugerido(receta, unidades: dict[int, str]) -> Decimal | None:
+    """Litros por unidad sugeridos desde la receta: suma de los componentes en L (informativo)."""
+    litros = [q for c, q in receta if unidades.get(c) == "L"]
+    return sum(litros, Decimal("0")).quantize(CUATRO_DECIMALES) if litros else None

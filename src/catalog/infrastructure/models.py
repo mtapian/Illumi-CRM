@@ -74,9 +74,6 @@ class Producto(TenantModel):
     stock_minimo = models.DecimalField(max_digits=14, decimal_places=4, default=0)
     precio_venta = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     contenido_litros = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
-    # ISC en la ficha (enmienda 4, RF-CAT-45): None = no afecto; tasas en ProductoIscTasa.
-    isc_sistema = models.CharField(max_length=12, null=True, blank=True)  # noqa: DJ001 (NULL = no afecto; el CHECK lo usa)
-    isc_codigo_tipo_sistema = models.CharField(max_length=2, blank=True)
     vida_util_dias = models.PositiveIntegerField(null=True, blank=True)
     peso_kg = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     volumen_m3 = models.DecimalField(max_digits=12, decimal_places=6, null=True, blank=True)
@@ -113,46 +110,11 @@ class Producto(TenantModel):
                 condition=Q(vida_util_dias__isnull=True) | Q(vida_util_dias__gt=0),
                 name="vida_util_positiva",
             ),
-            models.CheckConstraint(  # RF-CAT-23, 26, 45: solo bienes que se venden, por litro
-                condition=Q(isc_sistema__isnull=True)
-                | Q(
-                    isc_sistema="ESPECIFICO",
-                    tipo=T.BIEN,
-                    se_vende=True,
-                    contenido_litros__isnull=False,
-                    contenido_litros__gt=0,
-                ),
-                name="isc_solo_bien_vendible_por_litro",
-            ),
         ]
         indexes = [models.Index(fields=["empresa", "activo", "tipo"])]
 
     def __str__(self):
         return f"{self.sku} · {self.nombre}"
-
-
-class ProductoIscTasa(TenantModel):
-    """Tasa de ISC de un producto con su vigencia (RF-CAT-46). Solo inserción (trigger).
-    `producto_id` sin FK, como el historial: sobrevive a la eliminación del producto."""
-
-    producto_id = models.BigIntegerField(db_index=True)
-    vigente_desde = models.DateField()
-    monto_por_litro = models.DecimalField(max_digits=10, decimal_places=4)
-    creado_por = models.ForeignKey(
-        "tenancy.Usuario", null=True, on_delete=models.PROTECT, related_name="+"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["producto_id", "vigente_desde"], name="tasa_isc_por_fecha"
-            ),
-            models.CheckConstraint(condition=Q(monto_por_litro__gt=0), name="tasa_isc_positiva"),
-        ]
-
-    def __str__(self):
-        return f"{self.monto_por_litro} desde {self.vigente_desde}"
 
 
 class Impuesto(TenantModel):

@@ -20,7 +20,7 @@ from catalog.infrastructure.models import (
     Categoria,
     Marca,
     Producto,
-    ProductoIscTasa,
+    ProductoImpuesto,
     RecetaComponente,
     Unidad,
 )
@@ -57,16 +57,11 @@ def crear_directo(ctx, sku, u="KG", nombre=None, **kw) -> Producto:
     )
 
 
-def crear_fabricado(ctx, sku, receta, tasa=None, nombre=None, contenido="0.33"):
-    """Bien que se fabrica y se vende, con su receta [(sku, cantidad)] (RF-CAT-41) y, si se
-    indica `tasa` (monto por litro), afecto a ISC desde el 2024-07-01 (RF-CAT-45)."""
+def crear_fabricado(ctx, sku, receta, nombre=None):
+    """Bien que se fabrica y se vende, con su receta [(sku, cantidad)] (RF-CAT-41)."""
     existente = Producto.all_tenants.filter(empresa=ctx["empresa"], sku=sku).first()
     if existente:
         return existente
-    isc = {}
-    if tasa:
-        isc = {"isc_sistema": "ESPECIFICO", "isc_codigo_tipo_sistema": "02"}
-        isc["contenido_litros"] = Decimal(contenido)
     p = crear_directo(
         ctx,
         sku,
@@ -77,24 +72,12 @@ def crear_fabricado(ctx, sku, receta, tasa=None, nombre=None, contenido="0.33"):
         se_fabrica=True,
         precio_venta=Decimal("12"),
         vida_util_dias=120,
-        **isc,
     )
     for componente, cantidad in receta:
         RecetaComponente.objects.create(
             producto=p, componente=producto(ctx, componente), cantidad_por_unidad=Decimal(cantidad)
         )
-    if tasa:
-        agregar_tasa(ctx, p, tasa, "2024-07-01")
     return p
-
-
-def agregar_tasa(ctx, p, monto, desde):
-    ProductoIscTasa.all_tenants.create(
-        empresa=ctx["empresa"],
-        producto_id=p.id,
-        monto_por_litro=Decimal(monto),
-        vigente_desde=date.fromisoformat(desde),
-    )
 
 
 def casillas(texto: str) -> dict:
@@ -122,8 +105,6 @@ def post_ficha(client, ctx, codigo, email=EMAIL, **campos):
         "precio_venta": p.precio_venta,
         "vida_util_dias": p.vida_util_dias,
         "contenido_litros": p.contenido_litros,
-        "afecto_isc": "on" if p.isc_sistema else None,
-        "isc_codigo_tipo_sistema": p.isc_codigo_tipo_sistema,
         "categoria": p.categoria_id,
         "marca": p.marca_id,
         "codigo_barras": p.codigo_barras,
@@ -394,7 +375,8 @@ def no_tiene_receta(ctx):
 
 @then("no paga ISC porque no está afecto a ISC")
 def sin_isc(ctx):
-    assert producto(ctx, ctx["sku"]).isc_sistema is None
+    filas = ProductoImpuesto.all_tenants.filter(producto=producto(ctx, ctx["sku"]))
+    assert not filas.filter(impuesto__codigo="ISC").exists()
 
 
 # --- Receta (0002b reformulada; RF-CAT-41) ---
@@ -423,9 +405,6 @@ def post_fabricado(client, ctx, sku, nombre, campos, receta, vende=True):
         "vida_util_dias": campos.get("vida_util_dias"),
         "contenido_litros": campos.get("contenido_l"),
     }
-    if campos.get("tasa_isc"):
-        datos |= {"afecto_isc": "on", "isc_codigo_tipo_sistema": "02"}
-        datos |= {"tasa_monto": campos["tasa_isc"], "tasa_desde": "2024-07-01"}
     for i, (componente, cantidad) in enumerate(receta):
         datos |= {f"componente_{i}": producto(ctx, componente).id, f"cantidad_{i}": cantidad}
     post_producto(client, ctx, **datos)
@@ -558,52 +537,6 @@ def proxima_produccion(ctx, sku, componente):
 # --- 0002c: ISC (UC-CAT-05) ---
 
 
-@given(
-    re_(
-        r"el bien {} afecto a ISC con tasa de S/ (?P<monto>[\d.]+) por litro vigente desde {}",
-        "sku",
-        "desde",
-    )
-)
-def bien_afecto(ctx, sku, monto, desde):
-    crear_directo(ctx, "GRA-IPA", u="L", se_compra=False, se_fabrica=True)
-    crear_directo(ctx, "ENV-BOT330", u="UND")
-    p = crear_fabricado(ctx, sku, [("GRA-IPA", "0.33"), ("ENV-BOT330", "1")])
-    Producto.all_tenants.filter(pk=p.pk).update(
-        isc_sistema="ESPECIFICO", isc_codigo_tipo_sistema="02", contenido_litros=Decimal("0.33")
-    )
-    agregar_tasa(ctx, p, monto, desde)
-    ctx["sku"] = sku
-
-
-@when(
-    re_(
-        r"agrego a {} la tasa de S/ (?P<monto>[\d.]+) por litro vigente desde {}",
-        "sku",
-        "desde",
-    )
-)
-def agrego_tasa(client, ctx, sku, monto, desde):
-    # Gestionar el ISC es del Administrador (catalogo.isc.gestionar).
-    crear_usuario("admin@andina.pe", ctx["empresa"], "Administrador")
-    post_ficha(client, ctx, sku, tasa_monto=monto, tasa_desde=desde, email="admin@andina.pe")
-
-
-def monto_isc(ctx, sku, fecha):
-    with tenant_context(ctx["empresa"].id):
-        return catalogo_query().isc_aplicable(producto(ctx, sku).id, date.fromisoformat(fecha))
-
-
-@then(re_(r"una venta de {} emitida el {} usa S/ (?P<monto>[\d.]+) por litro", "sku", "fecha"))
-def venta_usa(ctx, sku, fecha, monto):
-    assert monto_isc(ctx, sku, fecha).monto_por_litro == Decimal(monto)
-
-
-@then(re_(r"una venta emitida el {} usa S/ (?P<monto>[\d.]+) por litro", "fecha"))
-def venta_emitida_usa(ctx, fecha, monto):
-    assert monto_isc(ctx, ctx["sku"], fecha).monto_por_litro == Decimal(monto)
-
-
 @given(re_("el bien {} que se vende sin ISC", "sku"))
 def vendible_sin_isc(ctx, sku):
     crear_fabricado(ctx, sku, [("GRA-IPA", "0.33"), ("ENV-BOT330", "1")])
@@ -618,28 +551,6 @@ def calculo_isc(ctx, n, sku):
 @then(re_(r"el ISC es (?P<monto>[\d.]+)"))
 def el_isc_es(ctx, monto):
     assert ctx["isc"] == Decimal(monto)
-
-
-@when(
-    re_(
-        "creo el bien {} que se vende afecto a ISC y sin contenido en litros",
-        "sku",
-    )
-)
-def vendible_isc_sin_contenido(client, ctx, sku):
-    post_producto(
-        client,
-        ctx,
-        sku=sku,
-        nombre="Cerveza de terceros",
-        unidad="UND",
-        se_vende="on",
-        precio_venta="8.00",
-        afecto_isc="on",
-        isc_codigo_tipo_sistema="02",
-        tasa_monto="2.51",
-        tasa_desde="2024-07-01",
-    )
 
 
 # --- Enmienda 1: ficha estilo Odoo (UC-CAT-06; RF-CAT-04, 29 a 32) ---
@@ -708,21 +619,6 @@ def intento_cambiar_tipo(client, ctx, tipo):
 def igv_vigente(ctx, pct):
     with tenant_context(ctx["empresa"].id):
         assert tenancy_service().igv_vigente(date.today()) == Decimal(pct)
-
-
-@given(
-    re_(
-        r"el bien {} de (?P<litros>[\d.]+) L que se vende a (?P<precio>[\d.]+)"
-        r" afecto a ISC con tasa de S/ (?P<monto>[\d.]+) por litro",
-        "sku",
-    )
-)
-def vendible_con_isc(ctx, sku, litros, precio, monto):
-    crear_directo(ctx, "GRA-IPA", u="L", se_compra=False, se_fabrica=True)
-    crear_directo(ctx, "ENV-BOT330", u="UND")
-    receta = [("GRA-IPA", litros), ("ENV-BOT330", "1")]
-    p = crear_fabricado(ctx, sku, receta, monto, contenido=litros)
-    Producto.all_tenants.filter(pk=p.pk).update(precio_venta=Decimal(precio))
 
 
 @then(re_("veo el desglose {}", "texto"))

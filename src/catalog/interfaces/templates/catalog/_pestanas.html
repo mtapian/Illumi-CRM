@@ -7,7 +7,6 @@
 {% if p.casilla == "bien" %}.con-pestanas:has(#id_tipo_1:checked) label[for="pes-{{ p.clave }}"] { display: none; }
 {% elif p.casilla %}.con-pestanas:has(#id_{{ p.casilla }}:not(:checked)) label[for="pes-{{ p.clave }}"] { display: none; }
 {% endif %}{% endfor %}.con-pestanas:has(#id_tipo_1:checked) .casilla-se_fabrica { display: none; }
-.con-pestanas:has(#id_afecto_isc:not(:checked)) :is(.campo-isc_codigo_tipo_sistema, .campo-contenido_litros, .campo-tasa_monto, .campo-tasa_desde, .tasas-isc) { display: none; }
 </style>
 <div class="con-pestanas">
   <div class="encabezado-ficha tarjeta">
@@ -25,16 +24,10 @@
       <div class="dos-columnas">
       {% for f in p.campos %}{% include "catalog/_campo.html" %}{% endfor %}
       </div>
-      {% if p.clave == "ventas" and tasas_isc %}
-        <table class="tasas-isc"><thead><tr><th>Tasa de ISC vigente desde</th><th>S/ por litro</th><th></th></tr></thead><tbody>
-        {% for x in tasas_isc %}<tr><td>{{ x.t.vigente_desde|date:"Y-m-d" }}</td><td>{{ x.t.monto_por_litro }}</td><td>{% if x.vigente %}<span class="chip ok">Vigente hoy</span>{% endif %}</td></tr>{% endfor %}
-        </tbody></table>
-        <p class="subtitulo tasas-isc">Las tasas no se editan ni se borran: un cambio de SUNAT se registra como una tasa nueva con su fecha.</p>
-      {% endif %}
       {% if p.clave == "ventas" and desglose %}
         {% if desglose.error %}<p class="aviso">{{ desglose.error }}</p>
         {% else %}<p class="desglose">S/ {{ desglose.precio|floatformat:2 }} = valor {{ desglose.valor|floatformat:2 }}{% if desglose.isc %} + ISC {{ desglose.isc|floatformat:2 }}{% endif %} + IGV {{ desglose.igv|floatformat:2 }}
-          <br><small class="subtitulo">Informativo, con {% if "igv_pct" in desglose %}el IGV ({{ desglose.igv_pct|floatformat:"-2" }} %) y el ISC{% else %}los impuestos de venta del producto{% endif %} de hoy. Cada venta calcula sus impuestos a su fecha.</small></p>{% endif %}
+          <br><small class="subtitulo">Informativo, con los impuestos de venta del producto de hoy. Cada venta calcula sus impuestos a su fecha.</small></p>{% endif %}
       {% endif %}
     </section>{% endif %}{% endfor %}
   </form>

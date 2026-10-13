@@ -33,18 +33,6 @@ class RecetaInvalida(DomainError):
     codigo = "RECETA_INVALIDA"
 
 
-class ContenidoInmutable(DomainError):
-    codigo = "CONTENIDO_INMUTABLE"
-
-
-class IscInvalido(DomainError):
-    codigo = "ISC_INVALIDO"
-
-
-class IscSinTarifaVigente(DomainError):
-    codigo = "ISC_SIN_TARIFA_VIGENTE"
-
-
 class CodigoBarrasDuplicado(DomainError):
     codigo = "CODIGO_BARRAS_DUPLICADO"
 

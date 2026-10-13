@@ -12,7 +12,7 @@ from catalog.infrastructure.models import (
     Impuesto,
     Marca,
     Producto,
-    ProductoIscTasa,
+    ProductoImpuesto,
     Unidad,
 )
 from catalog.interfaces.pestanas import pestanas
@@ -174,37 +174,6 @@ def test_formulario_guarda_la_receta_con_varios_componentes(client, lucia):
     assert "Un componente está repetido en la receta" in repetido
 
 
-def test_isc_en_la_ficha_con_tasas_y_solo_con_permiso(client, lucia):
-    """RF-CAT-45, 46: el ISC se configura en la pestaña Ventas; ya no hay pantalla de
-    categorías; sin `catalogo.isc.gestionar` los campos se ven bloqueados."""
-    datos = {
-        "tipo": "BIEN",
-        "se_vende": "on",
-        "sku": "MER-CERV",
-        "nombre": "Cerveza de terceros",
-        "unidad": "UND",
-        "precio_venta": "12.00",
-        "afecto_isc": "on",
-        "isc_codigo_tipo_sistema": "02",
-        "contenido_litros": "0.33",
-        "tasa_monto": "2.51",
-        "tasa_desde": "2024-07-01",
-    }
-    pagina = client.post("/catalogo/productos/nuevo/", datos, follow=True).content.decode()
-    assert "2.5100" in pagina and "2,5100" not in pagina and "Vigente hoy" in pagina
-    assert "valor 9.34 + ISC 0.83 + IGV 1.83" in pagina  # RF-CAT-30
-    with tenant_context(lucia.empresa_id):
-        assert ProductoIscTasa.objects.count() == 1
-        merca = Producto.objects.get(sku="MER-CERV").id
-    assert client.get("/catalogo/isc/").status_code == 404
-    ana = asignar_rol(
-        Usuario.objects.create_user("ana@andina.pe", "x", empresa=lucia.empresa), "Gerente"
-    )
-    client.force_login(ana, BACKEND)
-    ficha = client.get(f"/catalogo/productos/{merca}/").content.decode()
-    assert "disabled" in ficha.split('name="afecto_isc"')[1].split(">")[0]
-
-
 def test_ficha_muestra_pestanas_del_tipo_y_las_externas_registradas(client, lucia):
     """T21 y T22: pestañas por tipo y registro externo (RF-CAT-04)."""
     with tenant_context(lucia.empresa_id):
@@ -213,6 +182,10 @@ def test_ficha_muestra_pestanas_del_tipo_y_las_externas_registradas(client, luci
         merca = Producto.objects.create(
             sku="MER-1", nombre="Agua", tipo="BIEN", se_vende=True, unidad=und, precio_venta=2
         )
+    sembrar_impuestos(lucia.empresa_id, lucia.id, date(2026, 1, 1))
+    with tenant_context(lucia.empresa_id):
+        igv = Impuesto.objects.get(nombre="IGV 18%", tipo="VENTA")
+        ProductoImpuesto.objects.create(producto=merca, impuesto=igv)
     pestanas.agregar("prueba", "Prueba", "se_compra", lambda r, i: f"<p>externa {i}</p>")
     try:
         html = client.get(f"/catalogo/productos/{envase.id}/").content.decode()
@@ -260,9 +233,8 @@ def test_editar_categoria_en_su_propia_pagina(client, lucia):
     assert "Nueva categoría" in nueva and "<table" not in nueva
 
 
-def test_sin_permiso_de_isc_no_se_sugiere_el_contenido(client, lucia):
-    """RF-CAT-45: el contenido sugerido desde la receta solo se ofrece a quien puede editarlo;
-    en un campo bloqueado se enviaría igual y el guardado se rechazaría por falta de permiso."""
+def test_se_sugiere_el_contenido_desde_la_receta(client, lucia):
+    """Litros por unidad, informativos (0002e, RF-CAT-58), sugeridos desde la receta."""
     with tenant_context(lucia.empresa_id):
         litro = Unidad.objects.get(abreviatura="L")
         granel = Producto.objects.create(
@@ -283,10 +255,6 @@ def test_sin_permiso_de_isc_no_se_sugiere_el_contenido(client, lucia):
         return html.split('name="contenido_litros"')[1].split(">")[0]
 
     assert 'value="0.33' in contenido(client.get(f"/catalogo/productos/{ipa.id}/").content.decode())
-    produccion = Usuario.objects.create_user("pro@andina.pe", "x", empresa=lucia.empresa)
-    client.force_login(asignar_rol(produccion, "Producción"), BACKEND)
-    campo = contenido(client.get(f"/catalogo/productos/{ipa.id}/").content.decode())
-    assert "disabled" in campo and "value=" not in campo
 
 
 def test_stock_bajo_incluye_el_stock_igual_al_minimo(client, lucia, inventario):

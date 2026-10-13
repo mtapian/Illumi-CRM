@@ -105,10 +105,10 @@ Característica: Gestión de productos: bienes y servicios
     Cuando intento cambiar su tipo a "SERVICIO"
     Entonces la operación es rechazada con el mensaje "No se puede modificar SKU, tipo o unidad de un producto con movimientos"
 
-  @UC-CAT-06 @RF-CAT-30
+  @UC-CAT-06 @RF-CAT-30 @RF-CAT-59
   Escenario: Desglose del precio de un producto con ISC
-    Dado que el IGV vigente es 18 %
-    Y el bien "TER-IPA-330" de 0.33 L que se vende a 12.00 afecto a ISC con tasa de S/ 2.51 por litro
+    Dado el impuesto "ISC 330 ml" de monto fijo 0.8283 desde "2024-07-01"
+    Y el bien "TER-IPA-330" que se vende a 12.00 con impuestos de venta "IGV 18%" e "ISC 330 ml"
     Cuando abro la ficha de "TER-IPA-330"
     Entonces veo el desglose "valor 9.34 + ISC 0.83 + IGV 1.83"
 

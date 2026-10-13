@@ -22,8 +22,9 @@ Reglas (constitución, art. 8): una tarea a la vez, test primero, y `ruff check`
   - Hecho cuando: los escenarios de exonerado, ISC por presentación, listas inválidas e ISC en servicio están en verde, y `isc_de_linea` da lo mismo que hoy para la cerveza.
 - [x] **T5. Compras: IGV por línea con el impuesto de compra del producto.** — RF-CAT-61
   - Hecho cuando: el escenario del insumo exonerado con factura está en verde y los escenarios de 0004a y 0004b siguen en verde.
-- [ ] **T6. Conversión de datos (IGV de la empresa e ISC por producto).** — RF-CAT-60
+- [x] **T6. Conversión de datos (IGV de la empresa e ISC por producto).** — RF-CAT-60
   - Hecho cuando: `test_conversion.py` pasa con datos reales, es reversible y la empresa demo conserva sus tasas.
+  - Hecho (2026-10-12): migración `0012_conversion_impuestos` (reversible): IGV efectivo de cada empresa (propio o de la plataforma) en los dos "IGV 18%"; ISC por litro → "ISC <litros> L" de monto fijo, compartido por historial; "IGV 18%" en cada casilla marcada; tolera empresas ya sembradas y productos con impuestos. Se retiran `ProductoIscTasa`, `isc_sistema`, `isc_codigo_tipo_sistema`, `AgregarTasaIsc` y los campos del ISC de la ficha; los litros quedan informativos. Escenarios de 0002a y 0002c ajustados a lo mínimo (el resto en T8). Compras mantiene el IGV de la empresa solo para un producto sin impuesto de compra.
 - [x] **T7. Pantallas: maestro de impuestos y etiquetas en la ficha; IGV fuera de la configuración de la empresa.** — RF-CAT-53, 56; 0001a RF-TEN-15, 16
   - Hecho cuando: los tests de pantalla y la prueba de aislamiento pasan, y la configuración de la empresa ya no edita el IGV.
   - Hecho (2026-10-12): maestro `/catalogo/impuestos/`, etiquetas en la ficha (venta en Ventas; compra en Compras o en General si no hay esa pestaña) e IGV fuera de la configuración de la empresa. Los campos del ISC por litro siguen en la ficha hasta la conversión (T6).

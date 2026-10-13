@@ -13,10 +13,9 @@ from django.utils import timezone
 from catalog.application import impuestos as uc_impuestos
 from catalog.application import productos as uc
 from catalog.application.puertos import puertos
-from catalog.domain.errores import ImpuestoInvalido, IscSinTarifaVigente
-from catalog.domain.isc import contenido_sugerido, tarifa_aplicable
-from catalog.domain.precio import desglose_precio
+from catalog.domain.errores import ImpuestoInvalido
 from catalog.domain.producto import CASILLAS
+from catalog.domain.receta import contenido_sugerido
 from catalog.domain.tipos import TipoProducto
 from catalog.infrastructure.contenedor import caso_de_impuestos, caso_de_uso, catalogo_query
 from catalog.infrastructure.models import Categoria, Impuesto, Marca, Producto, Unidad
@@ -25,7 +24,6 @@ from catalog.interfaces.forms import IMPUESTOS, ProductoForm
 from catalog.interfaces.pestanas import pestanas
 from shared.domain.vigencia import SinValorVigente, valor_vigente
 from shared.interfaces import listados
-from tenancy.infrastructure.contenedor import tenancy_service
 from tenancy.interfaces.acceso import requiere
 from tenancy.interfaces.views.accesos import _intentar
 
@@ -138,11 +136,10 @@ def producto_nuevo(request):
     form = _form(request, inicial, _sin_permiso_isc(request))
     if request.method == "POST" and form.is_valid():
         caso, nuevo = caso_de_uso(uc.CrearProducto), {}
-        datos, receta, tasa = form.datos(), form.receta(), form.tasa()
+        datos, receta = form.datos(), form.receta()
         listas = {c: form.impuestos(c) for c in IMPUESTOS}
         if _intentar(
-            request,
-            lambda: nuevo.update(id=caso.ejecutar(request.actor, datos, receta, tasa, **listas)),
+            request, lambda: nuevo.update(id=caso.ejecutar(request.actor, datos, receta, **listas))
         ):
             messages.success(request, "Producto creado.")
             return redirect("producto", producto_id=nuevo["id"])
@@ -169,42 +166,23 @@ def _pestanas(form, externas=()):
     return {"pestanas": todas, "abierta": abierta}
 
 
-ISC_CAMPOS = ("afecto_isc", "isc_codigo_tipo_sistema", "contenido_litros", "tasa_monto")
-ISC_CAMPOS += ("tasa_desde", *IMPUESTOS)  # gestionar impuestos exige el mismo permiso
-
-
 def _sin_permiso_isc(request):
-    """Sin `catalogo.isc.gestionar` los campos de ISC se ven bloqueados (el caso de uso lo
-    exige igual en el servidor)."""
-    return () if request.actor.puede(uc.ISC) else ISC_CAMPOS
-
-
-def _tasas(tasas):
-    """Historial de tasas, de la más reciente a la más antigua, marcando la vigente hoy."""
-    vigente = tarifa_aplicable(tasas, timezone.localdate())
-    return [{"t": t, "vigente": t == vigente} for t in tasas]
+    """Sin `catalogo.isc.gestionar` los impuestos se ven bloqueados (el caso de uso lo exige
+    igual en el servidor)."""
+    return () if request.actor.puede(uc.ISC) else IMPUESTOS
 
 
 def _desglose(producto_id, datos):
-    """Desglose informativo con el IGV y el ISC de hoy (RF-CAT-30)."""
+    """Desglose informativo con los impuestos de venta de hoy (RF-CAT-30, 59)."""
     if not (datos.se_vende and datos.precio_venta):
         return None
-    hoy, q = timezone.localdate(), catalogo_query()
-    if CatalogoOrm().impuestos_de(producto_id, "VENTA"):  # spec 0002e (RF-CAT-59)
-        try:
-            d = q.desglose_de_linea(producto_id, datos.precio_venta, Decimal("1"), hoy)
-        except ImpuestoInvalido as e:
-            return {"error": e.mensaje}
-        return {"precio": datos.precio_venta} | vars(d)
-    # ponytail: productos sin impuestos asignados, hasta la conversión de T6 (RF-CAT-60).
     try:
-        isc = q.isc_de_linea(producto_id, Decimal("1"), hoy)
-    except IscSinTarifaVigente as e:
-        return {"error": str(e)}
-    igv = tenancy_service().igv_vigente(hoy)
-    return {"precio": datos.precio_venta, "igv_pct": igv} | vars(
-        desglose_precio(datos.precio_venta, igv, isc)
-    )
+        d = catalogo_query().desglose_de_linea(
+            producto_id, datos.precio_venta, Decimal("1"), timezone.localdate()
+        )
+    except ImpuestoInvalido as e:
+        return {"error": e.mensaje}
+    return {"precio": datos.precio_venta} | vars(d)
 
 
 @requiere("catalogo.producto.ver")
@@ -212,18 +190,14 @@ def producto(request, producto_id):
     datos = CatalogoOrm().producto(producto_id)  # 404 si es de otra empresa
     movimientos = puertos.inventario.tiene_movimientos(producto_id)
     bloqueados = ("sku", "tipo", "unidad") if movimientos else ()  # RF-CAT-43
-    if movimientos and datos.afecto_isc:
-        bloqueados += ("contenido_litros",)  # RF-CAT-46
     repo = CatalogoOrm()
     receta = repo.receta(producto_id)
     inicial = asdict(datos) | {
         "categoria": datos.categoria_id or "",
         "marca": datos.marca_id or "",
     }
-    inicial |= {"afecto_isc": datos.afecto_isc} | ProductoForm.inicial_receta(receta)
-    # RF-CAT-45: sugerido desde la receta, solo a quien puede editarlo; un campo bloqueado
-    # igual se envía y el caso de uso lo tomaría como un cambio de ISC.
-    if datos.contenido_litros is None and request.actor.puede(uc.ISC):
+    inicial |= ProductoForm.inicial_receta(receta)
+    if datos.contenido_litros is None:  # sugerido desde la receta (informativo)
         unidades = repo.unidades_de([c for c, _ in receta])
         inicial["contenido_litros"] = contenido_sugerido(receta, unidades)
     form = _form(request, inicial, bloqueados + _sin_permiso_isc(request), producto_id)
@@ -231,11 +205,10 @@ def producto(request, producto_id):
         accion, actor = request.POST.get("accion", "guardar"), request.actor
         if accion == "guardar" and form.is_valid():
             caso = caso_de_uso(uc.EditarProducto)
-            datos_form, receta, tasa = form.datos(), form.receta(), form.tasa()
+            datos_form, receta = form.datos(), form.receta()
             listas = {c: form.impuestos(c) for c in IMPUESTOS}
             hecho = _intentar(
-                request,
-                lambda: caso.ejecutar(actor, producto_id, datos_form, receta, tasa, **listas),
+                request, lambda: caso.ejecutar(actor, producto_id, datos_form, receta, **listas)
             )
         elif accion in ("activar", "desactivar"):
             caso = caso_de_uso(uc.CambiarEstadoProducto)
@@ -264,7 +237,6 @@ def producto(request, producto_id):
         "stock": puertos.inventario.stock(producto_id),
         "desglose": _desglose(producto_id, datos),
         "historial": repo.historial(producto_id),
-        "tasas_isc": _tasas(repo.tasas_isc(producto_id)),
     }
     return render(request, "catalog/producto.html", contexto | _pestanas(form, externas))
 
