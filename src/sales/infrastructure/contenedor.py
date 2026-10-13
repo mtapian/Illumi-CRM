@@ -70,6 +70,7 @@ def caso_de_factura(clase):
         catalogo_query(),
         inventario(),
         lambda fecha: tenancy_service().parametro_vigente("umbral_boleta_identificada", fecha),
+        SecuenciaPostgres(),
         transaction.atomic,
     )
 

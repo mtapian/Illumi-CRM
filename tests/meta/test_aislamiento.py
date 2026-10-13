@@ -94,6 +94,16 @@ def _ajeno_pedido(otra):
     ).id
 
 
+def _ajeno_cobranza(otra):
+    from sales.infrastructure.models import Cobranza, Pedido
+
+    pedido = Pedido.all_tenants.get(pk=_ajeno_pedido(otra))
+    return Cobranza.all_tenants.create(
+        empresa=otra, numero=1, pedido=pedido, cliente=pedido.cliente, emision="2026-11-10",
+        total=1,
+    ).id  # fmt: skip
+
+
 RUTAS = {
     "usuarios/<int:usuario_id>/": _ajeno_usuario,
     "roles/<int:rol_id>/": _ajeno_rol,
@@ -102,6 +112,7 @@ RUTAS = {
     "compras/<int:compra_id>/": _ajeno_compra,
     "produccion/<int:op_id>/": _ajeno_op,
     "ventas/pedidos/<int:pedido_id>/": _ajeno_pedido,
+    "ventas/cobranzas/<int:cobranza_id>/": _ajeno_cobranza,
 }
 
 

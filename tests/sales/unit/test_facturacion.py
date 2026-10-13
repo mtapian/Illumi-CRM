@@ -82,7 +82,8 @@ def test_pagos_de_la_venta_directa_suman_el_total():
 
 def test_estado_de_la_cobranza():
     """RF-VEN-54 y 56."""
-    assert c.estado(D("288.00"), D("100.00")) == c.PENDIENTE
+    assert c.estado(D("288.00"), D("0.00")) == c.PENDIENTE
+    assert c.estado(D("288.00"), D("100.00")) == c.PARCIAL  # PO: pago parcial
     assert c.estado(D("288.00"), D("288.00")) == c.PAGADA
 
 
@@ -101,7 +102,8 @@ def test_pagos_que_no_se_aceptan(estado, monto, saldo, mensaje):
 
 
 def test_pago_valido():
-    c.validar_pago(c.PENDIENTE, D("188.00"), D("188.00"))
+    c.validar_pago(c.PENDIENTE, D("288.00"), D("288.00"))
+    c.validar_pago(c.PARCIAL, D("188.00"), D("188.00"))
 
 
 CUOTAS = (
@@ -121,6 +123,7 @@ def test_monto_vencido_y_proximo_vencimiento():
 
 def test_vencida():
     """RF-VEN-53: indicador de una cobranza Pendiente con monto vencido."""
-    assert c.vencida(c.PENDIENTE, CUOTAS, D("100.00"), HOY)
+    assert c.vencida(c.PARCIAL, CUOTAS, D("100.00"), HOY)
+    assert c.vencida(c.PENDIENTE, CUOTAS, D("0.00"), HOY)
     assert not c.vencida(c.PENDIENTE, CUOTAS, D("144.00"), HOY)
     assert not c.vencida(c.PAGADA, CUOTAS, D("288.00"), date(2027, 1, 1))

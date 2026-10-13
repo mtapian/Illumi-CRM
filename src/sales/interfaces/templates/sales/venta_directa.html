@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% comment %}Venta directa (plan 0006b §5; RF-VEN-18, 29, 52): cliente con "Clientes varios" por defecto (búsqueda y
+registro al vuelo), líneas dinámicas, almacén y pagos dinámicos (método y monto) con lo que falta; un token oculto
+evita registrar dos veces el mismo formulario. El comprobante sale del cliente y es al contado.{% endcomment %}
+{% block titulo %}Venta directa{% endblock %}
+{% block contenido %}
+{% include "catalog/_migas.html" %}
+<div class="encabezado-documento"><div><h1>Venta directa</h1>
+  <p class="subtitulo">Mostrador: se factura al contado, se cobra y se entrega en un solo paso. El comprobante sale del cliente: factura con RUC, boleta en otro caso.</p></div></div>
+<form method="post" id="form-venta" data-cambios>{% csrf_token %}<input type="hidden" name="token" value="{{ token }}">
+  <section class="tarjeta">
+    <h2>Datos de la venta</h2>
+    <p class="requerido-nota">Los campos con * son obligatorios.</p>
+    <div class="tres-columnas">
+      <div class="selector-cliente">
+        <label for="cliente-buscar">Cliente *</label>
+        <input type="hidden" name="cliente" id="cliente-id" value="{{ cliente_elegido.id|default:'' }}">
+        <input type="search" id="cliente-buscar" autocomplete="off" placeholder="Nombre o documento" value="{{ cliente_elegido.nombre|default:'' }}" aria-describedby="cliente-ayuda">
+        <ul id="cliente-sugerencias" class="sugerencias" hidden></ul>
+        <small id="cliente-ayuda" class="subtitulo">Escribe para buscar.{% if puede_registrar_cliente %} <button type="button" class="enlace" onclick="document.getElementById('nuevo-cliente').showModal()">+ Nuevo cliente</button>{% endif %}</small>
+        {% include "listados/_error.html" with error=request.errores_campo.cliente %}
+      </div>
+      <label>Almacén *<select name="almacen">{% for a in almacenes %}<option value="{{ a.id }}"{% if request.POST.almacen == a.id|stringformat:"s" or not request.POST.almacen and a.nombre == "Principal" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
+    </div>
+  </section>
+  <section class="tarjeta">
+    <h2>Productos</h2>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio (con impuestos)</th><th class="num">Subtotal</th><th><span class="oculto">Quitar</span></th></tr></thead>
+    <tbody id="lineas">{% for f in filas %}{% include "sales/_linea_pedido.html" %}{% endfor %}</tbody></table></div>
+    {% include "listados/_error.html" with error=request.errores_campo.lineas %}
+    <template id="linea-vacia">{% include "sales/_linea_pedido.html" with f=None %}</template>
+    <p><button type="button" class="secundario" onclick="agregarLinea()">+ Agregar producto</button></p>
+    <div class="caja-totales" aria-live="polite"><dl><dt class="total">Total</dt><dd class="total" id="total">S/ 0.00</dd></dl></div>
+  </section>
+  <section class="tarjeta">
+    <h2>Pagos</h2>
+    <p class="subtitulo">Uno o varios métodos; deben sumar exactamente el total.</p>
+    <div class="tabla"><table><thead><tr><th>Método</th><th>Monto</th><th><span class="oculto">Quitar</span></th></tr></thead>
+    <tbody id="pagos">{% for g in pagos %}<tr>
+      <td><select name="pago_metodo" aria-label="Método de pago">{% for m in metodos %}<option value="{{ m.id }}"{% if g.metodo == m.id|stringformat:"s" %} selected{% endif %}>{{ m.nombre }}</option>{% endfor %}</select></td>
+      <td><input name="pago_monto" type="number" min="0" step="0.01" value="{{ g.monto|default:'' }}" aria-label="Monto"></td>
+      <td><button type="button" class="btn-icono peligro" onclick="quitarPago(this)" aria-label="Quitar pago">Quitar</button></td>
+    </tr>{% endfor %}</tbody></table></div>
+    {% include "listados/_error.html" with error=request.errores_campo.pagos %}
+    <p><button type="button" class="secundario" onclick="agregarPago()">+ Agregar pago</button></p>
+    <div class="caja-totales" aria-live="polite"><dl><dt>Pagado</dt><dd id="pagado">S/ 0.00</dd><dt class="total">Falta</dt><dd class="total" id="falta">S/ 0.00</dd></dl></div>
+  </section>
+</form>
+<div class="acciones-documento">
+  <a class="boton secundario" href="{% url 'pedidos' %}" data-descartar>Cancelar</a>
+  <button type="submit" form="form-venta">Registrar venta</button>
+</div>
+{% include "sales/_cliente_y_lineas.html" with form_id="form-venta" %}
+<script>
+  // Pagos: el primero propone el total; "Falta" = total − pagado.
+  const pagosCuerpo = document.getElementById("pagos");
+  function agregarPago() {
+    const fila = pagosCuerpo.rows[0].cloneNode(true);
+    fila.querySelector("[name=pago_monto]").value = "";
+    pagosCuerpo.appendChild(fila);
+  }
+  function quitarPago(boton) {
+    if (pagosCuerpo.rows.length > 1) boton.closest("tr").remove();
+    document.getElementById("form-venta").dispatchEvent(new Event("input"));
+  }
+  function recalcularPagos() {
+    const total = Number(document.getElementById("total").textContent.replace("S/ ", ""));
+    const montos = [...pagosCuerpo.querySelectorAll("[name=pago_monto]")];
+    if (montos.length === 1 && !montos[0].dataset.tocado) montos[0].value = total ? total.toFixed(2) : "";
+    const pagado = montos.reduce((s, i) => s + Math.round(Number(i.value) * 100), 0) / 100;
+    document.getElementById("pagado").textContent = "S/ " + pagado.toFixed(2);
+    document.getElementById("falta").textContent = "S/ " + (total - pagado).toFixed(2);
+  }
+  pagosCuerpo.addEventListener("input", (e) => (e.target.dataset.tocado = "1"));
+  document.getElementById("form-venta").addEventListener("input", recalcularPagos);
+  document.getElementById("form-venta").addEventListener("change", recalcularPagos);
+  recalcularPagos();
+</script>
+{% endblock %}

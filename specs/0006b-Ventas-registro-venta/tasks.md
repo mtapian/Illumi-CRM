@@ -19,14 +19,14 @@ Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y par
 - [x] **T5. Venta directa.** — RF-VEN-18, 29, 52
   - `VentaDirecta` (crear, facturar, pagos, entregar en una transacción; token).
   - Hecho cuando: los tests cubren la venta con dos pagos, pagos que no suman el total y el token repetido.
-- [ ] **T6. Pantalla del pedido: facturar y entregar; ficha del cliente.** — RF-VEN-04, 17, 19, 20, 51
+- [x] **T6. Pantalla del pedido: facturar y entregar; ficha del cliente.** — RF-VEN-04, 17, 19, 20, 51
   - Diálogo "Facturar" con lotes, "Confirmar entrega", desglose y costo; resumen del cliente.
   - Hecho cuando: el test de pantalla pasa (costos ocultos sin permiso).
-- [ ] **T7. Pantalla de venta directa.** — RF-VEN-18, 29, 52
+- [x] **T7. Pantalla de venta directa.** — RF-VEN-18, 29, 52
   - Líneas y pagos dinámicos, búsqueda de cliente, token.
   - Hecho cuando: el test de pantalla pasa y un doble envío deja una sola venta.
-- [ ] **T8. Pantallas de cobranzas y métodos de pago.** — RF-VEN-53 a 59
-  - Listado y ficha de cobranza, registrar y anular pagos, maestro de métodos de pago, menú.
+- [x] **T8. Pantallas de cobranzas y métodos de pago.** — RF-VEN-53 a 60
+  - Código `COB-000001` de la cobranza (PO); listado y ficha de cobranza asociada a su pedido (RF-VEN-60), registrar y anular pagos, maestro de métodos de pago, menú.
   - Hecho cuando: el test de pantalla y la prueba de aislamiento pasan.
 - [ ] **T9. Escenarios de aceptación y cierre.** — todos
   - `tests/acceptance/pasos_ventas.py` y `test_e06b.py`; se quita `@borrador`; spec, plan y tareas a "implementada"; `MEMORY.md`; Docker.

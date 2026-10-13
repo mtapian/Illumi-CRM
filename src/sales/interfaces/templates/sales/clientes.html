@@ -32,7 +32,11 @@ CRU: no se eliminan, se desactivan (RF-VEN-05).{% endcomment %}
   {% for p in pedidos %}<tr><td><a href="{% url 'pedido' p.id %}">P-{{ p.numero|stringformat:"06d" }}</a></td><td>{{ p.fecha_entrega|date:"Y-m-d" }}</td><td class="num">S/ {{ p.total }}</td><td>{% for v, n in estados.items %}{% if v == p.estado %}{{ n }}{% endif %}{% endfor %}</td></tr>
   {% empty %}<tr><td colspan="4" class="subtitulo">Aún no tiene pedidos.</td></tr>{% endfor %}
   </tbody></table></div>
-  <p class="subtitulo">Sus ventas, el total de los últimos 90 días y la última compra llegan con la facturación (0006b).</p>
+  <dl class="resumen-cliente">
+    <dt>Comprado en 90 días</dt><dd>S/ {{ resumen.comprado_90 }}</dd>
+    <dt>Última compra</dt><dd>{{ resumen.ultima|date:"Y-m-d"|default:"—" }}</dd>
+    <dt>Saldo por cobrar</dt><dd>S/ {{ resumen.saldo }}</dd>
+  </dl>
 </section>
 {% endif %}
 <div class="acciones-documento"><span class="estado-cambios" data-aviso-cambios="form-cliente" role="status">Sin cambios pendientes</span><a class="boton secundario" href="{{ request.path }}" data-descartar>Volver</a>{% if gestiona %} <button type="submit" form="form-cliente" data-con-cambios disabled>Guardar</button>{% endif %}</div>

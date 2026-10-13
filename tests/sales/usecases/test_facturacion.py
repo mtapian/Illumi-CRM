@@ -14,6 +14,7 @@ from inventory.infrastructure.contenedor import inventario
 from inventory.infrastructure.models import Almacen, Movimiento
 from sales.application import facturacion as uf
 from sales.application import pedidos as up
+from sales.domain.cobranza import numero_cobranza
 from sales.domain.errores import PedidoInvalido
 from sales.domain.facturacion import CONTADO, CREDITO, Cuota
 from sales.domain.pedido import LineaPedido
@@ -26,9 +27,9 @@ from shared.domain.tenant import tenant_context
 HOY = date(2026, 12, 1)
 
 
-def preparar(empresa, actor):
+def preparar(empresa, actor, hoy=HOY):
     """IGV 18% de venta en los productos; TER-IPA-330 a costo 1.893080 en dos lotes."""
-    sembrar_impuestos(empresa.id, actor.usuario_id, HOY)
+    sembrar_impuestos(empresa.id, actor.usuario_id, hoy)
     igv = Impuesto.objects.get(tipo="VENTA", codigo="IGV")
     und = Unidad.objects.get(abreviatura="UND")
     Producto.objects.create(
@@ -47,7 +48,7 @@ def preparar(empresa, actor):
         )
     ]
     with transaction.atomic():
-        inventario().registrar_entrada("COMPRA", "COMPRA", 1, lineas, actor.usuario_id, HOY)
+        inventario().registrar_entrada("COMPRA", "COMPRA", 1, lineas, actor.usuario_id, hoy)
     bar = Cliente.objects.create(nombre="Bar El Lúpulo", tipo_doc="RUC", num_doc="20512345671")
     ana = Cliente.objects.create(nombre="Ana Torres", tipo_doc="DNI", num_doc="45678912")
     varios = Cliente.objects.get(es_generico=True)
@@ -103,6 +104,10 @@ def test_facturar_al_contado(v):
     c = Cobranza.objects.get(pedido_id=id_)
     assert (c.estado, c.total, c.pagado, c.emision) == ("PENDIENTE", D("288.00"), D("0"), HOY)
     assert [(q.numero, q.monto, q.vencimiento) for q in c.cuotas.all()] == [(1, D("288.00"), HOY)]
+    assert numero_cobranza(c.numero) == "COB-000001"  # código correlativo (PO)
+    otro = aprobado(v, ("TER-IPA-330", "1", "12"))
+    facturar(v, otro)
+    assert Cobranza.objects.get(pedido_id=otro).numero == 2
 
 
 @pytest.mark.django_db

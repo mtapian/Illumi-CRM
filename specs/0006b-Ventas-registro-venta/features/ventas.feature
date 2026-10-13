@@ -127,7 +127,7 @@ Característica: Facturación, entrega y cobranza de pedidos
   Escenario: Cobrar un pedido entregado en dos pagos
     Dado un pedido facturado de "Bar El Lúpulo" con 24 "TER-IPA-330" y costo total 45.43
     Cuando registro un pago de 100.00 por "Transferencia"
-    Entonces la cobranza queda Pendiente con saldo 188.00
+    Entonces la cobranza queda Parcial con saldo 188.00
     Cuando registro un pago de 188.00 por "Yape"
     Entonces la cobranza queda Pagada con saldo 0.00
 
@@ -144,12 +144,13 @@ Característica: Facturación, entrega y cobranza de pedidos
       | 100.00 | 0.00   | El pago debe ser mayor a 0 y no superar el saldo (188.00)     |
       | 288.00 | 1.00   | La cobranza ya está pagada                                    |
 
-  @UC-VEN-09 @RF-VEN-56
-  Escenario: Anular un pago devuelve la cobranza a Pendiente
+  @UC-VEN-09 @RF-VEN-54 @RF-VEN-56
+  Escenario: Anular un pago recalcula el estado de la cobranza
     Dado un pedido facturado de "Bar El Lúpulo" con 24 "TER-IPA-330" y costo total 45.43
-    Y un pago de 288.00 por "Efectivo"
-    Cuando anulo el pago con el motivo "Monto mal digitado"
-    Entonces la cobranza queda Pendiente con saldo 288.00
+    Y un pago de 100.00 por "Efectivo"
+    Y un pago de 188.00 por "Yape"
+    Cuando anulo el pago de 188.00 con el motivo "Monto mal digitado"
+    Entonces la cobranza queda Parcial con saldo 188.00
     Y el pago queda anulado con su motivo
 
   @UC-VEN-09 @RF-VEN-53

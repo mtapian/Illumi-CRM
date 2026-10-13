@@ -1,11 +1,12 @@
 """Pantallas de clientes y pedidos (plan 0006a §5)."""
 
+import uuid
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import F, Max, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -13,12 +14,24 @@ from django.utils import timezone
 
 from catalog.infrastructure.models import Producto
 from inventory.infrastructure.contenedor import inventario
+from inventory.infrastructure.models import Almacen
 from sales.application import clientes as uc
+from sales.application import cobranzas as ucob
+from sales.application import facturacion as uf
 from sales.application import pedidos as up
+from sales.domain import facturacion as fac
 from sales.domain import pedido as dom
 from sales.domain.cliente import DatosCliente
+from sales.domain.cobranza import numero_cobranza
 from sales.domain.errores import PedidoInvalido
-from sales.infrastructure.contenedor import buscar_clientes, caso_de_cliente, caso_de_pedido
+from sales.infrastructure.contenedor import (
+    buscar_clientes,
+    caso_de_cliente,
+    caso_de_factura,
+    caso_de_pedido,
+    caso_de_venta_directa,
+    metodos_activos,
+)
 from sales.infrastructure.models import Cliente, Pedido
 from shared.domain.errores import DomainError
 from shared.interfaces import listados
@@ -38,6 +51,10 @@ ESTADOS = [
 CAMPOS_LINEA = ("producto", "cantidad", "precio")
 FILTROS = ("estado", "cliente", "desde", "hasta", "q", "atrasados", "quiebre", "vista")
 MIGAS = [("Inicio", "/"), ("Ventas", None)]
+COSTOS = "inventario.costo.ver"
+FORMAS = {fac.CONTADO: "Contado", fac.CREDITO: "Crédito"}
+ESTADOS_COBRANZA = {"PENDIENTE": "Pendiente", "PARCIAL": "Parcial", "PAGADA": "Pagada"}
+DIAS_CREDITO = 30  # una cuota por el total a 30 días, editable (RF-VEN-19)
 
 
 def _id(texto):
@@ -110,6 +127,7 @@ def clientes(request):
         "valores": valores,
         "tipos": _tipos(valores.get("tipo_doc", "")),
         "pedidos": editando.pedidos.order_by("-numero")[:20] if editando else [],
+        "resumen": _resumen_cliente(editando) if editando else None,
         "estados": dict(ESTADOS),
         "gestiona": request.actor.puede(uc.GESTIONAR),
         "migas": migas,
@@ -165,8 +183,8 @@ def _filas(post) -> list[dict]:
     return [dict(zip(CAMPOS_LINEA, v, strict=False)) for v in zip(*columnas, strict=False)]
 
 
-def _datos(post) -> up.DatosPedido:
-    lineas = tuple(
+def _lineas(post) -> tuple[dom.LineaPedido, ...]:
+    return tuple(
         dom.LineaPedido(
             int(f["producto"]),
             _decimal(f["cantidad"], "La cantidad"),
@@ -175,11 +193,14 @@ def _datos(post) -> up.DatosPedido:
         for f in _filas(post)
         if f["producto"].isdigit()
     )
+
+
+def _datos(post) -> up.DatosPedido:
     return up.DatosPedido(
         _id(post.get("cliente")),
         _fecha(post.get("fecha_entrega")),
         post.get("comentario", ""),
-        lineas,
+        _lineas(post),
     )
 
 
@@ -299,6 +320,19 @@ def _formulario(request, pedido=None) -> dict:
     }
 
 
+def _resumen_cliente(cliente) -> dict:
+    """RF-VEN-04 (0006b): comprado en 90 días, última compra y saldo por cobrar."""
+    desde = timezone.localdate() - timedelta(days=90)
+    facturados = cliente.pedidos.filter(fecha_emision__isnull=False)
+    return {
+        "comprado_90": facturados.filter(fecha_emision__gte=desde).aggregate(t=Sum("total"))["t"]
+        or Decimal("0.00"),
+        "ultima": facturados.aggregate(u=Max("fecha_emision"))["u"],
+        "saldo": cliente.cobranzas.aggregate(s=Sum(F("total") - F("pagado")))["s"]
+        or Decimal("0.00"),
+    }
+
+
 @requiere(up.GESTIONAR)
 def nuevo_pedido(request):
     """RF-VEN-06: queda Creado, sin efecto en el stock."""
@@ -317,6 +351,45 @@ def nuevo_pedido(request):
         "migas": MIGAS[:1] + [("Pedidos", "/ventas/pedidos/"), ("Nuevo", None)]
     }
     return render(request, "sales/pedido.html", contexto)
+
+
+def _datos_factura(post, hoy) -> uf.DatosFactura:
+    """RF-VEN-19 y 20: almacén, forma de pago, cuotas (monto y días) y lote por línea."""
+    cuotas = []
+    for monto, dias in zip(post.getlist("cuota_monto"), post.getlist("cuota_dias"), strict=False):
+        if not (monto or dias):
+            continue
+        if not dias.strip().lstrip("-").isdigit():
+            raise PedidoInvalido("Los días de cada cuota deben ser un número entero", "cuotas")
+        cuotas.append(fac.Cuota(_decimal(monto, "El monto"), fac.vencimiento_en(hoy, int(dias))))
+    lotes = {
+        int(k.removeprefix("lote_")): v
+        for k, v in post.items()
+        if k.startswith("lote_") and k.removeprefix("lote_").isdigit() and v
+    }
+    forma = post.get("forma_pago") or fac.CONTADO
+    return uf.DatosFactura(_id(post.get("almacen")), forma, tuple(cuotas), lotes)
+
+
+def _para_facturar(fila, lineas_info, hoy) -> dict:
+    """El diálogo "Facturar": comprobante según el cliente, almacenes y lotes con stock."""
+    almacenes = list(Almacen.objects.filter(activo=True).order_by("nombre"))
+    lotes = {}
+    for x in lineas_info:
+        if x["disponible"] is None:  # servicio
+            continue
+        lotes[x["linea"].producto_id] = [
+            (a.id, lote, q)
+            for a in almacenes
+            for lote, q in inventario().existencias_en_orden(x["linea"].producto_id, a.id, hoy)
+            if lote
+        ]
+    return {
+        "comprobante": fac.comprobante_para(fila.cliente.tipo_doc),
+        "almacenes": almacenes,
+        "lotes": lotes,
+        "dias_credito": DIAS_CREDITO,
+    }
 
 
 @requiere(up.VER)
@@ -340,15 +413,28 @@ def pedido(request, pedido_id):
             "cancelar": lambda: caso_de_pedido(up.CancelarPedido).ejecutar(
                 actor, pedido_id, p.get("motivo", "")
             ),
+            "facturar": lambda: caso_de_factura(uf.FacturarPedido).ejecutar(
+                actor, pedido_id, _datos_factura(p, hoy), hoy
+            ),
+            "entregar": lambda: caso_de_factura(uf.EntregarPedido).ejecutar(actor, pedido_id),
         }
         accion = p.get("accion", "guardar")
         if _intentar(request, acciones.get(accion, acciones["guardar"])):
-            resultado = {"aprobar": "Pedido aprobado.", "cancelar": "Pedido cancelado."}
+            resultado = {
+                "aprobar": "Pedido aprobado.",
+                "cancelar": "Pedido cancelado.",
+                "facturar": "Pedido facturado: salió el stock y se generó la cobranza.",
+                "entregar": "Entrega confirmada.",
+            }
             messages.success(request, resultado.get(accion, "Cambios guardados."))
             return redirect("pedido", pedido_id=pedido_id)
     gestiona = actor.puede(up.GESTIONAR)
     editable = fila.estado == dom.CREADO and gestiona
     info = disponibilidad([fila], hoy)[fila.id]
+    registra = actor.puede(uf.REGISTRAR)
+    puede_facturar = fila.estado == dom.APROBADO and registra
+    facturado = fila.estado in (dom.FACTURADO, dom.ENTREGADO) or fila.fecha_emision is not None
+    cobranza = getattr(fila, "cobranza", None) if facturado else None
     contexto = (_formulario(request, fila) if editable else {}) | {
         "pedido": fila,
         "numero": dom.numero_pedido(fila.numero),
@@ -360,11 +446,85 @@ def pedido(request, pedido_id):
         "indicadores": info["indicadores"],
         "puede_aprobar": fila.estado == dom.CREADO and gestiona,
         "puede_cancelar": fila.estado in (dom.CREADO, dom.APROBADO) and actor.puede(up.CANCELAR),
+        "puede_facturar": puede_facturar,
+        "facturar": _para_facturar(fila, info["lineas"], hoy) if puede_facturar else {},
+        "puede_entregar": fila.estado == dom.FACTURADO and registra,
+        "facturado": facturado,
+        "lineas_facturadas": (
+            fila.lineas.select_related("producto__unidad").order_by("id") if facturado else []
+        ),
+        "forma_texto": FORMAS.get(fila.forma_pago, ""),
+        "cobranza": cobranza,
+        "cuotas": cobranza.cuotas.order_by("numero") if cobranza else [],
+        "cobranza_codigo": numero_cobranza(cobranza.numero) if cobranza else "",
+        "cobranza_estado": ESTADOS_COBRANZA.get(cobranza.estado, "") if cobranza else "",
+        "cobranza_saldo": cobranza.total - cobranza.pagado if cobranza else None,
+        "puede_cobrar": actor.puede(ucob.GESTIONAR),
+        "ve_costos": actor.puede(COSTOS),
         "accion_fallida": request.POST.get("accion", "guardar") if request.method == "POST" else "",
         "migas": MIGAS[:1]
         + [("Pedidos", "/ventas/pedidos/"), (dom.numero_pedido(fila.numero), None)],
     }
     return render(request, "sales/pedido.html", contexto)
+
+
+def _token(texto):
+    try:
+        return uuid.UUID(texto)
+    except (TypeError, ValueError):
+        return uuid.uuid4()
+
+
+def _datos_venta(post) -> uf.DatosVentaDirecta:
+    """RF-VEN-18: líneas como en el pedido y pagos (método, monto)."""
+    pagos = tuple(
+        (int(m), _decimal(monto, "El monto del pago"))
+        for m, monto in zip(post.getlist("pago_metodo"), post.getlist("pago_monto"), strict=False)
+        if m.isdigit() and monto.strip()
+    )
+    return uf.DatosVentaDirecta(
+        _id(post.get("cliente")),
+        _id(post.get("almacen")),
+        _lineas(post),
+        pagos,
+        _token(post.get("token")),
+    )
+
+
+@requiere(uf.REGISTRAR)
+def venta_directa(request):
+    """RF-VEN-18, 29 y 52: mostrador; crea, factura al contado, cobra y entrega.
+    ponytail: sin elegir lotes (sale por la estrategia del producto); se elige en el pedido."""
+    if request.method == "POST":
+        nuevo = {}
+
+        def vender():
+            nuevo["id"] = caso_de_venta_directa().ejecutar(
+                request.actor, _datos_venta(request.POST), timezone.localdate()
+            )
+
+        if _intentar(request, vender):
+            messages.success(request, "Venta registrada: pedido entregado y cobranza pagada.")
+            return redirect("pedido", pedido_id=nuevo["id"])
+        filas = request.POST.getlist("pago_metodo")
+        pagos = [
+            {"metodo": m, "monto": monto}
+            for m, monto in zip(filas, request.POST.getlist("pago_monto"), strict=False)
+        ]
+        token = request.POST.get("token")
+    else:
+        pagos, token = [{}], str(uuid.uuid4())
+    contexto = _formulario(request)
+    if request.method != "POST":
+        contexto["cliente_elegido"] = Cliente.objects.filter(es_generico=True).first()
+    contexto |= {
+        "almacenes": Almacen.objects.filter(activo=True).order_by("nombre"),
+        "metodos": metodos_activos(),
+        "pagos": pagos or [{}],
+        "token": token,
+        "migas": MIGAS[:1] + [("Venta directa", None)],
+    }
+    return render(request, "sales/venta_directa.html", contexto)
 
 
 def aviso_quiebre(request):

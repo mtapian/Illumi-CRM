@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% comment %}Métodos de pago (plan 0006b §5; RF-VEN-58, 59): listado de maestro de la empresa; crear, renombrar,
+activar o desactivar; no se eliminan (los pagos los conservan).{% endcomment %}
+{% block titulo %}Métodos de pago{% endblock %}
+{% block contenido %}
+{% include "catalog/_migas.html" %}
+{% if gestiona and nuevo or gestiona and editando %}
+<h1>{% if editando %}Editar método de pago{% else %}Nuevo método de pago{% endif %}</h1>
+<section class="tarjeta formulario-maestro">
+  <form method="post" id="form-maestro" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+    {% if editando %}<input type="hidden" name="id" value="{{ editando.id }}">{% elif request.POST.id %}<input type="hidden" name="id" value="{{ request.POST.id }}">{% endif %}
+    <label>Nombre *<input name="nombre" required maxlength="60" value="{% if request.POST.nombre %}{{ request.POST.nombre }}{% else %}{{ editando.nombre|default:'' }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.nombre %}</label>
+  </form>
+</section>
+<div class="acciones-documento"><a class="boton secundario" href="{{ request.path }}" data-descartar>Cancelar</a> <button type="submit" form="form-maestro">Guardar</button></div>
+{% else %}
+<div class="encabezado-listado"><div><h1>Métodos de pago</h1><p class="subtitulo">Un método no se elimina: se desactiva y deja de ofrecerse en pagos nuevos.</p></div>
+  {% if gestiona %}<div class="acciones-listado"><a class="boton principal" href="?nuevo=1">+ Nuevo método de pago</a></div>{% endif %}</div>
+{% include "listados/_buscar.html" with etiqueta="Buscar método" placeholder="Nombre" %}
+<div class="tarjeta tabla">
+<table><thead><tr><th>Nombre</th><th>Pagos</th><th>Estado</th>{% if gestiona %}<th class="acciones">Acciones</th>{% endif %}</tr></thead><tbody>
+{% for m in pagina %}<tr>
+  <td><strong>{{ m.nombre }}</strong></td><td><span class="chip neutro">{{ m.pagos_n }}</span></td>
+  <td><span class="chip {% if m.activo %}ok{% else %}error{% endif %}">{% if m.activo %}Activo{% else %}Inactivo{% endif %}</span></td>
+  {% if gestiona %}<td class="acciones"><a class="boton secundario chico" href="?editar={{ m.id }}">Editar</a>
+    <form method="post" class="en-linea">{% csrf_token %}<input type="hidden" name="id" value="{{ m.id }}">
+      {% if m.activo %}<button type="submit" name="accion" value="desactivar" class="secundario chico">Desactivar</button>{% else %}<button type="submit" name="accion" value="activar" class="secundario chico">Activar</button>{% endif %}
+    </form></td>{% endif %}
+</tr>{% empty %}<tr><td colspan="4" class="subtitulo">{% if q %}Sin resultados para "{{ q }}".{% else %}Aún no hay métodos de pago.{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+{% include "listados/_pie.html" with nombres="método,métodos" %}
+</div>
+{% endif %}
+{% endblock %}

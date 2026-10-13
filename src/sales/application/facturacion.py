@@ -16,6 +16,7 @@ from sales.domain import facturacion as f
 from sales.domain.errores import PedidoInvalido
 from sales.domain.pedido import LineaPedido, subtotal, total, transicion
 from shared.application.autorizacion import Actor, CasoDeUso
+from shared.application.puertos import SequencePort
 from shared.domain.stock import faltantes
 
 REGISTRAR = "ventas.venta.registrar"
@@ -45,7 +46,7 @@ class FacturasRepo(Protocol):
     def facturar(
         self, pedido_id, comprobante, forma_pago, almacen_id, emision, lineas, usuario_id
     ) -> None: ...
-    def crear_cobranza(self, pedido_id, cliente_id, total, emision, cuotas) -> int: ...
+    def crear_cobranza(self, numero, pedido_id, cliente_id, total, emision, cuotas) -> int: ...
     def entregar(self, pedido_id: int, usuario_id: int) -> None: ...
     def aprobar(self, pedido_id: int, usuario_id: int) -> None: ...
     def por_token(self, token) -> int | None: ...
@@ -61,10 +62,11 @@ class _Base(CasoDeUso):
         catalogo: CatalogoQuery,
         inventario: InventarioService,
         umbral_boleta: Callable[[date], Decimal],
+        secuencia: SequencePort,
         atomic: Callable,
     ):
         self._repo, self._catalogo, self._inv = repo, catalogo, inventario
-        self._umbral, self._atomic = umbral_boleta, atomic
+        self._umbral, self._secuencia, self._atomic = umbral_boleta, secuencia, atomic
 
 
 class FacturarPedido(_Base):
@@ -135,7 +137,8 @@ class FacturarPedido(_Base):
             facturadas,
             actor.usuario_id,
         )
-        self._repo.crear_cobranza(pedido_id, pedido.cliente_id, importe, hoy, cuotas)
+        numero = self._secuencia.siguiente("COBRANZA")
+        self._repo.crear_cobranza(numero, pedido_id, pedido.cliente_id, importe, hoy, cuotas)
 
 
 class EntregarPedido(_Base):

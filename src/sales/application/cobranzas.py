@@ -44,7 +44,7 @@ class _Base(CasoDeUso):
 
 
 class RegistrarPago(_Base):
-    """RF-VEN-54, 55 y 57: nunca mayor al saldo; con el saldo en 0, Pagada."""
+    """RF-VEN-54, 55 y 57: nunca mayor al saldo; Parcial mientras quede saldo, luego Pagada."""
 
     def ejecutar(self, actor: Actor, cobranza_id: int, datos: DatosPago, hoy: date) -> int:
         with self._atomic():
@@ -66,7 +66,7 @@ class RegistrarPago(_Base):
 
 
 class AnularPago(_Base):
-    """RF-VEN-56: con motivo, una sola vez; la cobranza vuelve a Pendiente."""
+    """RF-VEN-56: con motivo, una sola vez; el estado se recalcula (Parcial o Pendiente)."""
 
     def ejecutar(self, actor: Actor, pago_id: int, motivo: str) -> None:
         if not motivo.strip():

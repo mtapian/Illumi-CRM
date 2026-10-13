@@ -144,9 +144,9 @@ class FacturasOrm(PedidosOrm):
             facturado_en=timezone.now(),
         )
 
-    def crear_cobranza(self, pedido_id, cliente_id, total, emision, cuotas) -> int:
+    def crear_cobranza(self, numero, pedido_id, cliente_id, total, emision, cuotas) -> int:
         c = Cobranza.objects.create(
-            pedido_id=pedido_id, cliente_id=cliente_id, emision=emision, total=total
+            numero=numero, pedido_id=pedido_id, cliente_id=cliente_id, emision=emision, total=total
         )
         Cuota.objects.bulk_create(
             Cuota(

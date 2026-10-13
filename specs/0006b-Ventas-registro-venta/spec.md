@@ -35,25 +35,26 @@ La cervecera vende sobre todo a pedido (bares, restaurantes, distribuidores), co
 - **Comprobante pendiente:** el comprobante de la venta (factura o boleta) con su cliente, sus líneas y su desglose, listo para que la facturación electrónica (0007a) le asigne serie y correlativo y lo emita. En la prueba gratuita sin facturación es un comprobante interno (constitución, art. 5.2).
 - **Forma de pago** (condición de pago; SUNAT la exige en toda factura al emitirla, PO 2026-10-13): **Contado** si el total se paga en la fecha de emisión; **Crédito** si se paga total o parcialmente después. Una factura a crédito declara el **monto neto pendiente de pago** y el **cronograma de cuotas** (monto y vencimiento de cada una), que la vuelven un título valor transable (factoring). Se registra en el pedido facturado y la informa el comprobante (0007a); **quien cobra es la cobranza**, no el comprobante (PO, 2026-10-13).
 - **Monto neto pendiente de pago:** en el MVP, el total de la factura (sin detracciones, retenciones ni adelantos).
-- **Cobranza:** lo que el cliente debe por un pedido facturado: total, cuotas (las de la factura a crédito; al contado, una sola por el total con vencimiento en la emisión), pagos y saldo. Los pagos se aplican al total, no a una cuota en particular. Estados **Pendiente ▸ Pagada**.
+- **Cobranza:** con su **código** correlativo por empresa `COB-000001` (PO, 2026-10-13), lo que el cliente debe por un pedido facturado: total, cuotas (las de la factura a crédito; al contado, una sola por el total con vencimiento en la emisión), pagos y saldo. Los pagos se aplican al total, no a una cuota en particular. Estados **Pendiente ▸ Parcial ▸ Pagada** (Parcial: PO, 2026-10-13).
 - **Monto vencido:** Σ cuotas con vencimiento anterior a hoy − Σ pagos vigentes (mínimo 0).
 - **Saldo:** total de la cobranza − Σ pagos vigentes (no anulados).
-- **Vencida:** una cobranza Pendiente con monto vencido mayor a 0. Es un indicador, no un estado.
+- **Vencida:** una cobranza Pendiente o Parcial con monto vencido mayor a 0. Es un indicador, no un estado.
 - **Método de pago:** un elemento del maestro de la empresa (p. ej. Efectivo, Yape, Plin, Tarjeta, Transferencia).
 
 **Estados de la cobranza:**
 
 | Desde | Hacia | Cuándo |
 |---|---|---|
-| — | Pendiente | Se factura el pedido |
-| Pendiente | Pagada | Sus pagos vigentes suman su total |
-| Pagada | Pendiente | Se anula un pago y el saldo vuelve a ser mayor a 0 |
+| — | Pendiente | Se factura el pedido (nada pagado) |
+| Pendiente | Parcial | Un pago cubre parte del total (pagado > 0 y menor al total) |
+| Pendiente, Parcial | Pagada | Sus pagos vigentes suman su total |
+| Parcial, Pagada | Pendiente o Parcial | Se anula un pago: Pendiente si lo pagado vuelve a 0, Parcial si queda algo pagado |
 
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
 ### UC-VEN-05 Facturar y entregar un pedido
 
-- RF-VEN-17: CUANDO un usuario con `ventas.venta.registrar` factura un pedido **Aprobado**, EL SISTEMA, en una sola operación: vuelve a validar el cliente, los productos y el stock (doble validación, constitución art. 10.3); saca el stock de cada línea; congela el costo; calcula el desglose de cada línea; crea el comprobante pendiente; crea la cobranza **Pendiente** por el total del pedido y pasa el pedido a **Facturado**. Si algo falla, no hace nada de lo anterior.
+- RF-VEN-17: CUANDO un usuario con `ventas.venta.registrar` factura un pedido **Aprobado**, EL SISTEMA, en una sola operación: vuelve a validar el cliente, los productos y el stock (doble validación, constitución art. 10.3); saca el stock de cada línea; congela el costo; calcula el desglose de cada línea; crea el comprobante pendiente; crea la cobranza **Pendiente** por el total del pedido, con su código `COB-000001` (correlativo por empresa, sin huecos ni duplicados) y pasa el pedido a **Facturado**. Si algo falla, no hace nada de lo anterior.
 - RF-VEN-19: CUANDO se factura, EL SISTEMA determina el comprobante por el cliente (RN-VEN-02; PO, 2026-10-13): **Factura si el cliente tiene RUC; Boleta en cualquier otro caso** (DNI, carné de extranjería, pasaporte o sin documento), y pide el almacén de salida (sugerido: el principal). **El tipo de documento del cliente define también la forma de pago posible** (PO, 2026-10-13): con RUC (Factura) el usuario elige Contado o Crédito (Contado por defecto); con cualquier otro documento (Boleta) es siempre Contado y la forma de pago no se ofrece. Con Crédito muestra el monto neto pendiente de pago y pide el cronograma de cuotas: cada cuota con su monto y su **plazo en días** desde la emisión, del que sale su vencimiento (ambos visibles; PO, 2026-10-13). Por defecto propone una cuota por el total a 30 días; el usuario cambia los días, el monto o agrega cuotas.
 - RF-VEN-20: EL SISTEMA permite elegir el lote de cada línea de un bien al facturar. SI no se elige, ENTONCES saca según la estrategia de salida del producto (FEFO o FIFO; 0002a enmienda 6) y, después, el stock sin lote. Un servicio no saca stock.
 - RF-VEN-21: CUANDO se saca el stock de una línea, EL SISTEMA guarda su costo (el promedio vigente en ese momento, por lote si sale de varios) y no lo recalcula aunque el costo promedio cambie después (RN-VEN-04; constitución art. 4.3).
@@ -76,10 +77,12 @@ La cervecera vende sobre todo a pedido (bares, restaurantes, distribuidores), co
 
 ### UC-VEN-09 Cobranzas y pagos
 
-- RF-VEN-53: EL SISTEMA lista las cobranzas (grilla estándar) con número de pedido, cliente, forma de pago, emisión, próximo vencimiento (el de la primera cuota no cubierta por los pagos), total, pagado, saldo, monto vencido y estado, con el indicador **Vencida** y los filtros estado, cliente, fechas de vencimiento y "solo vencidas"; a quien tenga `ventas.cobranza.ver`.
-- RF-VEN-54: CUANDO un usuario con `ventas.cobranza.gestionar` registra un pago en una cobranza Pendiente (método activo, monto, fecha no futura y referencia opcional), EL SISTEMA lo guarda y, si el saldo llega a 0, pasa la cobranza a **Pagada**.
+- RF-VEN-60 (PO, 2026-10-13): EL SISTEMA muestra la cobranza asociada a su pedido: la ficha del pedido facturado muestra su cobranza (código, estado, saldo y cuotas) con acceso a la ficha de la cobranza para registrar pagos, y la ficha de la cobranza muestra su código, su pedido (con enlace), cliente, cuotas y pagos.
+
+- RF-VEN-53: EL SISTEMA lista las cobranzas (grilla estándar) con código, número de pedido (enlace a su pedido), cliente, forma de pago, emisión, próximo vencimiento (el de la primera cuota no cubierta por los pagos), total, pagado, saldo, monto vencido y estado, con el indicador **Vencida** y los filtros estado, cliente, fechas de vencimiento y "solo vencidas"; a quien tenga `ventas.cobranza.ver`.
+- RF-VEN-54: CUANDO un usuario con `ventas.cobranza.gestionar` registra un pago en una cobranza Pendiente o Parcial (método activo, monto, fecha no futura y referencia opcional), EL SISTEMA lo guarda y pasa la cobranza a **Parcial** si aún queda saldo o a **Pagada** si el saldo llega a 0.
 - RF-VEN-55: SI el monto del pago es 0 o menos, o mayor al saldo, ENTONCES EL SISTEMA lo rechaza e indica "El pago debe ser mayor a 0 y no superar el saldo (<saldo>)" (PO, 2026-10-13: nunca mayor al saldo; el vuelto se maneja fuera del sistema).
-- RF-VEN-56: CUANDO un usuario con `ventas.cobranza.gestionar` anula un pago con motivo, EL SISTEMA lo marca anulado (no lo borra), guarda quién, cuándo y por qué, y si la cobranza estaba Pagada la vuelve a **Pendiente**. Un pago anulado no se anula dos veces.
+- RF-VEN-56: CUANDO un usuario con `ventas.cobranza.gestionar` anula un pago con motivo, EL SISTEMA lo marca anulado (no lo borra), guarda quién, cuándo y por qué, y recalcula el estado de la cobranza: **Pendiente** si lo pagado vuelve a 0, **Parcial** si queda algo pagado. Un pago anulado no se anula dos veces.
 - RF-VEN-57: SI se intenta registrar un pago en una cobranza Pagada, ENTONCES EL SISTEMA lo rechaza e indica "La cobranza ya está pagada".
 
 ### UC-VEN-10 Métodos de pago
@@ -100,7 +103,7 @@ La cervecera vende sobre todo a pedido (bares, restaurantes, distribuidores), co
 - **Lote vencido elegido:** se rechaza como stock insuficiente (sin vencidos, 0003a).
 - **Pedido con solo servicios:** se factura sin mover stock.
 - **Dos pagos simultáneos por el último saldo:** solo uno entra; el otro se rechaza por superar el saldo.
-- **Anular un pago de una venta directa:** la cobranza vuelve a Pendiente; el pedido sigue Entregado.
+- **Anular un pago de una venta directa:** la cobranza vuelve a Parcial o Pendiente; el pedido sigue Entregado.
 
 ## Fuera de alcance
 

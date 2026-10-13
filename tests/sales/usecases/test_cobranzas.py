@@ -48,7 +48,7 @@ def cobranza(v):
 def test_pago_parcial_y_total(v):
     """RF-VEN-54: Pendiente hasta que los pagos suman el total."""
     pago = pagar(v, "100.00", "Transferencia")
-    assert cobranza(v) == ("PENDIENTE", D("100.00"))
+    assert cobranza(v) == ("PARCIAL", D("100.00"))
     p = Pago.objects.get(pk=pago)
     assert (p.monto, p.referencia, p.registrado_por_id) == (
         D("100.00"), "op-123", v["actor"].usuario_id
@@ -86,17 +86,20 @@ def test_fecha_futura_y_metodo_inactivo(v):
 
 @pytest.mark.django_db
 def test_anular_pago(v):
-    """RF-VEN-56: con motivo, una sola vez; la cobranza vuelve a Pendiente."""
-    pago = pagar(v, "288.00")
+    """RF-VEN-56: con motivo, una sola vez; el estado se recalcula (Parcial o Pendiente)."""
+    primero = pagar(v, "100.00")
+    pago = pagar(v, "188.00")
     anular = caso_de_cobranza(uc.AnularPago)
     with pytest.raises(CobranzaInvalida, match="Indica el motivo"):
         anular.ejecutar(v["actor"], pago, " ")
     anular.ejecutar(v["actor"], pago, "Monto mal digitado")
-    assert cobranza(v) == ("PENDIENTE", D("0.00"))
+    assert cobranza(v) == ("PARCIAL", D("100.00"))
     p = Pago.objects.get(pk=pago)
     assert (p.motivo_anulacion, p.anulado_por_id) == ("Monto mal digitado", v["actor"].usuario_id)
     with pytest.raises(CobranzaInvalida, match="El pago ya está anulado"):
         anular.ejecutar(v["actor"], pago, "Otra vez")
+    anular.ejecutar(v["actor"], primero, "Duplicado")
+    assert cobranza(v) == ("PENDIENTE", D("0.00"))
     pagar(v, "288.00")  # el saldo vuelve a estar disponible
     assert cobranza(v) == ("PAGADA", D("288.00"))
 

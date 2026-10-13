@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% comment %}Cobranza (plan 0006b §5; RF-VEN-54 a 57, 60): código, pedido asociado, cuotas y pagos. Acción principal
+"Registrar pago" (monto sugerido: el saldo); cada pago vigente se anula con motivo desde sus acciones.{% endcomment %}
+{% block titulo %}Cobranza {{ cobranza.codigo }}{% endblock %}
+{% block contenido %}
+{% include "catalog/_migas.html" %}
+<div class="encabezado-documento">
+  <div><h1>Cobranza {{ cobranza.codigo }} · {{ cobranza.cliente.nombre }}</h1>
+    <p>Pedido <a href="{% url 'pedido' cobranza.pedido_id %}">{{ cobranza.pedido_texto }}</a> · {{ cobranza.forma_texto }} · emitido el {{ cobranza.emision|date:"Y-m-d" }}{% if cobranza.es_vencida %} <span class="chip error">Vencida</span>{% endif %}</p></div>
+  <span class="chip {% if cobranza.estado == 'PAGADA' %}ok{% elif cobranza.estado == 'PARCIAL' %}alerta{% endif %}">{{ estado_texto }}</span>
+</div>
+<section class="tarjeta dos-columnas">
+  <div><h2>Resumen</h2>
+    <dl><dt>Total</dt><dd>S/ {{ cobranza.total }}</dd><dt>Pagado</dt><dd>S/ {{ cobranza.pagado }}</dd><dt class="total">Saldo</dt><dd class="total">S/ {{ cobranza.saldo }}</dd>
+    {% if cobranza.vencido %}<dt>Vencido</dt><dd>S/ {{ cobranza.vencido }}</dd>{% endif %}
+    <dt>Próximo vencimiento</dt><dd>{{ cobranza.proximo|date:"Y-m-d"|default:"—" }}</dd></dl>
+  </div>
+  <div><h2>Cuotas</h2>
+    <div class="tabla"><table><thead><tr><th>Cuota</th><th>Vence</th><th class="num">Monto</th></tr></thead><tbody>
+    {% for q in cuotas %}<tr><td>{{ q.numero }}</td><td>{{ q.vencimiento|date:"Y-m-d" }}</td><td class="num">S/ {{ q.monto }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    <p class="subtitulo">Los pagos se aplican al total, no a una cuota en particular.</p>
+  </div>
+</section>
+<section class="tarjeta">
+  <h2>Pagos</h2>
+  <div class="tabla"><table><thead><tr><th>Fecha</th><th>Método</th><th>Referencia</th><th class="num">Monto</th><th>Registrado por</th><th>Estado</th>{% if gestiona %}<th class="acciones">Acciones</th>{% endif %}</tr></thead><tbody>
+  {% for g in pagos %}<tr>
+    <td>{{ g.fecha|date:"Y-m-d" }}</td><td>{{ g.metodo.nombre }}</td><td>{{ g.referencia|default:"—" }}</td><td class="num">S/ {{ g.monto }}</td><td>{{ g.registrado_por.email|default:"—" }}</td>
+    <td>{% if g.anulado_en %}<span class="chip error">Anulado</span> <small class="subtitulo">{{ g.anulado_por.email|default:"—" }} el {{ g.anulado_en|date:"Y-m-d H:i" }}: {{ g.motivo_anulacion }}</small>{% else %}<span class="chip ok">Vigente</span>{% endif %}</td>
+    {% if gestiona %}<td class="acciones">{% if not g.anulado_en %}<button type="button" class="secundario chico peligro" onclick="anularPago({{ g.id }}, 'S/ {{ g.monto }} · {{ g.metodo.nombre|escapejs }}')">Anular</button>{% endif %}</td>{% endif %}
+  </tr>{% empty %}<tr><td colspan="7" class="subtitulo">Aún no hay pagos.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if accion_fallida == "anular" %}{% include "listados/_error.html" with error=request.errores_campo.motivo %}{% endif %}
+</section>
+{% if gestiona and cobranza.estado != "PAGADA" %}
+<section class="tarjeta">
+  <h2>Registrar pago</h2>
+  <form method="post" id="form-pago" class="tres-columnas">{% csrf_token %}<input type="hidden" name="accion" value="pagar">
+    <label>Método *<select name="metodo">{% for m in metodos %}<option value="{{ m.id }}"{% if request.POST.metodo == m.id|stringformat:"s" %} selected{% endif %}>{{ m.nombre }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.metodo %}</label>
+    <label>Monto *<input name="monto" type="number" min="0" step="0.01" required value="{% if accion_fallida == 'pagar' %}{{ request.POST.monto }}{% else %}{{ cobranza.saldo }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.monto %}</label>
+    <label>Fecha *<input name="fecha" type="date" required max="{{ hoy|date:'Y-m-d' }}" value="{% if accion_fallida == 'pagar' %}{{ request.POST.fecha }}{% else %}{{ hoy|date:'Y-m-d' }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.fecha %}</label>
+    <label>Referencia<input name="referencia" maxlength="80" placeholder="N.° de operación" value="{% if accion_fallida == 'pagar' %}{{ request.POST.referencia }}{% endif %}"></label>
+  </form>
+</section>
+{% endif %}
+<div class="acciones-documento">
+  <a class="boton secundario" href="{% url 'cobranzas' %}">Volver al listado</a>
+  <a class="boton secundario" href="{% url 'pedido' cobranza.pedido_id %}">Ver pedido</a>
+  {% if gestiona and cobranza.estado != "PAGADA" %}<button type="submit" form="form-pago">Registrar pago</button>{% endif %}
+</div>
+{% if gestiona %}
+<dialog id="anular-pago" class="tarjeta" aria-labelledby="titulo-anular">
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="anular"><input type="hidden" name="pago" id="anular-id" value="{{ request.POST.pago }}">
+    <h2 id="titulo-anular">Anular pago</h2>
+    <p>El pago <strong id="anular-texto"></strong> quedará anulado (no se borra) y su monto vuelve al saldo; la cobranza vuelve a Parcial o Pendiente según lo que quede pagado.</p>
+    <label>Motivo *<input name="motivo" required maxlength="200"></label>
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit" class="peligro">Anular pago</button></p>
+  </form>
+</dialog>
+<script>
+  function anularPago(id, texto) {
+    document.getElementById("anular-id").value = id;
+    document.getElementById("anular-texto").textContent = texto;
+    document.getElementById("anular-pago").showModal();
+  }
+</script>
+{% endif %}
+{% endblock %}

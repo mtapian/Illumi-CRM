@@ -171,6 +171,7 @@ class MetodoPago(TenantModel):
 class Cobranza(TenantModel):
     """Lo que el cliente debe por un pedido facturado (RF-VEN-17, 53 a 57)."""
 
+    numero = models.IntegerField()  # COB-000001 por empresa (PO)
     pedido = models.OneToOneField(Pedido, on_delete=models.PROTECT, related_name="cobranza")
     cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, related_name="cobranzas")
     emision = models.DateField()
@@ -180,13 +181,15 @@ class Cobranza(TenantModel):
 
     class Meta:
         constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="cobranza_numero_unico"),
             models.CheckConstraint(
                 condition=Q(estado__in=cob.ESTADOS, pagado__gte=0, pagado__lte=F("total")),
                 name="cobranza_pagado_valido",
             ),
             models.CheckConstraint(
                 condition=Q(estado=cob.PAGADA, pagado=F("total"))
-                | (Q(estado=cob.PENDIENTE) & ~Q(pagado=F("total"))),
+                | Q(estado=cob.PENDIENTE, pagado=0)
+                | (Q(estado=cob.PARCIAL, pagado__gt=0) & ~Q(pagado=F("total"))),
                 name="cobranza_estado_segun_pagado",
             ),
         ]

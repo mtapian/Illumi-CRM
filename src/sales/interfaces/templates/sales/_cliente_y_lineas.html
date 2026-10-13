@@ -1,0 +1,90 @@
+{% comment %}Cliente con búsqueda y registro al vuelo (RF-VEN-50) y líneas dinámicas con precio de lista y total
+informativo; lo usan el pedido y la venta directa. `form_id`: el formulario que los contiene.{% endcomment %}
+{% if puede_registrar_cliente %}
+<dialog id="nuevo-cliente" class="tarjeta" aria-labelledby="titulo-cliente">
+  <form id="form-cliente-rapido">{% csrf_token %}
+    <h2 id="titulo-cliente">Nuevo cliente</h2>
+    <p class="subtitulo">Datos mínimos; el resto se completa en la ficha del cliente.</p>
+    <label>Nombre o razón social *<input name="nombre" required maxlength="200"></label>
+    <label>Tipo de documento *<select name="tipo_doc">{% for t in tipos %}<option value="{{ t.abreviatura }}"{% if t.abreviatura == "DNI" %} selected{% endif %}>{{ t.nombre }}</option>{% endfor %}</select></label>
+    <label>Número<input name="num_doc" maxlength="20"></label>
+    <label>Teléfono<input name="telefono" maxlength="40"></label>
+    <label>Email<input name="email" maxlength="120"></label>
+    <label>Comentarios<input name="comentarios" maxlength="500"></label>
+    <p class="error" id="cliente-errores" role="alert" hidden></p>
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit">Registrar y elegir</button></p>
+  </form>
+</dialog>
+{% endif %}
+<script>
+  // Líneas dinámicas con el precio de lista precargado y total informativo (como la compra).
+  function agregarLinea() {
+    document.getElementById("lineas").appendChild(document.getElementById("linea-vacia").content.cloneNode(true));
+  }
+  function quitarLinea(boton) {
+    if (document.getElementById("lineas").rows.length > 1) boton.closest("tr").remove();
+    document.getElementById("{{ form_id }}").dispatchEvent(new Event("input"));
+  }
+  function precargarPrecio(select) {
+    const precio = select.closest("tr").querySelector("[name=precio]");
+    if (!precio.value && select.selectedOptions[0]) precio.value = select.selectedOptions[0].dataset.precio || "";
+  }
+  function recalcular() {
+    let total = 0;
+    for (const fila of document.getElementById("lineas").rows) {
+      const sub = Math.round(Number(fila.querySelector("[name=cantidad]").value) * Number(fila.querySelector("[name=precio]").value) * 100) / 100;
+      fila.querySelector(".subtotal").textContent = "S/ " + sub.toFixed(2);
+      total += sub;
+    }
+    document.getElementById("total").textContent = "S/ " + total.toFixed(2);
+  }
+  document.getElementById("{{ form_id }}").addEventListener("input", recalcular);
+  document.getElementById("{{ form_id }}").addEventListener("change", recalcular);
+  recalcular();
+
+  // Cliente: búsqueda por nombre o documento y registro al vuelo (RF-VEN-50).
+  (() => {
+    const buscar = document.getElementById("cliente-buscar"), id = document.getElementById("cliente-id");
+    const lista = document.getElementById("cliente-sugerencias");
+    const elegir = (c) => {
+      id.value = c.id; buscar.value = c.nombre; lista.hidden = true;
+      document.getElementById("{{ form_id }}").dispatchEvent(new Event("change"));
+    };
+    let espera;
+    buscar.addEventListener("input", () => {
+      id.value = "";
+      clearTimeout(espera);
+      espera = setTimeout(async () => {
+        const q = buscar.value.trim();
+        if (!q) { lista.hidden = true; return; }
+        const r = await fetch("{% url 'buscar_clientes' %}?q=" + encodeURIComponent(q));
+        const { clientes } = await r.json();
+        lista.replaceChildren(...(clientes.length ? clientes.map((c) => {
+          const li = Object.assign(document.createElement("li"), { textContent: `${c.nombre} · ${c.documento}` });
+          li.addEventListener("mousedown", (e) => { e.preventDefault(); elegir(c); });
+          return li;
+        }) : [Object.assign(document.createElement("li"), { className: "vacio", textContent: "Sin coincidencias" })]));
+        lista.hidden = false;
+      }, 200);
+    });
+    buscar.addEventListener("blur", () => (lista.hidden = true));
+    const rapido = document.getElementById("form-cliente-rapido");
+    if (rapido) rapido.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const r = await fetch("{% url 'cliente_rapido' %}", { method: "POST", body: new FormData(rapido) });
+      const datos = await r.json();
+      const errores = document.getElementById("cliente-errores");
+      if (!r.ok) { errores.textContent = Object.values(datos.errores || { e: datos.error }).join(" "); errores.hidden = false; return; }
+      errores.hidden = true; rapido.reset(); rapido.closest("dialog").close(); elegir(datos);
+    });
+  })();
+</script>
+<style>
+  .selector-cliente { position: relative; display: flex; flex-direction: column; gap: .25rem; }
+  .sugerencias { position: absolute; top: 4.2rem; left: 0; right: 0; z-index: 20; margin: 0; padding: .25rem 0; list-style: none;
+    background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 8px; box-shadow: 0 6px 18px rgb(15 27 51 / .12); max-height: 14rem; overflow-y: auto; }
+  .sugerencias li { padding: .45rem .75rem; cursor: pointer; }
+  .sugerencias li:hover { background: var(--acento-suave); color: var(--acento); }
+  .sugerencias .vacio { color: var(--tenue); cursor: default; }
+  button.enlace { background: none; border: 0; padding: 0; color: var(--acento); font-weight: 600; cursor: pointer; }
+</style>

@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 {% comment %}Pedido (plan 0006a §5; docs/ux.md): cliente con búsqueda por nombre o documento y registro al vuelo
 (RF-VEN-50), líneas dinámicas con precio precargado, disponibilidad y faltante por línea (RF-VEN-45) y total.
-Barra Creado ▸ Aprobado ▸ Facturado ▸ Entregado; acción principal "Aprobar" (exige stock); Más acciones ›
-Cancelar. Aprobado: solo fecha de entrega y comentario.{% endcomment %}
+Barra Creado ▸ Aprobado ▸ Facturado ▸ Entregado; acción principal: Aprobar (exige stock), Facturar (0006b:
+diálogo con comprobante según el cliente, almacén, forma de pago, cuotas y lotes) o Confirmar entrega; Más
+acciones › Cancelar. Aprobado: solo fecha de entrega y comentario. Facturado: desglose, costo (con permiso),
+comprobante pendiente y cobranza.{% endcomment %}
 {% block titulo %}{% if pedido %}Pedido {{ numero }}{% else %}Nuevo pedido{% endif %}{% endblock %}
 {% block contenido %}
 {% include "catalog/_migas.html" %}
@@ -65,7 +67,36 @@ Cancelar. Aprobado: solo fecha de entrega y comentario.{% endcomment %}
 </section>
 {% endif %}
 
-{% if pedido %}
+{% if facturado %}
+<section class="tarjeta">
+  <h2>Productos</h2>
+  <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Precio</th><th class="num">Valor</th><th class="num">ISC</th><th class="num">IGV</th><th class="num">Total</th>{% if ve_costos %}<th class="num">Costo</th>{% endif %}</tr></thead><tbody>
+  {% for x in lineas_facturadas %}<tr data-sku="{{ x.producto.sku }}"><td>{{ x.producto.sku }} · {{ x.producto.nombre }}</td><td class="num">{{ x.cantidad.normalize }} {{ x.producto.unidad.abreviatura }}</td><td class="num">S/ {{ x.precio }}</td><td class="num">S/ {{ x.valor }}</td><td class="num">S/ {{ x.isc }}</td><td class="num">S/ {{ x.igv }}</td><td class="num">S/ {{ x.subtotal }}</td>{% if ve_costos %}<td class="num">S/ {{ x.costo }}</td>{% endif %}</tr>{% endfor %}
+  </tbody></table></div>
+  <div class="pie-productos"><span></span><div class="caja-totales"><dl>{% if ve_costos %}<dt>Costo de la venta</dt><dd>S/ {{ pedido.costo_total }}</dd>{% endif %}<dt class="total">Total</dt><dd class="total">S/ {{ pedido.total }}</dd></dl></div></div>
+</section>
+<section class="tarjeta dos-columnas">
+  <div>
+    <h2>Comprobante</h2>
+    <dl>
+      <dt>Tipo</dt><dd>{{ pedido.comprobante|title }} · pendiente de emisión</dd>
+      <dt>Emisión</dt><dd>{{ pedido.fecha_emision|date:"Y-m-d" }}</dd>
+      <dt>Forma de pago</dt><dd>{{ forma_texto }}</dd>
+      <dt>Almacén</dt><dd>{{ pedido.almacen.nombre }}</dd>
+      <dt>Facturado por</dt><dd>{{ pedido.facturado_por.email|default:"—" }} el {{ pedido.facturado_en|date:"Y-m-d H:i" }}</dd>
+      {% if pedido.entregado_en %}<dt>Entregado por</dt><dd>{{ pedido.entregado_por.email|default:"—" }} el {{ pedido.entregado_en|date:"Y-m-d H:i" }}</dd>{% endif %}
+    </dl>
+  </div>
+  {% if cobranza %}<div>
+    <h2>Cobranza <a href="{% url 'cobranza' cobranza.id %}">{{ cobranza_codigo }}</a> <span class="chip {% if cobranza.estado == 'PAGADA' %}ok{% elif cobranza.estado == 'PARCIAL' %}alerta{% endif %}">{{ cobranza_estado }}</span></h2>
+    <dl><dt>Total</dt><dd>S/ {{ cobranza.total }}</dd><dt>Pagado</dt><dd>S/ {{ cobranza.pagado }}</dd><dt>Saldo</dt><dd>S/ {{ cobranza_saldo }}</dd></dl>
+    <div class="tabla"><table><thead><tr><th>Cuota</th><th>Vence</th><th class="num">Monto</th></tr></thead><tbody>
+    {% for q in cuotas %}<tr><td>{{ q.numero }}</td><td>{{ q.vencimiento|date:"Y-m-d" }}</td><td class="num">S/ {{ q.monto }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    <p><a class="boton secundario chico" href="{% url 'cobranza' cobranza.id %}">{% if cobranza.estado != "PAGADA" and puede_cobrar %}Registrar pago{% else %}Ver cobranza{% endif %}</a></p>
+  </div>{% endif %}
+</section>
+{% elif pedido %}
 <section class="tarjeta">
   <h2>{% if pedido.estado == "CREADO" or pedido.estado == "APROBADO" %}Stock del pedido{% else %}Productos{% endif %}</h2>
   {% if pedido.estado == "CREADO" or pedido.estado == "APROBADO" %}<p class="subtitulo">Stock sin vencer de hoy en todos los almacenes. No se reserva: otros pedidos pueden contar el mismo stock.</p>{% endif %}
@@ -76,8 +107,8 @@ Cancelar. Aprobado: solo fecha de entrega y comentario.{% endcomment %}
   </tbody></table></div>
   <div class="pie-productos"><span></span><div class="caja-totales"><dl><dt class="total">Total</dt><dd class="total">S/ {{ pedido.total }}</dd></dl></div></div>
 </section>
-{% if pedido.estado == "CANCELADO" %}<p class="aviso">Cancelado por {{ pedido.cancelado_por.email|default:"—" }} el {{ pedido.cancelado_en|date:"Y-m-d H:i" }}. Motivo: {{ pedido.motivo_cancelacion }}</p>{% endif %}
 {% endif %}
+{% if pedido.estado == "CANCELADO" %}<p class="aviso">Cancelado por {{ pedido.cancelado_por.email|default:"—" }} el {{ pedido.cancelado_en|date:"Y-m-d H:i" }}. Motivo: {{ pedido.motivo_cancelacion }}</p>{% endif %}
 
 <div class="acciones-documento">
   {% if not pedido %}
@@ -87,6 +118,8 @@ Cancelar. Aprobado: solo fecha de entrega y comentario.{% endcomment %}
     {% if editable or fecha_editable %}<span class="estado-cambios" data-aviso-cambios="form-pedido" role="status">Sin cambios pendientes</span>
     <button type="submit" form="form-pedido" class="secundario" data-con-cambios disabled>Guardar cambios</button>{% else %}<a class="boton secundario" href="{% url 'pedidos' %}">Volver al listado</a>{% endif %}
     {% if puede_aprobar %}<button type="submit" form="form-pedido" name="accion" value="aprobar">Aprobar</button>{% endif %}
+    {% if puede_facturar %}<button type="button" onclick="document.getElementById('facturar-pedido').showModal()">Facturar</button>{% endif %}
+    {% if puede_entregar %}<button type="button" onclick="document.getElementById('entregar-pedido').showModal()">Confirmar entrega</button>{% endif %}
     {% if editable or puede_cancelar %}
     <details class="mas-acciones">
       <summary>Más acciones ▾</summary>
@@ -110,95 +143,84 @@ Cancelar. Aprobado: solo fecha de entrega y comentario.{% endcomment %}
 </dialog>
 {% endif %}
 
-{% if editable or not pedido %}
-{% if puede_registrar_cliente %}
-<dialog id="nuevo-cliente" class="tarjeta" aria-labelledby="titulo-cliente">
-  <form id="form-cliente-rapido">{% csrf_token %}
-    <h2 id="titulo-cliente">Nuevo cliente</h2>
-    <p class="subtitulo">Datos mínimos; el resto se completa en la ficha del cliente.</p>
-    <label>Nombre o razón social *<input name="nombre" required maxlength="200"></label>
-    <label>Tipo de documento *<select name="tipo_doc">{% for t in tipos %}<option value="{{ t.abreviatura }}"{% if t.abreviatura == "DNI" %} selected{% endif %}>{{ t.nombre }}</option>{% endfor %}</select></label>
-    <label>Número<input name="num_doc" maxlength="20"></label>
-    <label>Teléfono<input name="telefono" maxlength="40"></label>
-    <label>Email<input name="email" maxlength="120"></label>
-    <label>Comentarios<input name="comentarios" maxlength="500"></label>
-    <p class="error" id="cliente-errores" role="alert" hidden></p>
-    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit">Registrar y elegir</button></p>
+{% if puede_facturar %}
+<dialog id="facturar-pedido" class="tarjeta" aria-labelledby="titulo-facturar">
+  <form method="post" id="form-facturar">{% csrf_token %}<input type="hidden" name="accion" value="facturar">
+    <h2 id="titulo-facturar">Facturar pedido {{ numero }}</h2>
+    <p>Se emitirá una <strong>{% if facturar.comprobante == "FACTURA" %}Factura{% else %}Boleta{% endif %}</strong> a <strong>{{ pedido.cliente.nombre }}</strong> por <strong>S/ {{ pedido.total }}</strong>: sale el stock, se congela el costo y se genera la cobranza. Se vuelve a validar el stock.</p>
+    {% include "listados/_error.html" with error=request.errores_campo.cliente %}
+    {% include "listados/_error.html" with error=request.errores_campo.lineas %}
+    <label>Almacén de salida *<select name="almacen" id="facturar-almacen">{% for a in facturar.almacenes %}<option value="{{ a.id }}"{% if request.POST.almacen == a.id|stringformat:"s" or not request.POST.almacen and a.nombre == "Principal" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select></label>
+    {% if facturar.comprobante == "FACTURA" %}
+    <label>Forma de pago *<select name="forma_pago">
+      <option value="CONTADO">Contado</option>
+      <option value="CREDITO"{% if request.POST.forma_pago == "CREDITO" %} selected{% endif %}>Crédito</option>
+    </select></label>
+    <div id="cuotas" {% if request.POST.forma_pago != "CREDITO" %}hidden{% endif %}>
+      <p class="subtitulo">Monto neto pendiente de pago: <strong>S/ {{ pedido.total }}</strong>. Cada cuota vence a los días indicados desde hoy.</p>
+      <div class="tabla"><table><thead><tr><th>Monto</th><th>Días</th><th>Vence</th></tr></thead>
+      <tbody id="filas-cuotas"><tr><td><input name="cuota_monto" inputmode="decimal" value="{{ pedido.total }}"></td><td><input name="cuota_dias" inputmode="numeric" value="{{ facturar.dias_credito }}"></td><td class="vence"></td></tr></tbody></table></div>
+      <p><button type="button" class="secundario" onclick="agregarCuota()">+ Agregar cuota</button></p>
+      {% include "listados/_error.html" with error=request.errores_campo.cuotas %}
+    </div>
+    {% else %}
+    <p class="subtitulo">Forma de pago: <strong>Contado</strong> (una boleta siempre es al contado).</p>
+    {% endif %}
+    {% if facturar.lotes %}
+    <details><summary>Elegir lotes (opcional)</summary>
+      <p class="subtitulo">Si no eliges, sale según la estrategia del producto (FEFO o FIFO).</p>
+      {% for x in lineas_info %}{% if x.disponible is not None %}
+      <label>{{ x.linea.producto.sku }}<select name="lote_{{ x.linea.producto_id }}" class="lote">
+        <option value="">Automático</option>
+        {% for clave, lista in facturar.lotes.items %}{% if clave == x.linea.producto_id %}{% for alm, lote, q in lista %}<option value="{{ lote }}" data-almacen="{{ alm }}">{{ lote }} · {{ q.normalize }} disponibles</option>{% endfor %}{% endif %}{% endfor %}
+      </select></label>
+      {% endif %}{% endfor %}
+    </details>
+    {% endif %}
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit">Confirmar y facturar</button></p>
+  </form>
+</dialog>
+<script>
+  (() => {
+    const form = document.getElementById("form-facturar"), cuotas = document.getElementById("cuotas");
+    const hoy = new Date("{% now 'Y-m-d' %}T00:00:00");
+    const vence = () => form.querySelectorAll("#filas-cuotas tr").forEach((tr) => {
+      const dias = parseInt(tr.querySelector("[name=cuota_dias]").value, 10);
+      const d = new Date(hoy); d.setDate(d.getDate() + (isNaN(dias) ? 0 : dias));
+      tr.querySelector(".vence").textContent = isNaN(dias) ? "—" : d.toISOString().slice(0, 10);
+    });
+    window.agregarCuota = () => {
+      const fila = form.querySelector("#filas-cuotas tr").cloneNode(true);
+      fila.querySelectorAll("input").forEach((i) => (i.value = ""));
+      document.getElementById("filas-cuotas").appendChild(fila); vence();
+    };
+    const almacen = document.getElementById("facturar-almacen");
+    const lotes = () => form.querySelectorAll("select.lote option[data-almacen]").forEach((o) => {
+      o.hidden = o.dataset.almacen !== almacen.value;
+      if (o.hidden && o.selected) o.parentElement.value = "";
+    });
+    form.addEventListener("input", vence);
+    form.addEventListener("change", (e) => {
+      if (e.target.name === "forma_pago" && cuotas) cuotas.hidden = e.target.value !== "CREDITO";
+      if (e.target === almacen) lotes();
+    });
+    vence(); lotes();
+  })();
+</script>
+{% endif %}
+{% if puede_entregar %}
+<dialog id="entregar-pedido" class="tarjeta" aria-labelledby="titulo-entregar">
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="entregar">
+    <h2 id="titulo-entregar">Confirmar entrega de {{ numero }}</h2>
+    <p>El pedido de <strong>{{ pedido.cliente.nombre }}</strong> quedará <strong>Entregado</strong>. No mueve stock (ya salió al facturar) ni cambia la cobranza.</p>
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit">Confirmar entrega</button></p>
   </form>
 </dialog>
 {% endif %}
-<script>
-  // Líneas dinámicas con el precio de lista precargado y total informativo (como la compra).
-  function agregarLinea() {
-    document.getElementById("lineas").appendChild(document.getElementById("linea-vacia").content.cloneNode(true));
-  }
-  function quitarLinea(boton) {
-    if (document.getElementById("lineas").rows.length > 1) boton.closest("tr").remove();
-    document.getElementById("form-pedido").dispatchEvent(new Event("input"));
-  }
-  function precargarPrecio(select) {
-    const precio = select.closest("tr").querySelector("[name=precio]");
-    if (!precio.value && select.selectedOptions[0]) precio.value = select.selectedOptions[0].dataset.precio || "";
-  }
-  function recalcular() {
-    let total = 0;
-    for (const fila of document.getElementById("lineas").rows) {
-      const sub = Math.round(Number(fila.querySelector("[name=cantidad]").value) * Number(fila.querySelector("[name=precio]").value) * 100) / 100;
-      fila.querySelector(".subtotal").textContent = "S/ " + sub.toFixed(2);
-      total += sub;
-    }
-    document.getElementById("total").textContent = "S/ " + total.toFixed(2);
-  }
-  document.getElementById("form-pedido").addEventListener("input", recalcular);
-  document.getElementById("form-pedido").addEventListener("change", recalcular);
-  recalcular();
+{% if accion_fallida == "facturar" %}<script>document.getElementById("facturar-pedido")?.showModal();</script>{% endif %}
 
-  // Cliente: búsqueda por nombre o documento y registro al vuelo (RF-VEN-50).
-  (() => {
-    const buscar = document.getElementById("cliente-buscar"), id = document.getElementById("cliente-id");
-    const lista = document.getElementById("cliente-sugerencias");
-    const elegir = (c) => {
-      id.value = c.id; buscar.value = c.nombre; lista.hidden = true;
-      document.getElementById("form-pedido").dispatchEvent(new Event("change"));
-    };
-    let espera;
-    buscar.addEventListener("input", () => {
-      id.value = "";
-      clearTimeout(espera);
-      espera = setTimeout(async () => {
-        const q = buscar.value.trim();
-        if (!q) { lista.hidden = true; return; }
-        const r = await fetch("{% url 'buscar_clientes' %}?q=" + encodeURIComponent(q));
-        const { clientes } = await r.json();
-        lista.replaceChildren(...(clientes.length ? clientes.map((c) => {
-          const li = Object.assign(document.createElement("li"), { textContent: `${c.nombre} · ${c.documento}` });
-          li.addEventListener("mousedown", (e) => { e.preventDefault(); elegir(c); });
-          return li;
-        }) : [Object.assign(document.createElement("li"), { className: "vacio", textContent: "Sin coincidencias" })]));
-        lista.hidden = false;
-      }, 200);
-    });
-    buscar.addEventListener("blur", () => (lista.hidden = true));
-    const rapido = document.getElementById("form-cliente-rapido");
-    if (rapido) rapido.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const r = await fetch("{% url 'cliente_rapido' %}", { method: "POST", body: new FormData(rapido) });
-      const datos = await r.json();
-      const errores = document.getElementById("cliente-errores");
-      if (!r.ok) { errores.textContent = Object.values(datos.errores || { e: datos.error }).join(" "); errores.hidden = false; return; }
-      errores.hidden = true; rapido.reset(); rapido.closest("dialog").close(); elegir(datos);
-    });
-  })();
-</script>
-<style>
-  .selector-cliente { position: relative; display: flex; flex-direction: column; gap: .25rem; }
-  .sugerencias { position: absolute; top: 4.2rem; left: 0; right: 0; z-index: 20; margin: 0; padding: .25rem 0; list-style: none;
-    background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 8px; box-shadow: 0 6px 18px rgb(15 27 51 / .12); max-height: 14rem; overflow-y: auto; }
-  .sugerencias li { padding: .45rem .75rem; cursor: pointer; }
-  .sugerencias li:hover { background: var(--acento-suave); color: var(--acento); }
-  .sugerencias .vacio { color: var(--tenue); cursor: default; }
-  button.enlace { background: none; border: 0; padding: 0; color: var(--acento); font-weight: 600; cursor: pointer; }
-</style>
+{% if editable or not pedido %}
+{% include "sales/_cliente_y_lineas.html" with form_id="form-pedido" %}
 {% endif %}
 {% if accion_fallida == "cancelar" %}
 <script>document.getElementById("cancelar-pedido")?.showModal();</script>

@@ -118,12 +118,15 @@ def test_cobranza_cuotas_y_pagos(empresa_ventas):
     p = _facturado(cliente)
 
     def cobranza(**kw):
-        datos = {"pedido": p, "cliente": cliente, "emision": HOY, "total": D("288.00")}
+        datos = {"numero": 1, "pedido": p, "cliente": cliente, "emision": HOY}
+        datos["total"] = D("288.00")
         return Cobranza.objects.create(**(datos | kw))
 
     falla(IntegrityError, lambda: cobranza(pagado=D("300")))
     falla(IntegrityError, lambda: cobranza(estado="PAGADA"))
     falla(IntegrityError, lambda: cobranza(pagado=D("288.00")))  # Pendiente con todo pagado
+    falla(IntegrityError, lambda: cobranza(pagado=D("100")))  # Pendiente con algo pagado
+    falla(IntegrityError, lambda: cobranza(estado="PARCIAL"))  # Parcial sin pagos
     c = cobranza()
     falla(IntegrityError, lambda: cobranza())  # una por pedido
 
