@@ -1,0 +1,17 @@
+{% comment %}Tarjetas por estado sobre una grilla (0008c, RF-FIN-26; referencia: bandeja de comprobantes del PO).
+Recibe `indicadores`: [{titulo, cantidad, saldo?, enlace, activo, color}]; cada una filtra la grilla.{% endcomment %}
+{% if indicadores %}<style>
+  .indicadores-estado { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .75rem; margin: 0 0 1rem; }
+  .indicadores-estado a { display: block; border-radius: 12px; padding: .75rem 1rem; color: #fff; text-decoration: none; outline-offset: 3px; }
+  .indicadores-estado a[aria-current] { outline: 3px solid var(--acento); }
+  .indicadores-estado strong { display: block; font-size: 1.6rem; line-height: 1.1; }
+  .indicadores-estado span { text-transform: uppercase; font-size: .75rem; font-weight: 600; letter-spacing: .03em; }
+  .indicadores-estado small { display: block; opacity: .9; }
+  .indicadores-estado .celeste { background: linear-gradient(135deg, #5ab4d6, #3d97c4); }
+  .indicadores-estado .naranja { background: linear-gradient(135deg, #efb15f, #e48f3d); }
+  .indicadores-estado .verde { background: linear-gradient(135deg, #c9d256, #a7b52c); }
+  .indicadores-estado .morado { background: linear-gradient(135deg, #b84aa8, #8f2387); }
+</style>
+<nav class="indicadores-estado" aria-label="Por estado">{% for i in indicadores %}
+  <a class="{{ i.color }}" href="{{ i.enlace }}" data-indicador="{{ i.titulo }}"{% if i.activo %} aria-current="true"{% endif %}><strong>{{ i.cantidad }}</strong><span>{{ i.titulo }}</span>{% if "saldo" in i %}<small>Saldo S/ {{ i.saldo|floatformat:2 }}</small>{% endif %}</a>
+{% endfor %}</nav>{% endif %}

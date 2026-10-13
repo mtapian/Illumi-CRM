@@ -4,7 +4,7 @@ from sales.application import clientes as uc
 from sales.application import cobranzas as ucob
 from sales.application import facturacion as uf
 from sales.application import pedidos as up
-from sales.interfaces import cobranzas, views
+from sales.interfaces import cobranzas, tablero, views  # noqa: F401 (tablero registra)
 from shared.interfaces.avisos import avisos
 from shared.interfaces.menu import menu
 
@@ -33,6 +33,18 @@ menu.agregar(
     "Ventas", "Métodos de pago", "/ventas/metodos-pago/", 280, permiso=ucob.METODOS, icono="token"
 )
 avisos.agregar(
-    "cobranzas_vencidas", "Cobranzas vencidas", cobranzas.aviso_vencidas, permiso=ucob.VER, orden=35
+    "quiebre",
+    views.contar_quiebre,
+    ("pedido con quiebre de stock", "pedidos con quiebre de stock"),
+    permiso=up.VER,
+    orden=30,
+    enlace="/ventas/pedidos/?quiebre=1",
 )
-avisos.agregar("quiebre", "Quiebre de stock", views.aviso_quiebre, permiso=up.VER, orden=30)
+avisos.agregar(
+    "cobranzas_vencidas",
+    cobranzas.contar_vencidas,
+    ("cobranza vencida", "cobranzas vencidas"),
+    permiso=ucob.VER,
+    orden=35,
+    enlace="/ventas/cobranzas/?vencidas=1",
+)

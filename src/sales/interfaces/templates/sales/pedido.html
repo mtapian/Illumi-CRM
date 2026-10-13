@@ -11,7 +11,7 @@ comprobante pendiente y cobranza.{% endcomment %}
 <div class="encabezado-documento">
   <div>
     <h1>{% if pedido %}Pedido {{ numero }} · {{ pedido.cliente.nombre }}{% else %}Nuevo pedido{% endif %}</h1>
-    {% if indicadores %}<p>{% for i in indicadores %}<span class="chip {% if i == 'Listo para facturar' %}ok{% elif i == 'Por cobrar' or i == 'Cobro parcial' %}alerta{% else %}error{% endif %}">{{ i }}</span> {% endfor %}</p>{% endif %}
+    {% if indicadores %}<p>{% for i in indicadores %}<span class="chip error">{{ i }}</span> {% endfor %}</p>{% endif %}
   </div>
   {% if pedido %}<span class="chip {% if pedido.estado == 'ENTREGADO' %}ok{% elif pedido.estado == 'CANCELADO' %}error{% endif %}">{{ estado_texto }}</span>{% endif %}
 </div>

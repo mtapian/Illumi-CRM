@@ -543,8 +543,13 @@ def pagina(client, ctx, url):
     return ctx["html"]
 
 
+AVISOS = {"Stock bajo": "stock_bajo", "Por vencer": "por_vencer"}
+
+
 def widget(ctx, titulo):
-    return ctx["html"].split(f'aria-label="{titulo}"')[1].split("</section>")[0]
+    """El detalle del aviso en la barra del inicio (0008c, RF-FIN-17); vacío si no aparece."""
+    partes = ctx["html"].split(f'data-aviso="{AVISOS[titulo]}"')
+    return partes[1].split("</details>")[0] if len(partes) > 1 else ""
 
 
 @given(re_(r"que el umbral de alerta de vencimiento es (?P<n>\d+) días"))
@@ -679,20 +684,22 @@ def kardex_csv(client, ctx, sku, almacen_id=""):
     import csv
     import io
 
-    return list(csv.DictReader(io.StringIO(contenido(como(client, EMAIL).get(url)))))
+    respuesta = como(client, EMAIL).get(url)  # 0008c: por streaming, con BOM y la grilla
+    texto = b"".join(respuesta.streaming_content).decode("utf-8-sig")
+    return list(csv.DictReader(io.StringIO(texto)))
 
 
 @then("la suma de entradas menos salidas del kardex es igual al stock total")
 def suma_igual_stock(client, ctx):
     filas = kardex_csv(client, ctx, ctx["sku"])
-    neto = sum(D(f["cantidad"]) * (1 if f["tipo"] == "ENTRADA" else -1) for f in filas)
+    neto = sum(D(f["Cantidad"]) * (1 if f["Tipo"] == "ENTRADA" else -1) for f in filas)
     assert neto == costo(ctx, ctx["sku"]).cantidad_total
     ctx["filas_kardex"] = filas
 
 
 @then("el último saldo de promedio del kardex es igual al costo promedio actual")
 def ultimo_promedio(ctx):
-    assert D(ctx["filas_kardex"][-1]["promedio"]) == costo(ctx, ctx["sku"]).costo_promedio
+    assert D(ctx["filas_kardex"][-1]["Promedio"]) == costo(ctx, ctx["sku"]).costo_promedio
 
 
 @when(re_("exporto a CSV el kardex de {} del almacén {}", "sku", "alm"))
@@ -710,4 +717,4 @@ def exporto_csv(client, ctx, sku, alm):
 def csv_filas(ctx, sku, alm):
     esperado = movimientos(ctx, sku).filter(almacen_id=almacen(ctx, alm)).count()
     assert len(ctx["csv"]) == esperado > 0
-    assert all(f["almacen"] == alm and f["saldo"] and f["promedio"] for f in ctx["csv"])
+    assert all(f["Almacén"] == alm and f["Saldo"] and f["Promedio"] for f in ctx["csv"])

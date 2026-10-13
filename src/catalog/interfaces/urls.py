@@ -1,8 +1,10 @@
 from django.urls import path
 
+from catalog.infrastructure.models import Producto
 from catalog.interfaces import views
 from catalog.interfaces.api import ProductosApi
 from shared.interfaces.menu import menu
+from shared.interfaces.tablero import tarjetas
 
 urlpatterns = [
     path("catalogo/productos/", views.productos, name="productos"),
@@ -23,3 +25,13 @@ for etiqueta, url, orden, permiso, icono in (
     ("Impuestos", "/catalogo/impuestos/", 130, "catalogo.isc.gestionar", "impuesto"),
 ):
     menu.agregar("Catálogo", etiqueta, url, orden, permiso=permiso, icono=icono)
+
+tarjetas.agregar(  # 0008c, RF-FIN-14
+    "productos",
+    "Productos activos",
+    lambda r: str(Producto.objects.filter(activo=True).count()),
+    permiso="catalogo.producto.ver",
+    orden=30,
+    color="morado",
+    icono="productos",
+)

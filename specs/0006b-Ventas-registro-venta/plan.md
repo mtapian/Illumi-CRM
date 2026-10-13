@@ -91,7 +91,7 @@ VentaDirecta(actor, datos, pagos, token, hoy):
 
 ### Enmienda 2 (RF-VEN-65)
 
-Buscador en el parcial de líneas que comparten el pedido y la venta directa (`_cliente_y_lineas.html` y `_buscar_producto.html`): filtra en el navegador sobre los productos vendibles que la pantalla ya carga (cada opción lleva `data-sku`, `data-barras` y `data-precio`); Enter con coincidencia exacta agrega o suma 1. Alternativa descartada por ahora: búsqueda en el servidor (más lenta para la lectora y un endpoint más). Mejora técnica registrada en `MEMORY.md` (PO, 2026-10-13): pasar al servidor con más de ~500 SKUs vendibles.
+Buscador en el parcial de líneas que comparten el pedido y la venta directa (`_cliente_y_lineas.html` y `_buscar_producto.html`): filtra en el navegador sobre los productos vendibles que la pantalla ya carga (cada opción lleva `data-sku`, `data-barras` y `data-precio`); Enter con coincidencia exacta agrega o suma 1. Alternativa descartada por ahora: búsqueda en el servidor (más lenta para la lectora y un endpoint más). Mejora técnica registrada en la spec 0009a (F1): pasar al servidor con más de ~500 SKUs vendibles.
 
 ## 6. Decisiones técnicas
 

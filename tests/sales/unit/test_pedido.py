@@ -68,10 +68,8 @@ def test_faltante_e_indicadores():
     assert p.faltante(D("60"), D("48"), False) == D("12")
     assert p.faltante(D("10"), D("48"), False) == D("0")
     assert p.faltante(D("5"), D("0"), True) == D("0")  # servicio: sin stock
-    assert p.indicadores(p.APROBADO, date(2026, 11, 15), [D("0")], HOY) == [
-        "Atrasado",
-        "Listo para facturar",
-    ]
+    # "Listo para facturar" no es un estado: no se muestra (PO, 2026-10-13)
+    assert p.indicadores(p.APROBADO, date(2026, 11, 15), [D("0")], HOY) == ["Atrasado"]
     assert p.indicadores(p.CREADO, date(2026, 11, 25), [D("1")], HOY) == ["Quiebre de stock"]
     assert p.indicadores(p.ENTREGADO, date(2026, 11, 15), [D("1")], HOY) == []
     assert p.indicadores(p.FACTURADO, date(2026, 11, 15), [], HOY) == ["Atrasado"]

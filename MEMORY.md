@@ -35,7 +35,8 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0007c](specs/0007c-Facturacion-notas-credito-descargas/) Facturación: notas de crédito y descargas | borrador (9 RF) | borrador | ejemplo (9 tareas) | contador (RF-FAC-25) |
 | [0008a](specs/0008a-Finanzas-gastos/) Finanzas: gastos operativos | borrador (5 RF) | borrador | ejemplo (8 tareas) | Q12 |
 | [0008b](specs/0008b-Finanzas-resultados-reportes/) Finanzas: estado de resultados, dashboard y exportación | borrador (11 RF) | borrador | ejemplo (13 tareas) | Q10 |
-| [0008c](specs/0008c-Reportes-dashboard-exportacion/) Reportes: dashboard, exportación e indicadores de los listados | **aprobada** (14 RF) | borrador (en revisión) | borrador | — |
+| [0008c](specs/0008c-Reportes-dashboard-exportacion/) Reportes: dashboard, exportación e indicadores de los listados | **aprobada** (14 RF) | aprobado | 0/9 | — |
+| [0009a](specs/0009a-Tecnico-escalabilidad/) Técnico: escalabilidad y deuda técnica | **sin refinar** (9 features con disparador) | — | — | se refina cada una al cumplirse su disparador |
 
 ## Historial
 
@@ -172,29 +173,7 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 
 ## Mejoras técnicas para el futuro (deuda técnica conocida)
 
-No cambian lo que hace el sistema; se hacen cuando se cumple su disparador (PO, 2026-10-13: "considera cualquier entidad de crecimiento exponencial posible"). Barrido de todos los módulos el 2026-10-13.
-
-**Patrón de solución común (hacerlo una vez y reutilizarlo):** un *selector con búsqueda en el servidor*, como la búsqueda de clientes de 0006a (RF-VEN-50): endpoint `…/buscar/?q=` que devuelve hasta 10 coincidencias (con un código exacto resuelto por índice) y un campo que guarda el id oculto y muestra el elegido. Reemplaza a los `<select>` que listan todos los registros.
-
-**Entidades que crecen** (hoy cargan todos sus registros en la página):
-
-| Entidad | Dónde se cargan todos | Disparador | Qué hacer |
-|---|---|---|---|
-| **Productos** | Líneas del pedido y la venta directa (0006a/b; también el buscador de RF-VEN-65 filtra en el navegador), de la compra (0004a), del ajuste (0003b), componentes y salidas de la OP (0005a); filtro "Producto" del kardex (0003c) y del listado de OP | Más de ~500 SKUs vendibles o activos (p. ej. ropa con tallas y colores) o pantallas lentas | Selector con búsqueda en el servidor por nombre, SKU o código de barras; en las líneas, el producto elegido con su id oculto. El selector se repite en cada línea, así que el peso crece con productos × líneas |
-| **Clientes** | Filtro "Cliente" del listado de pedidos y del de cobranzas | Más de ~500 clientes | Filtro con búsqueda en el servidor (ya existe `ventas/clientes/buscar/`). La elección del cliente en el pedido y la venta directa ya busca en el servidor |
-| **Proveedores** | Selector de la compra, filtro del listado de compras, pestaña "Compras" del producto; el listado de proveedores no pagina | Más de ~300 proveedores | Selector con búsqueda en el servidor; paginar el listado (grilla estándar) |
-| **Empresas** (plataforma) | Listado de empresas del super admin, sin paginar | Más de ~200 empresas | Paginar en la base (grilla estándar) |
-| **Pedidos** | `views.pedidos` (0006a) carga todos los filtrados y pagina en Python, por "atrasados" y "quiebre de stock"; el aviso de quiebre del inicio calcula todos los abiertos en cada carga | Miles de pedidos o inicio lento | Disponibilidad solo para los abiertos de la página; paginar en la base sin esos filtros; el aviso puede contar con una consulta agregada |
-| **Auditoría de accesos** | Muestra los últimos 200, sin paginar: lo anterior solo se alcanza filtrando | Cuando se necesite revisar más atrás | Paginación por cursor, como el kardex |
-
-**Acotadas (no requieren cambio):** almacenes, métodos de pago, unidades, categorías, marcas, impuestos, tipos de documento, roles y usuarios (estos dos limitados por el plan). Ya resueltas: kardex (cursor y CSV por iterador), stock, compras, OP, clientes y cobranzas (paginan en la base).
-
-**Otras:**
-
-| Mejora | Hoy | Disparador | Qué hacer |
-|---|---|---|---|
-| Ordenar el código de ventas | `sales/interfaces/views.py` (~550 líneas) y `pedido.html` (~230) | Al tocar de nuevo la facturación o el pedido | Separar la facturación en su propio módulo, como `interfaces/cobranzas.py` |
-| Venta directa con el mismo token a la vez (0006b, RF-VEN-29) | El segundo envío simultáneo choca con el índice único y da error (no duplica) | Si aparece en uso real | Capturar el choque y devolver la venta ya registrada |
+Movidas a la spec [0009a — Técnico: escalabilidad y deuda técnica](specs/0009a-Tecnico-escalabilidad/spec.md) (PO, 2026-10-13: "déjalo como spec para que sea visible, solo los features sin refinar"): F1–F9, cada una con su disparador. Se refina cuando se cumple el disparador.
 
 ## Próximo paso
 

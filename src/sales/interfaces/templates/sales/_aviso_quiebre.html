@@ -1,2 +1,0 @@
-{% if n %}<p class="aviso" role="alert"><a href="{% url 'pedidos' %}?quiebre=1">{{ n }} pedido{{ n|pluralize }} con quiebre de stock</a></p>
-{% else %}<p class="subtitulo">Ningún pedido con quiebre de stock.</p>{% endif %}

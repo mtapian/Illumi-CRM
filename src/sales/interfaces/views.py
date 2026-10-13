@@ -1,7 +1,7 @@
 """Pantallas de clientes y pedidos (plan 0006a §5)."""
 
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -9,7 +9,6 @@ from django.contrib import messages
 from django.db.models import F, Max, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.loader import render_to_string
 from django.utils import timezone
 
 from catalog.infrastructure.models import Producto
@@ -34,9 +33,9 @@ from sales.infrastructure.contenedor import (
     caso_de_venta_directa,
     metodos_activos,
 )
-from sales.infrastructure.models import Cliente, Cobranza, Pedido
+from sales.infrastructure.models import Cliente, Cobranza, Pedido, PedidoLinea
 from shared.domain.errores import DomainError
-from shared.interfaces import listados
+from shared.interfaces import exportar, listados
 from tenancy.infrastructure.contenedor import tenancy_service
 from tenancy.interfaces.acceso import requiere
 from tenancy.interfaces.views.accesos import _intentar
@@ -244,6 +243,24 @@ def disponibilidad(pedidos, hoy) -> dict[int, dict]:
     return resultado
 
 
+COLUMNAS_PEDIDOS = [  # la grilla de pedidos, por línea (0008c, RF-FIN-15)
+    ("Pedido", lambda f: dom.numero_pedido(f[0].numero)),
+    ("Fecha y hora", lambda f: f[0].creado_en),
+    ("Entrega", lambda f: f[0].fecha_entrega),
+    ("Cliente", lambda f: f[0].cliente.nombre),
+    ("Documento", lambda f: f"{f[0].cliente.tipo_doc} {f[0].cliente.num_doc}".strip()),
+    ("Comprobante", lambda f: f[0].comprobante.title()),
+    ("Estado", lambda f: dict(ESTADOS)[f[0].estado]),
+    ("Cobranza", lambda f: f[0].cobranza_texto),
+    ("SKU", lambda f: f[1].producto.sku),
+    ("Producto", lambda f: f[1].producto.nombre),
+    ("Cantidad", lambda f: f[1].cantidad),
+    ("Precio", lambda f: f[1].precio),
+    ("Subtotal", lambda f: f[1].subtotal),
+    ("Total del pedido", lambda f: f[0].total),
+]
+
+
 @requiere(up.VER)
 def pedidos(request):
     """Lista o Kanban con los mismos filtros e indicadores (RF-VEN-15, 46)."""
@@ -251,10 +268,6 @@ def pedidos(request):
     vista = "kanban" if filtro["vista"] == "kanban" else "lista"
     # RF-VEN-67: por fecha de creación, lo más nuevo primero (docs/ux.md, grillas)
     filas = Pedido.objects.select_related("cliente").order_by("-creado_en", "-numero")
-    if filtro["estado"]:
-        filas = filas.filter(estado=filtro["estado"])
-    elif vista == "kanban":
-        filas = filas.exclude(estado=dom.CANCELADO)  # Cancelado solo si se filtra por él
     if filtro["cliente"].isdigit():
         filas = filas.filter(cliente_id=filtro["cliente"])
     for campo, condicion in (("desde", "fecha_entrega__gte"), ("hasta", "fecha_entrega__lte")):
@@ -266,17 +279,45 @@ def pedidos(request):
         filas = filas.filter(numero=int(n))
     hoy = timezone.localdate()
     info = disponibilidad(filas, hoy)
-    elegidos = [
+    candidatos = [  # todos los filtros salvo el estado: sobre ellos se cuentan las tarjetas
         p
         for p in filas
         if (not filtro["atrasados"] or "Atrasado" in info[p.id]["indicadores"])
         and (not filtro["quiebre"] or "Quiebre de stock" in info[p.id]["indicadores"])
         and (not filtro["cobranza"] or info[p.id]["cobranza"] == filtro["cobranza"])
     ]
+    conteo = Counter(p.estado for p in candidatos)
+    sin_estado = listados.consulta(request, sin=("pagina", "estado", "formato"))
+    indicadores = [  # 0008c, RF-FIN-26: una tarjeta por estado, que filtra
+        {
+            "titulo": titulo,
+            "cantidad": conteo[valor],
+            "enlace": f"?{sin_estado}{'&' if sin_estado else ''}estado={valor}",
+            "activo": filtro["estado"] == valor,
+            "color": color,
+        }
+        for titulo, valor, color in (
+            ("Creados", dom.CREADO, "celeste"),
+            ("Aprobados", dom.APROBADO, "naranja"),
+            ("Facturados", dom.FACTURADO, "verde"),
+            ("Entregados", dom.ENTREGADO, "morado"),
+        )
+    ]
+    if filtro["estado"]:
+        elegidos = [p for p in candidatos if p.estado == filtro["estado"]]
+    elif vista == "kanban":  # Cancelado solo si se filtra por él
+        elegidos = [p for p in candidatos if p.estado != dom.CANCELADO]
+    else:
+        elegidos = candidatos
     for p in elegidos:
         p.indicadores = info[p.id]["indicadores"]
         p.cobranza_texto = info[p.id]["cobranza"]
         p.numero_texto = dom.numero_pedido(p.numero)
+    if request.GET.get("formato"):  # 0008c, RF-FIN-15: una fila por línea (SKU)
+        lineas = PedidoLinea.objects.filter(pedido__in=elegidos).select_related("producto")
+        por_pedido = {p.id: p for p in elegidos}
+        filas = [(por_pedido[x.pedido_id], x) for x in lineas.order_by("pedido_id", "id")]
+        return exportar.desde_grilla(request, "pedidos", COLUMNAS_PEDIDOS, filas)
     columnas = [
         (v, n, [p for p in elegidos if p.estado == v])
         for v, n in ESTADOS
@@ -303,6 +344,7 @@ def pedidos(request):
         "estados": ESTADOS,
         "clientes": clientes_filtro,
         "cobranzas": cobranza_dom.COBRANZAS_PEDIDO,
+        "indicadores": indicadores,
         "puede_crear": request.actor.puede(up.GESTIONAR),
         "migas": MIGAS,
     }
@@ -554,9 +596,8 @@ def venta_directa(request):
     return render(request, "sales/venta_directa.html", contexto)
 
 
-def aviso_quiebre(request):
-    """RF-VEN-47: alerta con los pedidos Creados o Aprobados con quiebre de stock."""
+def contar_quiebre(request) -> int:
+    """RF-VEN-47: pedidos Creados o Aprobados con quiebre de stock (aviso del inicio)."""
     abiertos = Pedido.objects.filter(estado__in=(dom.CREADO, dom.APROBADO))
     info = disponibilidad(abiertos, timezone.localdate())
-    n = sum("Quiebre de stock" in i["indicadores"] for i in info.values())
-    return render_to_string("sales/_aviso_quiebre.html", {"n": n})
+    return sum("Quiebre de stock" in i["indicadores"] for i in info.values())

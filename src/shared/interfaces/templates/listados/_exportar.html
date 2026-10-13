@@ -1,0 +1,5 @@
+{% comment %}"Exportar ▾" de una grilla (0008c, RF-FIN-15): XLSX o CSV con los filtros aplicados; solo con
+`reportes.exportar`. Recibe `consulta`.{% endcomment %}
+{% if "reportes.exportar" in permisos %}<details class="mas-acciones abajo exportar"><summary class="boton secundario">Exportar ▾</summary>
+  <div class="menu"><a href="?{% if consulta %}{{ consulta }}&amp;{% endif %}formato=xlsx">Excel (XLSX)</a><a href="?{% if consulta %}{{ consulta }}&amp;{% endif %}formato=csv">CSV</a></div>
+</details>{% endif %}

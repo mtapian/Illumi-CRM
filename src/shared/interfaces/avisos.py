@@ -1,7 +1,9 @@
-"""Avisos del dashboard que registran los contextos (mismo patrón que `menu.py`).
+"""Avisos del inicio que registran los contextos (mismo patrón que `menu.py`; spec 0008c,
+RF-FIN-17): tenancy los pinta sin conocerlos.
 
-El inventario registra "Stock bajo" y "Por vencer" (0003c) desde su `urls.py`; tenancy los
-pinta sin conocerlo. `contenido(request)` devuelve el HTML del aviso.
+Cada aviso declara cuántos casos hay (`contar(request)`) y su texto en singular y plural; su
+"Ver detalle" lleva a un listado filtrado (`enlace`) o despliega su lista (`detalle(request)`
+devuelve HTML). Solo se muestran los que tienen algo (n > 0).
 """
 
 
@@ -9,18 +11,37 @@ class Avisos:
     def __init__(self):
         self._items = {}
 
-    def agregar(self, clave, titulo, contenido, permiso=None, orden=50):
-        self._items[clave] = {"titulo": titulo, "contenido": contenido, "permiso": permiso}
-        self._items[clave]["orden"] = orden
+    def agregar(
+        self, clave, contar, textos, permiso=None, orden=50, enlace=None, detalle=None
+    ):  # textos: (singular, plural)
+        self._items[clave] = {
+            "contar": contar,
+            "textos": textos,
+            "permiso": permiso,
+            "orden": orden,
+            "enlace": enlace,
+            "detalle": detalle,
+        }
 
     def para(self, request):
-        """Los avisos que el usuario puede ver, en orden (RF-INV-30)."""
+        """Los avisos con algo pendiente que el usuario puede ver, en orden (RF-INV-30)."""
         permisos = request.actor.permisos if request.actor else frozenset()
-        visibles = (a for a in self._items.values() if a["permiso"] in (None, *permisos))
-        return [
-            {"titulo": a["titulo"], "html": a["contenido"](request)}
-            for a in sorted(visibles, key=lambda a: a["orden"])
-        ]
+        resultado = []
+        for clave, a in sorted(self._items.items(), key=lambda x: x[1]["orden"]):
+            if a["permiso"] not in (None, *permisos):
+                continue
+            n = a["contar"](request)
+            if n:
+                singular, plural = a["textos"]
+                resultado.append(
+                    {
+                        "clave": clave,
+                        "texto": f"{n} {singular if n == 1 else plural}",
+                        "enlace": a["enlace"],
+                        "detalle": a["detalle"](request) if a["detalle"] else "",
+                    }
+                )
+        return resultado
 
 
 avisos = Avisos()

@@ -16,6 +16,7 @@ arrastrar), con los mismos filtros e indicadores. La vista queda en la direcció
 <div class="encabezado-listado">
   <div><h1>Pedidos</h1><p class="subtitulo">Creado ▸ Aprobado ▸ Facturado ▸ Entregado. Aprobar exige stock; facturar lo vuelve a validar.</p></div>
   <div class="acciones-listado">
+    {% include "listados/_exportar.html" %}
     <span class="vistas" role="group" aria-label="Vista">
       <a class="boton secundario" href="?{{ consulta }}{% if consulta %}&{% endif %}vista=lista"{% if vista == "lista" %} aria-current="page"{% endif %}>Lista</a>
       <a class="boton secundario" href="?{{ consulta }}{% if consulta %}&{% endif %}vista=kanban"{% if vista == "kanban" %} aria-current="page"{% endif %}>Kanban</a>
@@ -23,6 +24,7 @@ arrastrar), con los mismos filtros e indicadores. La vista queda en la direcció
     {% if puede_crear %}<a class="boton principal" href="{% url 'nuevo_pedido' %}">+ Nuevo pedido</a>{% endif %}
   </div>
 </div>
+{% include "listados/_indicadores.html" %}
 <form method="get" class="tarjeta barra-filtros"><input type="hidden" name="vista" value="{{ vista }}">
   <label class="buscar">N.° de pedido<input type="search" name="q" value="{{ filtro.q }}" placeholder="P-000012"></label>
   <label>Estado<select name="estado"><option value="">Todos</option>{% for v, n in estados %}<option value="{{ v }}"{% if filtro.estado == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
@@ -46,7 +48,7 @@ arrastrar), con los mismos filtros e indicadores. La vista queda en la direcció
 <div class="kanban">
 {% for v, n, lista in columnas %}<section class="columna" data-estado="{{ v }}"><h2>{{ n }} <span class="chip neutro">{{ lista|length }}</span></h2>
   {% for p in lista %}<a class="tarjeta-pedido" href="{% url 'pedido' p.id %}" data-pedido="{{ p.numero_texto }}"><strong>{{ p.numero_texto }}</strong> · {{ p.cliente.nombre }}<br><small class="subtitulo">{{ p.creado_en|date:"Y-m-d H:i" }} · Entrega {{ p.fecha_entrega|date:"Y-m-d" }} · S/ {{ p.total }}</small>
-    {% if p.indicadores or p.cobranza_texto %}<br>{% for i in p.indicadores %}<span class="chip {% if i == 'Listo para facturar' %}ok{% else %}error{% endif %}">{{ i }}</span> {% endfor %}{% include "sales/_chip_cobranza.html" with c=p.cobranza_texto %}{% endif %}</a>
+    {% if p.indicadores or p.cobranza_texto %}<br>{% for i in p.indicadores %}<span class="chip error">{{ i }}</span> {% endfor %}{% include "sales/_chip_cobranza.html" with c=p.cobranza_texto %}{% endif %}</a>
   {% empty %}<p class="subtitulo">Sin pedidos.</p>{% endfor %}
 </section>{% endfor %}
 </div>
@@ -57,7 +59,7 @@ arrastrar), con los mismos filtros e indicadores. La vista queda en la direcció
   <td><a href="{% url 'pedido' p.id %}">{{ p.numero_texto }}</a></td>
   <td>{{ p.creado_en|date:"Y-m-d H:i" }}<br><small class="subtitulo">Entrega {{ p.fecha_entrega|date:"Y-m-d" }}</small></td>
   <td>{{ p.cliente.nombre }}</td><td>{{ p.comprobante|title|default:"—" }}</td><td class="num">S/ {{ p.total }}</td>
-  <td><span class="chip {% if p.estado == 'ENTREGADO' %}ok{% elif p.estado == 'CANCELADO' %}error{% else %}neutro{% endif %}">{% for v, n in estados %}{% if v == p.estado %}{{ n }}{% endif %}{% endfor %}</span>{% for i in p.indicadores %} <span class="chip {% if i == 'Listo para facturar' %}ok{% else %}error{% endif %}">{{ i }}</span>{% endfor %}</td>
+  <td><span class="chip {% if p.estado == 'ENTREGADO' %}ok{% elif p.estado == 'CANCELADO' %}error{% else %}neutro{% endif %}">{% for v, n in estados %}{% if v == p.estado %}{{ n }}{% endif %}{% endfor %}</span>{% for i in p.indicadores %} <span class="chip error">{{ i }}</span>{% endfor %}</td>
   <td>{% include "sales/_chip_cobranza.html" with c=p.cobranza_texto %}</td>
   <td class="acciones"><a class="boton secundario chico" href="{% url 'pedido' p.id %}">Abrir</a></td>
 </tr>{% empty %}<tr><td colspan="8" class="subtitulo">{% if aplicados %}No hay pedidos con esos filtros.{% else %}Aún no hay pedidos.{% endif %}</td></tr>{% endfor %}

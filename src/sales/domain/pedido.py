@@ -94,13 +94,11 @@ def faltante(cantidad: Decimal, disponible: Decimal, es_servicio: bool) -> Decim
 
 
 def indicadores(estado: str, fecha_entrega: date, faltantes, hoy: date) -> list[str]:
-    """RF-VEN-15, 45, 46: Atrasado, Quiebre de stock y Listo para facturar."""
+    """RF-VEN-15, 45, 46: alertas Atrasado y Quiebre de stock ("Listo para facturar" se
+    retiró: no es un estado, PO 2026-10-13)."""
     marcas = []
     if estado in (CREADO, APROBADO, FACTURADO) and fecha_entrega < hoy:
         marcas.append("Atrasado")
-    if estado in (CREADO, APROBADO):
-        if any(f > 0 for f in faltantes):
-            marcas.append("Quiebre de stock")
-        elif estado == APROBADO:
-            marcas.append("Listo para facturar")
+    if estado in (CREADO, APROBADO) and any(f > 0 for f in faltantes):
+        marcas.append("Quiebre de stock")
     return marcas

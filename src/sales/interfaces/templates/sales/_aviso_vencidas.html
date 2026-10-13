@@ -1,2 +1,0 @@
-{% if n %}<p class="aviso" role="alert"><a href="{% url 'cobranzas' %}?vencidas=1">{{ n }} cobranza{{ n|pluralize }} vencida{{ n|pluralize }}</a></p>
-{% else %}<p class="subtitulo">Ninguna cobranza vencida.</p>{% endif %}

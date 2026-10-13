@@ -27,5 +27,19 @@ for etiqueta, url, orden, permiso in (
     ("Configuración", "/inventario/configuracion/", 220, GESTIONAR),
 ):
     menu.agregar("Inventario", etiqueta, url, orden, permiso=permiso, icono="cubo")
-avisos.agregar("stock_bajo", "Stock bajo", views.aviso_stock_bajo, permiso=views.STOCK, orden=10)
-avisos.agregar("por_vencer", "Por vencer", views.aviso_por_vencer, permiso=views.STOCK, orden=20)
+avisos.agregar(  # RF-INV-14: el detalle muestra stock y mínimo
+    "stock_bajo",
+    views.contar_stock_bajo,
+    ("producto con stock bajo o agotado", "productos con stock bajo o agotado"),
+    permiso=views.STOCK,
+    orden=10,
+    detalle=views.aviso_stock_bajo,
+)
+avisos.agregar(  # RF-INV-15 y 16: el detalle muestra los días que quedan
+    "por_vencer",
+    views.contar_por_vencer,
+    ("lote por vencer o vencido", "lotes por vencer o vencidos"),
+    permiso=views.STOCK,
+    orden=20,
+    detalle=views.aviso_por_vencer,
+)

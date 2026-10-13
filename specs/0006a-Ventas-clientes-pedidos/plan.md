@@ -42,7 +42,7 @@ Número `P-000001` con `SequencePort.siguiente("PEDIDO")`. Clientes y proveedore
 | `transicion(estado, accion)` | Tabla de estados de la spec | RF-VEN-14, 16, 37 |
 | `validar_lineas(lineas)` | Al menos una para confirmar; cantidad > 0 (4 decimales), precio > 0 (2 decimales), sin repetir producto | RF-VEN-06, 08 |
 | `total(lineas)` | Σ cantidad × precio, half-up a 2 decimales por línea | RF-VEN-48 |
-| `faltante(cantidad, disponible, es_servicio)` y `indicadores(pedido, faltantes, hoy)` | Quiebre de stock, Listo para facturar (Aprobado sin quiebre), Atrasado (no Entregado ni Cancelado, con fecha vencida) | RF-VEN-15, 45, 46 |
+| `faltante(cantidad, disponible, es_servicio)` y `indicadores(pedido, faltantes, hoy)` | Quiebre de stock y Atrasado (no Entregado ni Cancelado, con fecha vencida); "Listo para facturar" se retiró (PO, 2026-10-13: no es un estado) | RF-VEN-15, 45, 46 |
 
 ## 4. Algoritmos clave
 

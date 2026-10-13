@@ -8,14 +8,15 @@ ficha, "Editar" visible y el resto en ⋯, cantidad y paginación (RF-CAT-14).{%
 {% include "catalog/_migas.html" with migas=migas_productos %}
 <div class="encabezado-listado">
   <div><h1>Productos</h1><p class="subtitulo">Administra tus bienes y servicios.</p></div>
-  {% if gestiona in permisos %}
   <div class="acciones-listado">
+    {% include "listados/_exportar.html" %}
+    {% if gestiona in permisos %}
     <details class="mas-acciones abajo">
       <summary class="principal">+ Nuevo producto ▾</summary>
       <div class="menu"><a href="{% url 'producto_nuevo' %}">Nuevo bien</a><a href="{% url 'producto_nuevo' %}?tipo=SERVICIO">Nuevo servicio</a></div>
     </details>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 <form method="get" class="tarjeta barra-filtros">
   <label class="buscar">Buscar producto<input type="search" name="q" value="{{ filtro.q }}" placeholder="SKU o nombre"></label>

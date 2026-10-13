@@ -92,8 +92,9 @@ def test_kardex_filtros_saldos_cursor_y_csv(web, inv):
     resto = web.get(f"/inventario/kardex/?producto={inv['malta']}&despues={corte}")
     assert resto.content.decode().count("<td>SALDO_INICIAL</td>") == 5
     respuesta = web.get(f"/inventario/kardex/?producto={inv['malta']}&formato=csv")
-    filas = list(csv.reader(io.StringIO(respuesta.content.decode())))
-    assert filas[0][-4:] == ["costo_unitario", "costo_total", "saldo", "promedio"]
+    texto = b"".join(respuesta.streaming_content).decode("utf-8-sig")  # 0008c: con BOM
+    filas = list(csv.reader(io.StringIO(texto)))
+    assert filas[0][-4:] == ["Costo unit.", "Costo total", "Saldo", "Promedio"]
     assert len(filas) == 56 and filas[-1][-2:] == ["55.0000", "2.000000"]
 
 

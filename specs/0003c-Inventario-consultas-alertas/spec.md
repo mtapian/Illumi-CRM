@@ -44,6 +44,7 @@ El inventario es la base del costo: si el stock o el costo están mal, la utilid
 
 ### UC-INV-05 Alertar stock bajo mínimo
 
+- *(0008c, 2026-10-13: los avisos "Stock bajo" y "Por vencer" pasan a la barra de avisos del inicio, RF-FIN-17: una línea con la cantidad y "Ver detalle", que despliega la misma lista; sin casos no se muestran.)*
 - RF-INV-14: MIENTRAS un producto esté en stock bajo (Definiciones), EL SISTEMA lo muestra en el aviso "Stock bajo" del dashboard (stock y mínimo) y en el filtro "stock bajo" del listado de stock y del de productos (0002a, RF-CAT-14, que pasa de "menor que" a "menor o igual que").
 
 ### UC-INV-06 Alertar lotes próximos a vencer

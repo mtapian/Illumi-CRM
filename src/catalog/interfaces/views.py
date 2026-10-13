@@ -23,7 +23,7 @@ from catalog.infrastructure.repositorios import CatalogoOrm
 from catalog.interfaces.forms import IMPUESTOS, ProductoForm
 from catalog.interfaces.pestanas import pestanas
 from shared.domain.vigencia import SinValorVigente, valor_vigente
-from shared.interfaces import listados
+from shared.interfaces import exportar, listados
 from tenancy.interfaces.acceso import requiere
 from tenancy.interfaces.views.accesos import _intentar
 
@@ -71,6 +71,25 @@ def _form(request, inicial=None, bloqueados=(), producto_id=None):
     )
 
 
+def _si(valor: bool) -> str:
+    return "Sí" if valor else "No"
+
+
+COLUMNAS_PRODUCTOS = [  # la grilla, con sus celdas compuestas en columnas (0008c, RF-FIN-15)
+    ("SKU", lambda p: p.sku),
+    ("Nombre", lambda p: p.nombre),
+    ("Unidad", lambda p: p.unidad.abreviatura),
+    ("Tipo", lambda p: p.tipo.lower().capitalize()),
+    ("Se vende", lambda p: _si(p.se_vende)),
+    ("Se compra", lambda p: _si(p.se_compra)),
+    ("Se fabrica", lambda p: _si(p.se_fabrica)),
+    ("Categoría", lambda p: p.categoria.nombre if p.categoria else ""),
+    ("Marca", lambda p: p.marca.nombre if p.marca else ""),
+    ("Precio", lambda p: p.precio_venta),
+    ("Estado", lambda p: "Activo" if p.activo else "Inactivo"),
+]
+
+
 @requiere("catalogo.producto.ver")
 def productos(request):
     g = request.GET
@@ -96,6 +115,8 @@ def productos(request):
             if puertos.inventario.stock(p.id) <= p.stock_minimo  # RF-INV-14
         ]
         filas = filas.filter(pk__in=bajos)
+    if descarga := exportar.desde_grilla(request, "productos", COLUMNAS_PRODUCTOS, filas):
+        return descarga  # 0008c, RF-FIN-15
     categorias = Categoria.objects.order_by("nombre")
     marcas = Marca.objects.order_by("nombre")
     casillas = [(c, c.replace("_", " ").capitalize()) for c in CASILLAS]

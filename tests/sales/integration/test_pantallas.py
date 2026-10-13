@@ -120,7 +120,7 @@ def test_pedido_crear_aprobar_y_vistas(web):
             "APROBADO",
         ]
     lista = client.get("/ventas/pedidos/").content.decode()
-    assert lista.count("Listo para facturar") == 2 and "Quiebre de stock" in lista
+    assert "Listo para facturar" not in lista and "Quiebre de stock" in lista  # PO
     quiebre = client.get("/ventas/pedidos/", {"quiebre": "1"}).content.decode()
     assert "P-000001" in quiebre and "P-000002" not in quiebre
     kanban = client.get("/ventas/pedidos/", {"vista": "kanban"}).content.decode()

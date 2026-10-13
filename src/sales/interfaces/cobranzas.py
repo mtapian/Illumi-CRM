@@ -6,7 +6,6 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.db.models import Count, F, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.loader import render_to_string
 from django.utils import timezone
 
 from sales.application import cobranzas as uc
@@ -16,7 +15,7 @@ from sales.domain.facturacion import Cuota
 from sales.domain.pedido import numero_pedido
 from sales.infrastructure.contenedor import caso_de_cobranza, metodos_activos
 from sales.infrastructure.models import Cliente, Cobranza, MetodoPago
-from shared.interfaces import listados
+from shared.interfaces import exportar, listados
 from tenancy.interfaces.acceso import requiere
 from tenancy.interfaces.views.accesos import _intentar
 
@@ -55,10 +54,74 @@ def _vencidas(filas, hoy):
     )
 
 
-def aviso_vencidas(request):
-    """RF-VEN-62: aviso del inicio con las cobranzas vencidas."""
-    n = _vencidas(Cobranza.objects.all(), timezone.localdate()).count()
-    return render_to_string("sales/_aviso_vencidas.html", {"n": n})
+def contar_vencidas(request) -> int:
+    """RF-VEN-62: cobranzas vencidas (aviso del inicio)."""
+    return _vencidas(Cobranza.objects.all(), timezone.localdate()).count()
+
+
+def _preparar_fila(c, hoy):
+    _preparar(c, hoy)
+    c.estado_texto = dict(ESTADOS)[c.estado]
+    return c
+
+
+COLUMNAS_COBRANZAS = [  # la grilla de cobranzas (0008c, RF-FIN-15)
+    ("Cobranza", lambda c: c.codigo),
+    ("Pedido", lambda c: c.pedido_texto),
+    ("Cliente", lambda c: c.cliente.nombre),
+    ("Fecha y hora", lambda c: c.creado_en),
+    ("Forma", lambda c: c.forma_texto),
+    ("Próximo vencimiento", lambda c: c.proximo),
+    ("Total", lambda c: c.total),
+    ("Pagado", lambda c: c.pagado),
+    ("Saldo", lambda c: c.saldo),
+    ("Vencido", lambda c: c.vencido),
+    ("Estado", lambda c: c.estado_texto),
+]
+
+
+def _indicadores(request, base, filtro, hoy) -> list[dict]:
+    """0008c, RF-FIN-26: cantidad y saldo por estado, y las vencidas, con los demás filtros
+    (sin el de estado ni el de vencidas); cada tarjeta filtra."""
+    ids = base.order_by().values("id")
+    saldo = Sum(F("total") - F("pagado"))
+    por_estado = {
+        e: (n, s)
+        for e, n, s in Cobranza.objects.filter(id__in=ids)
+        .values_list("estado")
+        .annotate(n=Count("id"), s=saldo)
+        .order_by()
+    }
+    vencidas = Cobranza.objects.filter(id__in=_vencidas(Cobranza.objects.filter(id__in=ids), hoy)
+                                       .values("id")).aggregate(n=Count("id"), s=saldo)  # fmt: skip
+    sin = listados.consulta(request, sin=("pagina", "estado", "vencidas", "formato"))
+    prefijo = f"?{sin}{'&' if sin else ''}"
+    tarjetas = [
+        {
+            "titulo": titulo,
+            "cantidad": por_estado.get(valor, (0, 0))[0],
+            "saldo": por_estado.get(valor, (0, 0))[1] or 0,
+            "enlace": f"{prefijo}estado={valor}",
+            "activo": filtro["estado"] == valor,
+            "color": color,
+        }
+        for titulo, valor, color in (
+            ("Pendientes", dom.PENDIENTE, "celeste"),
+            ("Parciales", dom.PARCIAL, "naranja"),
+            ("Pagadas", dom.PAGADA, "verde"),
+        )
+    ]
+    tarjetas.append(
+        {
+            "titulo": "Vencidas",
+            "cantidad": vencidas["n"],
+            "saldo": vencidas["s"] or 0,
+            "enlace": f"{prefijo}vencidas=1",
+            "activo": bool(filtro["vencidas"]),
+            "color": "morado",
+        }
+    )
+    return tarjetas
 
 
 @requiere(uc.VER)
@@ -68,8 +131,6 @@ def cobranzas(request):
     hoy = timezone.localdate()
     filas = Cobranza.objects.select_related("pedido", "cliente").prefetch_related("cuotas")
     filas = filas.order_by("-creado_en", "-numero")  # lo más nuevo primero (docs/ux.md)
-    if filtro["estado"]:
-        filas = filas.filter(estado=filtro["estado"])
     if filtro["cliente"].isdigit():
         filas = filas.filter(cliente_id=filtro["cliente"])
     if desde := _fecha(filtro["desde"]):
@@ -80,9 +141,15 @@ def cobranzas(request):
         n = q.removeprefix("COB-").removeprefix("P-")
         numero = Q(numero=int(n)) | Q(pedido__numero=int(n)) if n.isdigit() else Q(pk__in=[])
         filas = filas.filter(numero | Q(cliente__nombre__icontains=filtro["q"]))
+    indicadores = _indicadores(request, filas.distinct(), filtro, hoy)  # RF-FIN-26
+    if filtro["estado"]:
+        filas = filas.filter(estado=filtro["estado"])
     if filtro["vencidas"]:
         filas = _vencidas(filas, hoy)
     filas = filas.distinct()
+    preparar = lambda c: _preparar_fila(c, hoy)  # noqa: E731
+    if descarga := exportar.desde_grilla(request, "cobranzas", COLUMNAS_COBRANZAS, filas, preparar):
+        return descarga  # 0008c, RF-FIN-15
     pagina = listados.paginar(request, filas)
     for c in pagina:
         _preparar(c, hoy)
@@ -98,6 +165,7 @@ def cobranzas(request):
     }
     contexto = {
         "pagina": pagina,
+        "indicadores": indicadores,
         "consulta": listados.consulta(request),
         "aplicados": listados.aplicados(request, campos),
         "filtro": filtro,

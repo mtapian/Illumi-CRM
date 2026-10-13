@@ -32,7 +32,6 @@ La cervecera vende sobre todo a pedido (bares, restaurantes, distribuidores) y e
 - **Stock disponible de una línea:** el stock sin vencer del producto en todos los almacenes, hoy. No hay reserva: varios pedidos comparten el mismo disponible.
 - **Faltante:** max(0, cantidad de la línea − stock disponible). Un servicio no lleva stock: no tiene faltante.
 - **Quiebre de stock:** una línea, o un pedido, con faltante mayor a 0.
-- **Listo para facturar:** un pedido Aprobado sin quiebre de stock. Es un indicador calculado con el stock de hoy, no un estado.
 - **Atrasado:** un pedido no Entregado ni Cancelado cuya fecha de entrega ya pasó.
 
 **Estados del pedido** (PO, 2026-10-13, modelo de pedido de venta): **Creado ▸ Aprobado ▸ Facturado ▸ Entregado**, y **Cancelado** fuera de la barra. La venta no es un documento aparte: es el pedido facturado.
@@ -74,7 +73,7 @@ Una venta directa (B2C, mostrador) crea el pedido ya **Facturado y Entregado**, 
 ### UC-VEN-04 Stock del pedido y quiebre de stock
 
 - RF-VEN-45: EL SISTEMA muestra en cada línea de un pedido Creado o Aprobado el **stock disponible** y el **faltante**, y la alerta **"Quiebre de stock"** si el faltante es mayor a 0 (PO, 2026-10-13: el sistema solo informa; el usuario decide si produce o compra). Reemplaza RF-VEN-09 y 10.
-- RF-VEN-46: EL SISTEMA muestra los pedidos en dos vistas que el usuario alterna (PO, 2026-10-13): **Lista** (la grilla estándar, ordenada por fecha de entrega: número, cliente, fecha de entrega, total y estado) y **Kanban** (una columna por estado: Creado, Aprobado, Facturado y Entregado; Cancelado solo si se filtra por él), con tarjetas de número, cliente, fecha de entrega y total. En las dos se ven los indicadores **Atrasado**, **Quiebre de stock** y **Listo para facturar** y se aplican los mismos filtros: estado, cliente, fechas de entrega, número, "solo atrasados" y "solo con quiebre de stock". La vista elegida queda en la dirección de la página (se puede guardar o compartir). En el kanban las tarjetas no se arrastran: los estados cambian con sus acciones (aprobar, facturar, confirmar la entrega, cancelar).
+- RF-VEN-46: EL SISTEMA muestra los pedidos en dos vistas que el usuario alterna (PO, 2026-10-13): **Lista** (la grilla estándar, ordenada por fecha de entrega: número, cliente, fecha de entrega, total y estado) y **Kanban** (una columna por estado: Creado, Aprobado, Facturado y Entregado; Cancelado solo si se filtra por él), con tarjetas de número, cliente, fecha de entrega y total. En las dos se ven los indicadores **Atrasado** y **Quiebre de stock** y se aplican los mismos filtros: estado, cliente, fechas de entrega, número, "solo atrasados" y "solo con quiebre de stock". La vista elegida queda en la dirección de la página (se puede guardar o compartir). En el kanban las tarjetas no se arrastran: los estados cambian con sus acciones (aprobar, facturar, confirmar la entrega, cancelar).
 - RF-VEN-15: MIENTRAS la fecha de entrega de un pedido Creado, Aprobado o Facturado esté vencida, EL SISTEMA lo marca como **Atrasado**.
 - RF-VEN-47: CUANDO un usuario con `ventas.pedido.ver` abre el inicio, EL SISTEMA le muestra una **alerta** con la cantidad de pedidos Creados o Aprobados con quiebre de stock, que lleva al listado **filtrado** por "solo con quiebre de stock" (como los avisos de stock bajo, 0003c). El filtro también se puede elegir en el listado.
 
@@ -115,7 +114,7 @@ Vínculo del pedido con las OP o las compras (PO, 2026-10-13: el usuario decide 
 
 ## RF retirados (historia)
 
-RF-VEN-09 (ofrecer producción) y RF-VEN-10 ("por comprar") → RF-VEN-45 · RF-VEN-12 y 13 (estados movidos por las OP) · RF-VEN-41 y 42 (pedido con varias OP): la OP no se vincula a pedidos (0005a, PO 2026-10-12) · estados `BORRADOR`, `EN_PRODUCCION` y `LISTO` → Creado, Aprobado y el indicador "Listo para facturar" (PO, 2026-10-13: modelo de pedido de venta Creado ▸ Aprobado ▸ Facturado ▸ Entregado).
+Indicador "Listo para facturar" (PO, 2026-10-13: "no debe aparecer, no es un estado"; se retira de la lista, el kanban y la ficha) · RF-VEN-09 (ofrecer producción) y RF-VEN-10 ("por comprar") → RF-VEN-45 · RF-VEN-12 y 13 (estados movidos por las OP) · RF-VEN-41 y 42 (pedido con varias OP): la OP no se vincula a pedidos (0005a, PO 2026-10-12) · estados `BORRADOR`, `EN_PRODUCCION` y `LISTO` → Creado y Aprobado (PO, 2026-10-13: modelo de pedido de venta Creado ▸ Aprobado ▸ Facturado ▸ Entregado).
 
 ## Dudas abiertas
 

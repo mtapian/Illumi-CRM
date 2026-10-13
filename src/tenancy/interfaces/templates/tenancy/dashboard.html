@@ -1,8 +1,37 @@
 {% extends "base.html" %}
+{% comment %}Inicio (spec 0008c; referencia visual del PO): tarjetas de colores, barra de avisos con algo pendiente
+y paneles en dos columnas. Lo pintan los registros `tarjetas`, `avisos` y `paneles` (cada uno con su permiso).{% endcomment %}
 {% block titulo %}Inicio{% endblock %}
 {% block contenido %}
+<style>
+  .tarjetas-inicio { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+  .tarjeta-inicio { position: relative; overflow: hidden; border-radius: 12px; padding: 1rem 1.25rem; color: #fff; min-height: 7rem; }
+  .tarjeta-inicio svg { width: 30px; height: 30px; }
+  .tarjeta-inicio svg.fondo { position: absolute; right: -.5rem; bottom: -.75rem; width: 96px; height: 96px; opacity: .22; }
+  .tarjeta-inicio strong { display: block; font-size: 1.9rem; line-height: 1.1; margin-top: .25rem; }
+  .tarjeta-inicio span { text-transform: uppercase; font-size: .78rem; font-weight: 600; letter-spacing: .03em; }
+  .tarjeta-inicio.celeste { background: linear-gradient(135deg, #5ab4d6, #3d97c4); }
+  .tarjeta-inicio.naranja { background: linear-gradient(135deg, #efb15f, #e48f3d); }
+  .tarjeta-inicio.morado { background: linear-gradient(135deg, #b84aa8, #8f2387); }
+  .tarjeta-inicio.verde { background: linear-gradient(135deg, #c9d256, #a7b52c); }
+  .barra-avisos { border-left: 4px solid var(--alerta); background: var(--tarjeta); border-radius: 8px; padding: .65rem 1rem; margin-bottom: 1rem; }
+  .barra-avisos .aviso-linea { margin: .2rem 0; color: var(--alerta); font-weight: 600; }
+  .barra-avisos a, .barra-avisos summary { font-weight: 500; margin-left: .5rem; color: var(--acento); cursor: pointer; }
+  .barra-avisos details { display: inline; }
+  .barra-avisos details[open] > div { color: var(--texto); font-weight: 400; margin: .4rem 0 .2rem 1.25rem; }
+  .paneles-inicio { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1rem; }
+  .paneles-inicio h2 { font-size: 1rem; display: flex; align-items: center; gap: .5rem; }
+  .paneles-inicio h2::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--acento); }
+  .grafico { width: 100%; height: auto; font-size: 11px; fill: var(--tenue); }
+  .grafico .guia { stroke: var(--borde); }
+  .grafico .trazo { fill: none; stroke: var(--acento); stroke-width: 2; }
+  .grafico circle { fill: var(--acento); }
+  .grafico .barra { fill: #5ab4d6; }
+  .grafico .valor { fill: var(--texto); font-weight: 600; }
+  @media (max-width: 700px) { .paneles-inicio { grid-template-columns: 1fr; } }
+</style>
+{% include "catalog/_migas.html" %}
 <h1>{{ user.empresa }}</h1>
-<p class="subtitulo">Resumen de tu empresa.</p>
 {% if primeros_pasos %}
 <section class="tarjeta">
   <h2>Primeros pasos</h2>
@@ -13,7 +42,17 @@
   </ol>
 </section>
 {% endif %}
-{% if avisos %}<div class="dos-columnas">{% for a in avisos %}
-<section class="tarjeta aviso" aria-label="{{ a.titulo }}"><h2>{{ a.titulo }}</h2>{{ a.html|safe }}</section>
+{% if tarjetas %}<div class="tarjetas-inicio">{% for t in tarjetas %}
+  <div class="tarjeta-inicio {{ t.color }}" data-tarjeta="{{ t.titulo }}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="{{ t.icono }}"/></svg>
+    <strong>{{ t.valor }}</strong><span>{{ t.titulo }}</span>
+    <svg class="fondo" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="{{ t.icono }}"/></svg>
+  </div>{% endfor %}
+</div>{% endif %}
+{% if avisos %}<section class="barra-avisos" role="alert" aria-label="Avisos">{% for a in avisos %}
+  <div class="aviso-linea" data-aviso="{{ a.clave }}">⚠ {{ a.texto }}.{% if a.enlace %}<a href="{{ a.enlace }}">Ver detalle</a>{% elif a.detalle %}<details><summary>Ver detalle</summary><div>{{ a.detalle|safe }}</div></details>{% endif %}</div>
+{% endfor %}</section>{% endif %}
+{% if paneles %}<div class="paneles-inicio">{% for p in paneles %}
+  <section class="tarjeta" aria-label="{{ p.titulo }}"><h2>{{ p.titulo }}</h2>{{ p.valor|safe }}</section>
 {% endfor %}</div>{% endif %}
 {% endblock %}

@@ -121,7 +121,7 @@ def test_vendedor_no_ve_anular_ni_metodos(web, client):
 def test_aviso_de_cobranzas_vencidas(web, client):
     """RF-VEN-62: en el inicio, con el filtro "solo vencidas"; solo con `ventas.cobranza.ver`."""
     navegador, v = web
-    assert "Ninguna cobranza vencida" in navegador.get("/dashboard/").content.decode()
+    assert "cobranza vencida" not in navegador.get("/dashboard/").content.decode()  # RF-FIN-17
     vencida(v)
     inicio = navegador.get("/dashboard/").content.decode()
     assert "1 cobranza vencida" in inicio and "/ventas/cobranzas/?vencidas=1" in inicio

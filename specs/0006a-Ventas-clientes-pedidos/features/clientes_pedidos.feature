@@ -90,9 +90,9 @@ Característica: Clientes y pedidos
     Y un pedido de "Bar El Lúpulo" para el "2026-11-25" con 1 "TER-IPA-20L"
     Cuando abro el listado de pedidos
     Entonces veo los indicadores:
-      | pedido   | indicadores                    |
-      | P-000001 | Atrasado, Listo para facturar  |
-      | P-000002 | Quiebre de stock               |
+      | pedido   | indicadores      |
+      | P-000001 | Atrasado         |
+      | P-000002 | Quiebre de stock |
 
   @UC-VEN-04 @RF-VEN-47
   Escenario: Aviso de pedidos con quiebre de stock en el inicio

@@ -6,7 +6,7 @@ elegido; costos solo con inventario.costo.ver (RF-TEN-51).{% endcomment %}
 {% include "catalog/_migas.html" %}
 <div class="encabezado-listado">
   <div><h1>Kardex / Movimientos</h1><p class="subtitulo">Cada entrada y salida de stock, con su costo y su documento.</p></div>
-  <div class="acciones-listado"><a class="boton secundario" href="?{% if consulta %}{{ consulta }}&amp;{% endif %}formato=csv">Exportar CSV</a></div>
+  <div class="acciones-listado">{% include "listados/_exportar.html" %}</div>
 </div>
 <form method="get" class="tarjeta barra-filtros">
   <label class="buscar">Producto<select name="producto"><option value="">Todos los productos</option>{% for p in productos %}<option value="{{ p.id }}"{% if filtro.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }}</option>{% endfor %}</select></label>

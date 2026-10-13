@@ -1,0 +1,4 @@
+{% if ventas %}<div class="tabla"><table><thead><tr><th>N.°</th><th>Cliente</th><th class="num">Total</th><th>Estado</th></tr></thead><tbody>
+{% for p in ventas %}<tr><td><a href="{% url 'pedido' p.id %}">{{ p.numero_texto }}</a></td><td>{{ p.cliente.nombre }}</td><td class="num">S/ {{ p.total }}</td><td><span class="chip {% if p.estado == 'ENTREGADO' %}ok{% else %}neutro{% endif %}">{{ p.estado_texto }}</span></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="subtitulo">Aún no hay ventas.</p>{% endif %}

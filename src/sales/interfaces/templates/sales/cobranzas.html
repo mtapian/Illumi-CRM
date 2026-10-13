@@ -4,7 +4,9 @@ vencido e indicador Vencida; filtros por estado, cliente, vencimiento y "solo ve
 {% block titulo %}Cobranzas{% endblock %}
 {% block contenido %}
 {% include "catalog/_migas.html" %}
-<div class="encabezado-listado"><div><h1>Cobranzas</h1><p class="subtitulo">Cada pedido facturado genera su cobranza; queda Pagada cuando sus pagos suman el total.</p></div></div>
+<div class="encabezado-listado"><div><h1>Cobranzas</h1><p class="subtitulo">Cada pedido facturado genera su cobranza; queda Pagada cuando sus pagos suman el total.</p></div>
+  <div class="acciones-listado">{% include "listados/_exportar.html" %}</div></div>
+{% include "listados/_indicadores.html" %}
 <form method="get" class="tarjeta barra-filtros">
   <label class="buscar">Buscar<input type="search" name="q" value="{{ filtro.q }}" placeholder="COB-000012, P-000012 o cliente"></label>
   <label>Estado<select name="estado"><option value="">Todos</option>{% for v, n in estados %}<option value="{{ v }}"{% if filtro.estado == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>

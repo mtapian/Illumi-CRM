@@ -1,0 +1,4 @@
+{% if filas %}<div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Unidades</th><th class="num">Total</th></tr></thead><tbody>
+{% for sku, nombre, unidades, total in filas %}<tr><td>{{ sku }} · {{ nombre }}</td><td class="num">{{ unidades.normalize }}</td><td class="num">S/ {{ total }}</td></tr>{% endfor %}
+</tbody></table></div><p class="subtitulo">Del mes, con impuestos.</p>
+{% else %}<p class="subtitulo">Aún no hay ventas.</p>{% endif %}

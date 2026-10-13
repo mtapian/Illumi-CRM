@@ -1,13 +1,11 @@
 """Pantallas del inventario (plan 0003a §5)."""
 
-import csv
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.db.models import Count, Q
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -21,7 +19,7 @@ from inventory.domain.errores import AjusteInvalido
 from inventory.infrastructure import consultas
 from inventory.infrastructure.contenedor import caso_de_ajuste, caso_de_uso
 from inventory.infrastructure.models import Ajuste, Almacen, Movimiento
-from shared.interfaces import listados
+from shared.interfaces import exportar, listados
 from tenancy.interfaces.acceso import requiere
 from tenancy.interfaces.views.accesos import _intentar
 
@@ -214,9 +212,20 @@ def stock(request):
     return render(request, "inventory/stock.html", contexto)
 
 
-ENCABEZADO = ["fecha", "tipo", "motivo", "documento", "producto", "almacen", "lote", "cantidad"]
-COSTOS = ["costo_unitario", "costo_total"]
-SALDOS = ["saldo", "promedio"]
+COLUMNAS_KARDEX = [  # las de la grilla (0008c, RF-FIN-15)
+    ("Fecha", lambda m: m.fecha),
+    ("Tipo", lambda m: m.tipo),
+    ("Motivo", lambda m: m.motivo),
+    ("Documento", lambda m: _documento(m)),
+    ("Producto", lambda m: m.producto.sku),
+    ("Almacén", lambda m: m.almacen.nombre),
+    ("Lote", lambda m: m.lote.codigo if m.lote else ""),
+    ("Cantidad", lambda m: m.cantidad),
+]
+COLUMNAS_COSTO = [
+    ("Costo unit.", lambda m: m.costo_unitario),
+    ("Costo total", lambda m: m.costo_total),
+]
 
 
 def _documento(m):
@@ -228,26 +237,13 @@ def kardex(request):
     """Kardex con filtros y cursor; saldos solo con producto (RF-INV-06, 07)."""
     filtro = {k: request.GET.get(k, "") for k in FILTROS_KARDEX}
     ver_costos, con_producto = request.actor.puede(COSTO), filtro["producto"].isdigit()
-    if request.GET.get("formato") == "csv":
-        respuesta = HttpResponse(content_type="text/csv; charset=utf-8")
-        respuesta["Content-Disposition"] = 'attachment; filename="kardex.csv"'
-        escritor = csv.writer(respuesta)
-        escritor.writerow(
-            ENCABEZADO + (COSTOS if ver_costos else []) + (SALDOS if con_producto else [])
-        )
-        for m in consultas.kardex(filtro, limite=None).iterator():
-            fila = [timezone.localtime(m.fecha).isoformat(timespec="seconds"), m.tipo, m.motivo]
-            fila += [
-                _documento(m),
-                m.producto.sku,
-                m.almacen.nombre,
-                m.lote.codigo if m.lote else "",
-            ]
-            fila += [m.cantidad] + ([m.costo_unitario, m.costo_total] if ver_costos else [])
-            if con_producto:
-                fila += [m.saldo_cantidad] + ([m.saldo_promedio] if ver_costos else [""])
-            escritor.writerow(fila)
-        return respuesta
+    columnas = COLUMNAS_KARDEX + (COLUMNAS_COSTO if ver_costos else [])
+    if con_producto:
+        columnas += [("Saldo", lambda m: m.saldo_cantidad)]
+        columnas += [("Promedio", lambda m: m.saldo_promedio)] if ver_costos else []
+    movimientos = consultas.kardex(filtro, limite=None).select_related("usuario")
+    if descarga := exportar.desde_grilla(request, "kardex", columnas, movimientos):
+        return descarga  # 0008c, RF-FIN-15 y 16 (sin costos sin permiso)
     despues = request.GET.get("despues", "")
     movimientos = consultas.kardex(filtro, int(despues) if despues.isdigit() else None)
     productos = Producto.objects.filter(tipo="BIEN").order_by("nombre")
@@ -289,6 +285,14 @@ def configuracion(request):
             return redirect(request.path)
     contexto = {"dias": consultas.dias_alerta(), "migas": MIGAS + [("Configuración", None)]}
     return render(request, "inventory/configuracion.html", contexto)
+
+
+def contar_stock_bajo(request) -> int:
+    return len(consultas.bajo_minimo_productos())
+
+
+def contar_por_vencer(request) -> int:
+    return len(consultas.lotes_en_alerta(timezone.localdate()))
 
 
 def aviso_stock_bajo(request):
