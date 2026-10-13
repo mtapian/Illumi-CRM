@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 from sales.domain import cobranza as cob
 from sales.domain.facturacion import BOLETA, CONTADO, CREDITO, FACTURA
@@ -178,6 +179,7 @@ class Cobranza(TenantModel):
     total = _decimal(2)
     pagado = _decimal(2, default=0)
     estado = models.CharField(max_length=9, default=cob.PENDIENTE)
+    creado_en = models.DateTimeField(default=timezone.now)  # fecha y hora (RF-VEN-69)
 
     class Meta:
         constraints = [

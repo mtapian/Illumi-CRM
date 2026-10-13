@@ -130,24 +130,44 @@ def test_aviso_de_cobranzas_vencidas(web, client):
     assert "cobranza" not in client.get("/dashboard/").content.decode().lower()
 
 
-def test_estado_de_cobro_en_los_pedidos(web):
-    """RF-VEN-63: Por cobrar, Cobro parcial y Cobro vencido en Lista y Kanban; nada si está
-    pagado."""
+def test_grilla_de_pedidos_con_cobranza(web):
+    """RF-VEN-67 y 68: columnas, cobranza en Lista y Kanban, filtro por cobranza y orden por
+    creación descendente."""
     client, v = web
 
-    def fila(vista, numero):
-        pagina = client.get("/ventas/pedidos/", {"vista": vista}).content.decode()
-        return pagina.split(f'data-pedido="{numero}"', 1)[1].split("</tr>", 1)[0][:800]
+    def fila(vista, numero, **filtro):
+        pagina = client.get("/ventas/pedidos/", {"vista": vista, **filtro}).content.decode()
+        return pagina.split(f'data-pedido="{numero}"', 1)[1].split("</tr>", 1)[0][:900]
 
+    lista = client.get("/ventas/pedidos/").content.decode()
+    columnas = ["Pedido", "Fecha y hora", "Cliente", "Comprobante", "Total", "Estado", "Cobranza"]
+    cabecera = lista.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    assert [c for c in columnas if "<th" in cabecera and c in cabecera] == columnas
+    assert "Indicadores" not in cabecera
     for vista in ("lista", "kanban"):
         assert "Por cobrar" in fila(vista, "P-000001")
+    assert "Factura" in fila("lista", "P-000001")
     hoy = timezone.localdate().isoformat()
     pago = {"accion": "pagar", "metodo": v["metodo"]["Yape"], "fecha": hoy}
     client.post(f"/ventas/cobranzas/{v['cobranza']}/", pago | {"monto": "100.00"})
     assert "Cobro parcial" in fila("lista", "P-000001")
     client.post(f"/ventas/cobranzas/{v['cobranza']}/", pago | {"monto": "188.00"})
-    texto = fila("lista", "P-000001")
-    assert "Por cobrar" not in texto and "Cobro parcial" not in texto
+    assert "Pagado" in fila("lista", "P-000001")
     vencida(v)
-    texto = fila("lista", "P-000099")
-    assert "Por cobrar" in texto and "Cobro vencido" in texto
+    assert "Cobro vencido" in fila("lista", "P-000099")
+    lista = client.get("/ventas/pedidos/").content.decode()
+    assert lista.index('data-pedido="P-000099"') < lista.index('data-pedido="P-000001"')
+    solo = client.get("/ventas/pedidos/", {"cobranza": "Cobro vencido"}).content.decode()
+    assert 'data-pedido="P-000099"' in solo and 'data-pedido="P-000001"' not in solo
+
+
+def test_cobranzas_con_fecha_y_hora_y_lo_nuevo_primero(web):
+    """RF-VEN-69: fecha y hora de creación en el listado y la ficha; orden descendente."""
+    client, v = web
+    c = Cobranza.objects.get(pk=v["cobranza"])
+    cuando = timezone.localtime(c.creado_en).strftime("%Y-%m-%d %H:%M")
+    assert cuando in client.get("/ventas/cobranzas/").content.decode()
+    assert cuando in client.get(f"/ventas/cobranzas/{c.id}/").content.decode()
+    vencida(v)  # COB-000099, creada después
+    listado = client.get("/ventas/cobranzas/").content.decode()
+    assert listado.index('data-cobranza="COB-000099"') < listado.index('data-cobranza="COB-000001"')

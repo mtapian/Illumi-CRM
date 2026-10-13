@@ -14,7 +14,6 @@ from inventory.infrastructure.models import Movimiento
 from sales.application import cobranzas as ucob
 from sales.application import facturacion as uf
 from sales.domain.facturacion import CONTADO, CREDITO, Cuota
-from sales.domain.pedido import numero_pedido
 from sales.infrastructure.contenedor import (
     caso_de_cobranza,
     caso_de_factura,
@@ -24,6 +23,7 @@ from sales.infrastructure.contenedor import (
 )
 from sales.infrastructure.models import Cliente, Cobranza, MetodoPago, Pago, Pedido
 from sales.interfaces import cobranzas as pantallas_cobranzas
+from sales.interfaces.views import disponibilidad
 from shared.domain.errores import DomainError
 from shared.domain.tenant import tenant_context
 from tenancy.infrastructure.models import Usuario
@@ -448,7 +448,9 @@ def alerta_cobranzas(ctx, filtro):
 
 @then(re_("el pedido facturado muestra {}", "texto"))
 def pedido_muestra(ctx, texto):
-    assert texto in ctx["indicadores"][numero_pedido(pedido(ctx).numero)]
+    """RF-VEN-68: la cobranza del pedido en su columna."""
+    with tenant_context(ctx["empresa"].id):
+        assert disponibilidad([pedido(ctx)], hoy(ctx))[ctx["pedido"]]["cobranza"] == texto
 
 
 # --- Métodos de pago ---

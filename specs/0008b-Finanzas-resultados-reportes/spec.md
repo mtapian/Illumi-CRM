@@ -1,6 +1,6 @@
 # Spec 0008b — Finanzas: estado de resultados, dashboard y exportación
 
-Estado: borrador
+Estado: borrador · **el dashboard (UC-FIN-04) y la exportación (UC-FIN-05) pasan a 0008c** (PO, 2026-10-13); esta spec se queda con el estado de resultados. Al alinearla se retiran sus RF-FIN-14 a 16 y H2–H3 de aquí.
 
 Épica E08 (Finanzas), parte 2 de 2. Depende de: 0008a, 0006b, 0006c, 0003a, 0005b.
 

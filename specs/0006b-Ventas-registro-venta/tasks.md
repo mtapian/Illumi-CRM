@@ -1,6 +1,6 @@
 # Tareas 0006b — Ventas: facturación, entrega y cobranza
 
-Estado: aprobado (PO: "ok", 2026-10-13) · **todas las tareas hechas (2026-10-13)**.
+Estado: aprobado (PO: "ok", 2026-10-13) · **todas las tareas hechas (T1–T17, 2026-10-13)**.
 
 Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y parar (art. 8.1).
 
@@ -44,3 +44,11 @@ Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y par
 - [x] **T9. Escenarios de aceptación y cierre.** — todos (después de T11–T13)
   - `tests/acceptance/pasos_ventas.py` y `test_e06b.py`; se quita `@borrador`; spec, plan y tareas a "implementada"; `MEMORY.md`; Docker.
   - Hecho cuando: los escenarios de 0006b y los de 0006a están en verde; suite, lint, formato, contratos y migraciones en verde; cada RF con escenario o test.
+- [x] **T15. Pedido cancelado como histórico (enmienda 3).** — RF-VEN-66
+  - Hecho cuando: el test de pantalla ve las líneas y el total de un pedido cancelado.
+- [x] **T16. Grilla de pedidos y cobranza (enmienda 3).** — RF-VEN-67, 68
+  - Columnas, cobranza en columna y en el kanban, filtro por cobranza, orden por creación descendente.
+  - Hecho cuando: el test de pantalla ve las columnas, filtra por cada estado de cobranza y el orden es descendente.
+- [x] **T17. Cobranzas con fecha y hora (enmienda 3).** — RF-VEN-69
+  - Campo de creación con migración (desde la facturación del pedido), listado y ficha, orden descendente.
+  - Hecho cuando: el test ve la fecha y hora y el orden; la migración completa las existentes y se revierte.

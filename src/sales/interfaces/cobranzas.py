@@ -67,7 +67,7 @@ def cobranzas(request):
     filtro = {k: request.GET.get(k, "").strip() for k in FILTROS}
     hoy = timezone.localdate()
     filas = Cobranza.objects.select_related("pedido", "cliente").prefetch_related("cuotas")
-    filas = filas.order_by("-numero")
+    filas = filas.order_by("-creado_en", "-numero")  # lo más nuevo primero (docs/ux.md)
     if filtro["estado"]:
         filas = filas.filter(estado=filtro["estado"])
     if filtro["cliente"].isdigit():

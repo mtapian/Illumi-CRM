@@ -1,6 +1,6 @@
 """0006b, T2: la base refuerza la facturación y la cobranza (RF-VEN-17, 19, 29, 53 a 59)."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal as D
 
 import pytest
@@ -213,4 +213,28 @@ def test_roles_que_anulan_ventas_reciben_la_segregacion(crear_empresa):
     assert {"ventas.cobranza.anular", "ventas.metodo_pago.gestionar"} <= de(gerente)
     assert "ventas.cobranza.anular" not in de(vendedor)
     _migrar([("sales", "0004_cobranza_parcial")])
+    _migrar()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cobranzas_existentes_toman_la_hora_de_facturacion(crear_empresa):
+    """RF-VEN-69: el campo nuevo se completa con la facturación del pedido."""
+    empresa = crear_empresa()
+    apps = _migrar([("sales", "0005_segregacion_cobranza")])
+    Cliente, Pedido = apps.get_model("sales", "Cliente"), apps.get_model("sales", "Pedido")
+    Almacen = apps.get_model("inventory", "Almacen")
+    facturado = datetime(2026, 11, 2, 15, 30, tzinfo=UTC)
+    cliente = Cliente.all_tenants.create(empresa_id=empresa.id, nombre="X", tipo_doc="SD")
+    pedido = Pedido.all_tenants.create(
+        empresa_id=empresa.id, numero=1, cliente=cliente, fecha_entrega=HOY, estado="FACTURADO",
+        comprobante="BOLETA", forma_pago="CONTADO", fecha_emision=HOY, facturado_en=facturado,
+        almacen=Almacen.all_tenants.create(empresa_id=empresa.id, nombre="P"),
+    )  # fmt: skip
+    apps.get_model("sales", "Cobranza").all_tenants.create(
+        empresa_id=empresa.id, numero=1, pedido=pedido, cliente=cliente, emision=HOY, total=10
+    )
+    apps = _migrar()
+    c = apps.get_model("sales", "Cobranza").all_tenants.get(pedido_id=pedido.id)
+    assert c.creado_en == facturado
+    _migrar([("sales", "0005_segregacion_cobranza")])
     _migrar()

@@ -103,7 +103,7 @@ comprobante pendiente y cobranza.{% endcomment %}
   {% if pedido.estado == "CREADO" or pedido.estado == "APROBADO" %}<p class="subtitulo">Stock sin vencer de hoy en todos los almacenes. No se reserva: otros pedidos pueden contar el mismo stock.</p>{% endif %}
   <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Precio</th><th class="num">Subtotal</th>{% if pedido.estado == "CREADO" or pedido.estado == "APROBADO" %}<th class="num">Disponible</th><th class="num">Faltante</th><th>Alerta</th>{% endif %}</tr></thead><tbody>
   {% for x in lineas_info %}<tr data-sku="{{ x.linea.producto.sku }}"><td>{{ x.linea.producto.sku }} · {{ x.linea.producto.nombre }}</td><td class="num">{{ x.linea.cantidad.normalize }} {{ x.linea.producto.unidad.abreviatura }}</td><td class="num">S/ {{ x.linea.precio }}</td><td class="num">S/ {{ x.linea.subtotal }}</td>
-    <td class="num">{% if x.disponible is None %}—{% else %}{{ x.disponible.normalize }}{% endif %}</td><td class="num">{{ x.faltante.normalize }}</td><td>{% if x.faltante %}<span class="chip error">Quiebre de stock</span>{% endif %}</td></tr>
+    {% if pedido.estado == "CREADO" or pedido.estado == "APROBADO" %}<td class="num">{% if x.disponible is None %}—{% else %}{{ x.disponible.normalize }}{% endif %}</td><td class="num">{{ x.faltante.normalize }}</td><td>{% if x.faltante %}<span class="chip error">Quiebre de stock</span>{% endif %}</td>{% endif %}</tr>
   {% empty %}<tr><td colspan="7" class="subtitulo">Sin productos.</td></tr>{% endfor %}
   </tbody></table></div>
   <div class="pie-productos"><span></span><div class="caja-totales"><dl><dt class="total">Total</dt><dd class="total">S/ {{ pedido.total }}</dd></dl></div></div>

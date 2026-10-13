@@ -51,7 +51,7 @@ ESTADOS = [
     (dom.CANCELADO, "Cancelado"),
 ]
 CAMPOS_LINEA = ("producto", "cantidad", "precio")
-FILTROS = ("estado", "cliente", "desde", "hasta", "q", "atrasados", "quiebre", "vista")
+FILTROS = ("estado", "cliente", "desde", "hasta", "q", "atrasados", "quiebre", "cobranza", "vista")
 MIGAS = [("Inicio", "/"), ("Ventas", None)]
 COSTOS = "inventario.costo.ver"
 FORMAS = {fac.CONTADO: "Contado", fac.CREDITO: "Crédito"}
@@ -209,7 +209,7 @@ def _datos(post) -> up.DatosPedido:
 
 def disponibilidad(pedidos, hoy) -> dict[int, dict]:
     """RF-VEN-45, 46: por pedido abierto, el disponible y el faltante de cada línea (una sola
-    consulta de stock) y sus indicadores; los facturados, su estado de cobro (RF-VEN-63).
+    consulta de stock) y sus indicadores; los facturados, su cobranza (RF-VEN-68).
     ponytail: al vuelo, sin resumen guardado."""
     pedidos = list(pedidos)
     abiertos = [p for p in pedidos if p.estado in (dom.CREADO, dom.APROBADO)]
@@ -218,8 +218,8 @@ def disponibilidad(pedidos, hoy) -> dict[int, dict]:
     }
     ids = [x.producto_id for filas in lineas.values() for x in filas]
     disponibles = inventario().disponibles(ids, hoy)
-    cobros = {  # RF-VEN-63: una consulta para los facturados de la página
-        c.pedido_id: cobranza_dom.indicadores_cobro(
+    cobros = {  # RF-VEN-68: una consulta para los facturados de la página
+        c.pedido_id: cobranza_dom.cobranza_del_pedido(
             c.estado, tuple(Cuota(q.monto, q.vencimiento) for q in c.cuotas.all()), c.pagado, hoy
         )
         for c in Cobranza.objects.filter(
@@ -240,8 +240,7 @@ def disponibilidad(pedidos, hoy) -> dict[int, dict]:
                 }
             )
         marcas = dom.indicadores(p.estado, p.fecha_entrega, [f["faltante"] for f in filas], hoy)
-        marcas += cobros.get(p.id, [])
-        resultado[p.id] = {"lineas": filas, "indicadores": marcas}
+        resultado[p.id] = {"lineas": filas, "indicadores": marcas, "cobranza": cobros.get(p.id, "")}
     return resultado
 
 
@@ -250,7 +249,8 @@ def pedidos(request):
     """Lista o Kanban con los mismos filtros e indicadores (RF-VEN-15, 46)."""
     filtro = {k: request.GET.get(k, "").strip() for k in FILTROS}
     vista = "kanban" if filtro["vista"] == "kanban" else "lista"
-    filas = Pedido.objects.select_related("cliente").order_by("fecha_entrega", "numero")
+    # RF-VEN-67: por fecha de creación, lo más nuevo primero (docs/ux.md, grillas)
+    filas = Pedido.objects.select_related("cliente").order_by("-creado_en", "-numero")
     if filtro["estado"]:
         filas = filas.filter(estado=filtro["estado"])
     elif vista == "kanban":
@@ -271,9 +271,11 @@ def pedidos(request):
         for p in filas
         if (not filtro["atrasados"] or "Atrasado" in info[p.id]["indicadores"])
         and (not filtro["quiebre"] or "Quiebre de stock" in info[p.id]["indicadores"])
+        and (not filtro["cobranza"] or info[p.id]["cobranza"] == filtro["cobranza"])
     ]
     for p in elegidos:
         p.indicadores = info[p.id]["indicadores"]
+        p.cobranza_texto = info[p.id]["cobranza"]
         p.numero_texto = dom.numero_pedido(p.numero)
     columnas = [
         (v, n, [p for p in elegidos if p.estado == v])
@@ -289,6 +291,7 @@ def pedidos(request):
         "q": ("N.°", None),
         "atrasados": ("Solo atrasados", {"1": "Sí"}),
         "quiebre": ("Solo con quiebre de stock", {"1": "Sí"}),
+        "cobranza": ("Cobranza", {c: c for c in cobranza_dom.COBRANZAS_PEDIDO}),
     }
     contexto = {
         "vista": vista,
@@ -299,6 +302,7 @@ def pedidos(request):
         "filtro": filtro,
         "estados": ESTADOS,
         "clientes": clientes_filtro,
+        "cobranzas": cobranza_dom.COBRANZAS_PEDIDO,
         "puede_crear": request.actor.puede(up.GESTIONAR),
         "migas": MIGAS,
     }
@@ -448,36 +452,46 @@ def pedido(request, pedido_id):
     puede_facturar = fila.estado == dom.APROBADO and registra
     facturado = fila.estado in (dom.FACTURADO, dom.ENTREGADO) or fila.fecha_emision is not None
     cobranza = getattr(fila, "cobranza", None) if facturado else None
-    contexto = (_formulario(request, fila) if editable else {}) | {
-        "pedido": fila,
-        "numero": dom.numero_pedido(fila.numero),
-        "estado_texto": dict(ESTADOS)[fila.estado],
-        "estados": ESTADOS[:4],
-        "editable": editable,
-        "fecha_editable": fila.estado == dom.APROBADO and gestiona,
-        "lineas_info": info["lineas"],
-        "indicadores": info["indicadores"],
-        "puede_aprobar": fila.estado == dom.CREADO and gestiona,
-        "puede_cancelar": fila.estado in (dom.CREADO, dom.APROBADO) and actor.puede(up.CANCELAR),
-        "puede_facturar": puede_facturar,
-        "facturar": _para_facturar(fila, info["lineas"], hoy) if puede_facturar else {},
-        "puede_entregar": fila.estado == dom.FACTURADO and registra,
-        "facturado": facturado,
-        "lineas_facturadas": (
-            fila.lineas.select_related("producto__unidad").order_by("id") if facturado else []
-        ),
-        "forma_texto": FORMAS.get(fila.forma_pago, ""),
-        "cobranza": cobranza,
-        "cuotas": cobranza.cuotas.order_by("numero") if cobranza else [],
-        "cobranza_codigo": numero_cobranza(cobranza.numero) if cobranza else "",
-        "cobranza_estado": ESTADOS_COBRANZA.get(cobranza.estado, "") if cobranza else "",
-        "cobranza_saldo": cobranza.total - cobranza.pagado if cobranza else None,
-        "puede_cobrar": actor.puede(ucob.GESTIONAR),
-        "ve_costos": actor.puede(COSTOS),
-        "accion_fallida": request.POST.get("accion", "guardar") if request.method == "POST" else "",
-        "migas": MIGAS[:1]
-        + [("Pedidos", "/ventas/pedidos/"), (dom.numero_pedido(fila.numero), None)],
-    }
+    contexto = (
+        (_formulario(request, fila) if editable else {})
+        | {
+            "pedido": fila,
+            "numero": dom.numero_pedido(fila.numero),
+            "estado_texto": dict(ESTADOS)[fila.estado],
+            "estados": ESTADOS[:4],
+            "editable": editable,
+            "fecha_editable": fila.estado == dom.APROBADO and gestiona,
+            "lineas_info": info["lineas"]
+            or [  # RF-VEN-66: un cancelado conserva sus líneas
+                {"linea": x, "disponible": None, "faltante": 0}
+                for x in fila.lineas.select_related("producto__unidad").order_by("id")
+            ],
+            "indicadores": info["indicadores"],
+            "puede_aprobar": fila.estado == dom.CREADO and gestiona,
+            "puede_cancelar": fila.estado in (dom.CREADO, dom.APROBADO)
+            and actor.puede(up.CANCELAR),
+            "puede_facturar": puede_facturar,
+            "facturar": _para_facturar(fila, info["lineas"], hoy) if puede_facturar else {},
+            "puede_entregar": fila.estado == dom.FACTURADO and registra,
+            "facturado": facturado,
+            "lineas_facturadas": (
+                fila.lineas.select_related("producto__unidad").order_by("id") if facturado else []
+            ),
+            "forma_texto": FORMAS.get(fila.forma_pago, ""),
+            "cobranza": cobranza,
+            "cuotas": cobranza.cuotas.order_by("numero") if cobranza else [],
+            "cobranza_codigo": numero_cobranza(cobranza.numero) if cobranza else "",
+            "cobranza_estado": ESTADOS_COBRANZA.get(cobranza.estado, "") if cobranza else "",
+            "cobranza_saldo": cobranza.total - cobranza.pagado if cobranza else None,
+            "puede_cobrar": actor.puede(ucob.GESTIONAR),
+            "ve_costos": actor.puede(COSTOS),
+            "accion_fallida": request.POST.get("accion", "guardar")
+            if request.method == "POST"
+            else "",
+            "migas": MIGAS[:1]
+            + [("Pedidos", "/ventas/pedidos/"), (dom.numero_pedido(fila.numero), None)],
+        }
+    )
     return render(request, "sales/pedido.html", contexto)
 
 

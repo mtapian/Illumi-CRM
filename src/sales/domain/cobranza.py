@@ -55,11 +55,13 @@ def vencida(estado_actual: str, cuotas: tuple[Cuota, ...], pagado: Decimal, hoy:
     return estado_actual in ABIERTAS and monto_vencido(cuotas, pagado, hoy) > 0
 
 
-def indicadores_cobro(
+COBRANZAS_PEDIDO = ("Por cobrar", "Cobro parcial", "Pagado", "Cobro vencido")
+
+
+def cobranza_del_pedido(
     estado_actual: str, cuotas: tuple[Cuota, ...], pagado: Decimal, hoy: date
-) -> list[str]:
-    """RF-VEN-63: estado de cobro de un pedido facturado, solo si falta cobrar."""
-    marcas = {PENDIENTE: ["Por cobrar"], PARCIAL: ["Cobro parcial"]}.get(estado_actual, [])
+) -> str:
+    """RF-VEN-68: la cobranza de un pedido facturado en un valor; vencido manda."""
     if vencida(estado_actual, cuotas, pagado, hoy):
-        marcas = [*marcas, "Cobro vencido"]
-    return marcas
+        return "Cobro vencido"
+    return {PENDIENTE: "Por cobrar", PARCIAL: "Cobro parcial", PAGADA: "Pagado"}[estado_actual]

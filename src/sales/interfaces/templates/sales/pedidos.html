@@ -27,6 +27,7 @@ arrastrar), con los mismos filtros e indicadores. La vista queda en la direcció
   <label class="buscar">N.° de pedido<input type="search" name="q" value="{{ filtro.q }}" placeholder="P-000012"></label>
   <label>Estado<select name="estado"><option value="">Todos</option>{% for v, n in estados %}<option value="{{ v }}"{% if filtro.estado == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
   <label>Cliente<select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}"{% if filtro.cliente == c.id|stringformat:"s" %} selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></label>
+  <label>Cobranza<select name="cobranza"><option value="">Todas</option>{% for c in cobranzas %}<option value="{{ c }}"{% if filtro.cobranza == c %} selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
   <label class="check"><input type="checkbox" name="atrasados" value="1"{% if filtro.atrasados %} checked{% endif %}> Solo atrasados</label>
   <label class="check"><input type="checkbox" name="quiebre" value="1"{% if filtro.quiebre %} checked{% endif %}> Solo con quiebre de stock</label>
   <div class="acciones-filtro">
@@ -44,20 +45,22 @@ arrastrar), con los mismos filtros e indicadores. La vista queda en la direcció
 {% if vista == "kanban" %}
 <div class="kanban">
 {% for v, n, lista in columnas %}<section class="columna" data-estado="{{ v }}"><h2>{{ n }} <span class="chip neutro">{{ lista|length }}</span></h2>
-  {% for p in lista %}<a class="tarjeta-pedido" href="{% url 'pedido' p.id %}" data-pedido="{{ p.numero_texto }}"><strong>{{ p.numero_texto }}</strong> · {{ p.cliente.nombre }}<br><small class="subtitulo">Entrega {{ p.fecha_entrega|date:"Y-m-d" }} · S/ {{ p.total }}</small>
-    {% if p.indicadores %}<br>{% for i in p.indicadores %}<span class="chip {% if i == 'Listo para facturar' %}ok{% elif i == 'Por cobrar' or i == 'Cobro parcial' %}alerta{% else %}error{% endif %}">{{ i }}</span> {% endfor %}{% endif %}</a>
+  {% for p in lista %}<a class="tarjeta-pedido" href="{% url 'pedido' p.id %}" data-pedido="{{ p.numero_texto }}"><strong>{{ p.numero_texto }}</strong> · {{ p.cliente.nombre }}<br><small class="subtitulo">{{ p.creado_en|date:"Y-m-d H:i" }} · Entrega {{ p.fecha_entrega|date:"Y-m-d" }} · S/ {{ p.total }}</small>
+    {% if p.indicadores or p.cobranza_texto %}<br>{% for i in p.indicadores %}<span class="chip {% if i == 'Listo para facturar' %}ok{% else %}error{% endif %}">{{ i }}</span> {% endfor %}{% include "sales/_chip_cobranza.html" with c=p.cobranza_texto %}{% endif %}</a>
   {% empty %}<p class="subtitulo">Sin pedidos.</p>{% endfor %}
 </section>{% endfor %}
 </div>
 {% else %}
 <div class="tarjeta tabla">
-<table><thead><tr><th>Pedido</th><th>Cliente</th><th>Entrega</th><th class="num">Total</th><th>Estado</th><th>Indicadores</th><th class="acciones">Acciones</th></tr></thead><tbody>
+<table><thead><tr><th>Pedido</th><th>Fecha y hora</th><th>Cliente</th><th>Comprobante</th><th class="num">Total</th><th>Estado</th><th>Cobranza</th><th class="acciones">Acciones</th></tr></thead><tbody>
 {% for p in pagina %}<tr data-pedido="{{ p.numero_texto }}">
-  <td><a href="{% url 'pedido' p.id %}">{{ p.numero_texto }}</a></td><td>{{ p.cliente.nombre }}</td><td>{{ p.fecha_entrega|date:"Y-m-d" }}</td><td class="num">S/ {{ p.total }}</td>
-  <td><span class="chip {% if p.estado == 'ENTREGADO' %}ok{% elif p.estado == 'CANCELADO' %}error{% else %}neutro{% endif %}">{% for v, n in estados %}{% if v == p.estado %}{{ n }}{% endif %}{% endfor %}</span></td>
-  <td class="indicadores">{% for i in p.indicadores %}<span class="chip {% if i == 'Listo para facturar' %}ok{% elif i == 'Por cobrar' or i == 'Cobro parcial' %}alerta{% else %}error{% endif %}">{{ i }}</span> {% endfor %}</td>
+  <td><a href="{% url 'pedido' p.id %}">{{ p.numero_texto }}</a></td>
+  <td>{{ p.creado_en|date:"Y-m-d H:i" }}<br><small class="subtitulo">Entrega {{ p.fecha_entrega|date:"Y-m-d" }}</small></td>
+  <td>{{ p.cliente.nombre }}</td><td>{{ p.comprobante|title|default:"—" }}</td><td class="num">S/ {{ p.total }}</td>
+  <td><span class="chip {% if p.estado == 'ENTREGADO' %}ok{% elif p.estado == 'CANCELADO' %}error{% else %}neutro{% endif %}">{% for v, n in estados %}{% if v == p.estado %}{{ n }}{% endif %}{% endfor %}</span>{% for i in p.indicadores %} <span class="chip {% if i == 'Listo para facturar' %}ok{% else %}error{% endif %}">{{ i }}</span>{% endfor %}</td>
+  <td>{% include "sales/_chip_cobranza.html" with c=p.cobranza_texto %}</td>
   <td class="acciones"><a class="boton secundario chico" href="{% url 'pedido' p.id %}">Abrir</a></td>
-</tr>{% empty %}<tr><td colspan="7" class="subtitulo">{% if aplicados %}No hay pedidos con esos filtros.{% else %}Aún no hay pedidos.{% endif %}</td></tr>{% endfor %}
+</tr>{% empty %}<tr><td colspan="8" class="subtitulo">{% if aplicados %}No hay pedidos con esos filtros.{% else %}Aún no hay pedidos.{% endif %}</td></tr>{% endfor %}
 </tbody></table>
 {% include "listados/_pie.html" with nombres="pedido,pedidos" %}
 </div>

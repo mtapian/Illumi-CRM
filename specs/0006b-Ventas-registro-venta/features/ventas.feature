@@ -189,7 +189,7 @@ Característica: Facturación, entrega y cobranza de pedidos
     Entonces veo la alerta "1 cobranza vencida"
     Y la alerta lleva al listado de cobranzas filtrado por "solo vencidas"
 
-  @UC-VEN-09 @RF-VEN-63
+  @UC-VEN-09 @RF-VEN-63 @RF-VEN-68
   Escenario: Estado de cobro en el listado de pedidos
     Dado un pedido facturado de "Bar El Lúpulo" con 24 "TER-IPA-330" y costo total 45.43
     Y un pago de 100.00 por "Efectivo"

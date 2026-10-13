@@ -28,15 +28,18 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0005a](specs/0005a-Produccion-recetas-op/) Producción: órdenes de producción | **implementada** (25 RF, con la enmienda 1: varias salidas; absorbe 0005b) | implementado | 15/15 ✔ | contador (costo indirecto, pérdida de producción) |
 | [0005b](specs/0005b-Produccion-envasado-cierre/) Producción: envasado y cierre | **retirada** (fusionada en 0005a, 2026-10-12) | — | — | — |
 | [0006a](specs/0006a-Ventas-clientes-pedidos/) Ventas: clientes y pedidos | **implementada** (21 RF) | implementado | 10/10 ✔ | — (Facturado y Entregado llegan con 0006b) |
-| [0006b](specs/0006b-Ventas-registro-venta/) Ventas: facturación, entrega y cobranza | **implementada** (30 RF, con las enmiendas 1 y 2) | implementado | 14/14 ✔ | contador (cuota de la factura a crédito, umbral de boleta) |
+| [0006b](specs/0006b-Ventas-registro-venta/) Ventas: facturación, entrega y cobranza | **implementada** (34 RF, con las enmiendas 1 a 3) | implementado | 17/17 ✔ | contador (cuota de la factura a crédito, umbral de boleta) |
 | [0006c](specs/0006c-Ventas-anulacion-correccion/) Ventas: anulación y corrección de cliente | borrador (7 RF) | borrador | ejemplo (9 tareas) | contador (RF-VEN-32) |
 | [0007a](specs/0007a-Facturacion-configuracion-emision/) Facturación: configuración y emisión | borrador (14 RF) | borrador | ejemplo (15 tareas) | Q1, T1, código ISC |
 | [0007b](specs/0007b-Facturacion-reintentos-resumen/) Facturación: reintentos y resumen diario | borrador (9 RF) | borrador | ejemplo (10 tareas) | Q1, Q12 |
 | [0007c](specs/0007c-Facturacion-notas-credito-descargas/) Facturación: notas de crédito y descargas | borrador (9 RF) | borrador | ejemplo (9 tareas) | contador (RF-FAC-25) |
 | [0008a](specs/0008a-Finanzas-gastos/) Finanzas: gastos operativos | borrador (5 RF) | borrador | ejemplo (8 tareas) | Q12 |
 | [0008b](specs/0008b-Finanzas-resultados-reportes/) Finanzas: estado de resultados, dashboard y exportación | borrador (11 RF) | borrador | ejemplo (13 tareas) | Q10 |
+| [0008c](specs/0008c-Reportes-dashboard-exportacion/) Reportes: dashboard, exportación e indicadores de los listados | **aprobada** (14 RF) | borrador (en revisión) | borrador | — |
 
 ## Historial
+
+- **2026-10-13 — 0006b enmienda 3 (PO: "sí"; T15–T17).** Un pedido cancelado muestra sus líneas como histórico (una anulación no hace desaparecer datos). Grilla de pedidos: N.° · Fecha y hora (entrega debajo) · Cliente · Comprobante · Total · Estado (con Atrasado y Quiebre) · Cobranza · Acciones; la cobranza (Por cobrar, Cobro parcial, Pagado, Cobro vencido) va en su columna, en el kanban y como filtro (cambia Q7). Cobranzas con fecha y hora de creación (`sales/0006`, las existentes toman la facturación). Regla de grillas en `docs/ux.md`: documentos por fecha de creación descendente con fecha y hora; maestros por nombre; el kardex, ascendente por el saldo.
 
 - **2026-10-13 — 0006b implementada (T1–T14; spec "ok", plan "ok", enmiendas 1 y 2 aprobadas).** Facturar un pedido Aprobado (doble validación, salida por lote o estrategia, costo congelado, desglose con 0002e, comprobante pendiente para 0007a, cobranza `COB-000001` con cuotas), entregar, venta directa (pagos que suman el total, token), cobranzas Pendiente ▸ Parcial ▸ Pagada con pagos anulables, métodos de pago por empresa, comprobante y forma de pago según el documento del cliente (factura a crédito con cronograma en días), umbral de boleta de la plataforma (`tenancy/0011`), segregación de funciones (`ventas.cobranza.anular`, `ventas.metodo_pago.gestionar`), aviso de cobranzas vencidas, estado de cobro en pedidos, buscador de productos con lectora de código de barras. 17 escenarios (28 casos) de 0006b en verde; todos los RF con escenario o test. Deuda técnica de entidades que crecen registrada abajo.
 

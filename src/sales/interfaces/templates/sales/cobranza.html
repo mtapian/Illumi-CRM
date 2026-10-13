@@ -6,7 +6,7 @@
 {% include "catalog/_migas.html" %}
 <div class="encabezado-documento">
   <div><h1>Cobranza {{ cobranza.codigo }} · {{ cobranza.cliente.nombre }}</h1>
-    <p>Pedido <a href="{% url 'pedido' cobranza.pedido_id %}">{{ cobranza.pedido_texto }}</a> · {{ cobranza.forma_texto }} · emitido el {{ cobranza.emision|date:"Y-m-d" }}{% if cobranza.es_vencida %} <span class="chip error">Vencida</span>{% endif %}</p></div>
+    <p>Pedido <a href="{% url 'pedido' cobranza.pedido_id %}">{{ cobranza.pedido_texto }}</a> · {{ cobranza.forma_texto }} · creada el {{ cobranza.creado_en|date:"Y-m-d H:i" }}{% if cobranza.es_vencida %} <span class="chip error">Vencida</span>{% endif %}</p></div>
   <span class="chip {% if cobranza.estado == 'PAGADA' %}ok{% elif cobranza.estado == 'PARCIAL' %}alerta{% endif %}">{{ estado_texto }}</span>
 </div>
 <section class="tarjeta dos-columnas">

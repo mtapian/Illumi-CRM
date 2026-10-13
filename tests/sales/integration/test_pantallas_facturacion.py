@@ -146,3 +146,13 @@ def test_buscador_de_productos_con_codigo_de_barras(web):
         assert 'id="buscar-producto"' in pagina, url
         assert 'data-barras="7751234000017"' in pagina and 'data-sku="TER-IPA-330"' in pagina
         assert "No hay un producto que se venda con el código" in pagina
+
+
+def test_pedido_cancelado_conserva_sus_lineas(web):
+    """RF-VEN-66: cancelar no hace desaparecer los productos; quedan como histórico."""
+    client, v = web
+    id_ = aprobado(v, ("TER-IPA-330", "24", "12"))
+    client.post(f"/ventas/pedidos/{id_}/", {"accion": "cancelar", "motivo": "Desistió"})
+    ficha = client.get(f"/ventas/pedidos/{id_}/").content.decode()
+    assert "Desistió" in ficha and "TER-IPA-330" in ficha and "S/ 288.00" in ficha
+    assert "Sin productos" not in ficha and "Faltante" not in ficha

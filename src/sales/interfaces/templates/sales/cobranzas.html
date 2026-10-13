@@ -23,11 +23,11 @@ vencido e indicador Vencida; filtros por estado, cliente, vencimiento y "solo ve
 </form>
 {% include "listados/_aplicados.html" %}
 <div class="tarjeta tabla">
-<table><thead><tr><th>Cobranza</th><th>Pedido</th><th>Cliente</th><th>Forma</th><th>Emisión</th><th>Próximo vencimiento</th><th class="num">Total</th><th class="num">Pagado</th><th class="num">Saldo</th><th class="num">Vencido</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+<table><thead><tr><th>Cobranza</th><th>Pedido</th><th>Cliente</th><th>Fecha y hora</th><th>Forma</th><th>Próximo vencimiento</th><th class="num">Total</th><th class="num">Pagado</th><th class="num">Saldo</th><th class="num">Vencido</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
 {% for c in pagina %}<tr data-cobranza="{{ c.codigo }}">
   <td><a href="{% url 'cobranza' c.id %}">{{ c.codigo }}</a></td>
   <td><a href="{% url 'pedido' c.pedido_id %}">{{ c.pedido_texto }}</a></td>
-  <td>{{ c.cliente.nombre }}</td><td>{{ c.forma_texto }}</td><td>{{ c.emision|date:"Y-m-d" }}</td><td>{{ c.proximo|date:"Y-m-d"|default:"—" }}</td>
+  <td>{{ c.cliente.nombre }}</td><td>{{ c.creado_en|date:"Y-m-d H:i" }}</td><td>{{ c.forma_texto }}</td><td>{{ c.proximo|date:"Y-m-d"|default:"—" }}</td>
   <td class="num">S/ {{ c.total }}</td><td class="num">S/ {{ c.pagado }}</td><td class="num">S/ {{ c.saldo }}</td><td class="num">{% if c.vencido %}S/ {{ c.vencido }}{% else %}—{% endif %}</td>
   <td><span class="chip {% if c.estado == 'PAGADA' %}ok{% elif c.estado == 'PARCIAL' %}alerta{% else %}neutro{% endif %}">{{ c.estado_texto }}</span>{% if c.es_vencida %} <span class="chip error">Vencida</span>{% endif %}</td>
   <td class="acciones"><a class="boton secundario chico" href="{% url 'cobranza' c.id %}">Abrir</a></td>

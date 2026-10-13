@@ -43,6 +43,7 @@ Antes de generar la recepción se muestran la compra, el proveedor, el almacén 
 | Columnas | Las necesarias para identificar, comparar y actuar; el resto, accesible. |
 | Importes | Alineados a la derecha, con moneda y decimales consistentes. |
 | Resultados | Cantidad de registros, paginación y estados de carga, error y sin resultados. |
+| Orden (PO, 2026-10-13) | Las grillas de **documentos** (pedidos, cobranzas, compras, ajustes, OP) se ordenan por fecha de creación **descendente** (lo más nuevo primero) y muestran la **fecha y hora**. Los **maestros** (productos, clientes, proveedores, unidades, métodos de pago…) se ordenan por nombre. Excepción: el **kardex** va en orden de registro ascendente, porque cada fila acumula el saldo de la anterior. |
 
 ## 4. Formularios y diseño
 

@@ -1,6 +1,6 @@
 # Spec 0006b — Ventas: facturación, entrega y cobranza
 
-Estado: **implementada** (2026-10-13; T1–T14) · aprobada (PO: "ok", 2026-10-13) · reescrita el 2026-10-13 con el modelo de venta del PO (pedido de venta y cobranza) y la constitución v1.2.0 (art. 10, ERP lite)
+Estado: **implementada** (2026-10-13; T1–T17, enmiendas 1 a 3) · aprobada (PO: "ok", 2026-10-13) · reescrita el 2026-10-13 con el modelo de venta del PO (pedido de venta y cobranza) y la constitución v1.2.0 (art. 10, ERP lite)
 
 Épica E06 (Ventas y pedidos), parte 2 de 3. Depende de: 0006a (clientes y pedidos), 0002e (impuestos), 0003a (stock y lotes). La usan: 0006c (anulación), 0007a (emisión del comprobante), 0008b (resultados).
 
@@ -102,6 +102,13 @@ Tras la revisión de ventas el PO pidió segregar funciones en la cobranza (C1),
 ### Enmienda 2 (PO, 2026-10-13): búsqueda de productos y lectora de código de barras — aprobada (PO: "ok")
 
 - RF-VEN-65: EL SISTEMA ofrece en el pedido (0006a) y en la venta directa un buscador de productos que, mientras se escribe, sugiere los productos vendibles activos cuyo **nombre, SKU o código de barras** contiene el texto; elegir uno agrega una línea con cantidad 1 y el precio de lista. CUANDO se pulsa Enter (lo que hace una lectora de código de barras) y el texto coincide exactamente con un código de barras o un SKU, EL SISTEMA agrega ese producto sin abrir sugerencias y deja el buscador listo para el siguiente; SI el producto ya está en una línea, ENTONCES suma 1 a su cantidad (un producto, una línea: RF-VEN-06); SI no coincide con ningún producto vendible, ENTONCES indica "No hay un producto que se venda con el código <texto>" y no agrega nada. El selector de cada línea se mantiene para corregirla.
+
+### Enmienda 3 (PO, 2026-10-13): histórico de los cancelados, grilla de pedidos y cobranzas con fecha y hora — aprobada (PO: "sí")
+
+- RF-VEN-66: EL SISTEMA muestra las líneas (productos, cantidades, precios y total) de un pedido Cancelado como histórico, sin disponibilidad ni faltantes: cancelar o anular nunca hace desaparecer datos (constitución art. 4.5).
+- RF-VEN-67: EL SISTEMA muestra la Lista de pedidos con las columnas **N.° de pedido, Fecha y hora** (de creación; la fecha de entrega debajo, en pequeño), **Cliente, Comprobante** (Factura o Boleta; vacío si no está facturado), **Total, Estado** (con Atrasado y Quiebre de stock junto al estado), **Cobranza** y **Acciones**, ordenada por fecha de creación descendente (ajusta RF-VEN-46; regla de grillas de `docs/ux.md`). El Kanban muestra la cobranza en cada tarjeta.
+- RF-VEN-68: EL SISTEMA muestra la **cobranza** de cada pedido Facturado o Entregado como **Por cobrar**, **Cobro parcial**, **Pagado** o **Cobro vencido** (vacía si no está facturado) en una columna propia en vez de los indicadores, y permite **filtrar los pedidos por cobranza** con esos valores (ajusta RF-VEN-63; el PO cambia la decisión Q7 de la enmienda 1).
+- RF-VEN-69: EL SISTEMA guarda la fecha y hora de creación de cada cobranza y la muestra en su listado (ordenado por ella, descendente) y en su ficha; las cobranzas ya creadas toman la fecha y hora de facturación de su pedido.
 
 ## Requisitos no funcionales
 
