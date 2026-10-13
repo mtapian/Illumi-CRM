@@ -52,7 +52,7 @@ def test_op_encadenadas_cuadran_con_el_kardex(ej, semilla):  # noqa: F811
             pass  # faltantes de stock: la OP queda en proceso, sin movimientos
 
     finalizadas = OrdenProduccion.objects.filter(estado="FINALIZADA")
-    assert finalizadas.filter(producto_id=ids["TER-IPA-330"]).count() > 3  # envasados
+    assert finalizadas.filter(salidas__producto_id=ids["TER-IPA-330"]).count() > 3  # envasados
     for producto in ids.values():
         movs = Movimiento.objects.filter(producto_id=producto)
         if not movs.exists():

@@ -136,3 +136,12 @@ Característica: Órdenes de producción
     Y que a mi rol se le quita el permiso "inventario.costo.ver"
     Cuando abro la OP
     Entonces no veo importes en su pestaña "Costos"
+
+  @UC-PRD-02 @critico @RF-PRD-49 @RF-PRD-50 @RF-PRD-51 @RF-PRD-52
+  Escenario: Envasar en dos presentaciones reparte el costo común por factor
+    Dado el lote "IPA-0020" de "GRA-IPA" con 425 L a costo 2.000000
+    Y los envases y el servicio de limpieza con su costo
+    Cuando finalizo una OP con salidas "TER-IPA-330" 1000 (factor 0.33) y "TER-IPA-20L" 3 (factor 20) y la limpieza común de 39.00
+    Entonces el lote "IPA-0020" de "TER-IPA-330" tiene 1000 a costo 1.893080
+    Y el lote "IPA-0020" de "TER-IPA-20L" tiene 3 a costo 43.500000
+

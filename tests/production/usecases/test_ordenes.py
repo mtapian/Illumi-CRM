@@ -11,7 +11,7 @@ from catalog.infrastructure.models import Producto, RecetaComponente, Unidad
 from inventory.infrastructure.models import Almacen, Movimiento
 from production.application import ordenes as uc
 from production.domain.errores import OpInvalida
-from production.domain.op import Componente
+from production.domain.op import Componente, Salida
 from production.infrastructure.contenedor import caso_de_op
 from production.infrastructure.models import OpComponente, OrdenProduccion
 from shared.application.autorizacion import Actor
@@ -37,7 +37,9 @@ def prod(empresa_produccion):
         unidad=Unidad.objects.get(abreviatura="SERV"),
     )
     almacen = Almacen.objects.get(nombre="Principal").id
-    datos = uc.DatosOp(granel.id, D("500"), HOY, almacen, almacen, comentario="Bar Central")
+    datos = uc.DatosOp(
+        (Salida(granel.id, D("500")),), HOY, almacen, almacen, comentario="Bar Central"
+    )
     return actor, datos, {"granel": granel.id, "malta": malta.id, "maquila": maquila.id}
 
 
@@ -70,8 +72,8 @@ def test_crear_copia_la_receta_sin_mover_stock(prod):
 @pytest.mark.parametrize(
     "cambio, mensaje",
     [
-        ({"producto_id": "malta"}, "Elige un bien activo que se fabrique"),
-        ({"cantidad": D("0")}, "La cantidad debe ser mayor a 0"),
+        ({"salidas": "malta"}, "Elige un bien activo que se fabrique"),
+        ({"salidas": "cero"}, "La cantidad debe ser mayor a 0"),
         (
             {"responsable_id": "otro"},
             "El responsable debe ser un usuario activo que pueda ejecutar OP",
@@ -82,7 +84,11 @@ def test_crear_rechaza(prod, empresa_produccion, cambio, mensaje):
     actor, datos, ids = prod
     otro = Usuario.objects.create_user("ana@andina.pe", "x", empresa=empresa_produccion[0])
     asignar_rol(otro, "Ventas")
-    valores = {"malta": ids["malta"], "otro": otro.id}
+    valores = {
+        "malta": (Salida(ids["malta"], D("1")),),
+        "cero": (Salida(ids["granel"], D("0")),),
+        "otro": otro.id,
+    }
     cambio = {k: valores.get(v, v) if isinstance(v, str) else v for k, v in cambio.items()}
     with pytest.raises(OpInvalida, match=mensaje):
         crear(actor, replace(datos, **cambio))
@@ -113,12 +119,14 @@ def test_en_proceso_editable_y_anular_sin_stock(prod):
     assert (op.estado, op.en_proceso_por_id) == ("EN_PROCESO", actor.usuario_id)
     with pytest.raises(OpInvalida, match="La OP ya está en proceso"):
         caso_de_op(uc.PasarAEnProceso).ejecutar(actor, op_id)
-    caso_de_op(uc.EditarOp).ejecutar(actor, op_id, replace(datos, cantidad=D("400")))
+    caso_de_op(uc.EditarOp).ejecutar(
+        actor, op_id, replace(datos, salidas=(Salida(ids["granel"], D("400")),))
+    )
     with pytest.raises(OpInvalida, match="Indica el motivo de la anulación"):
         caso_de_op(uc.AnularOp).ejecutar(actor, op_id, " ")
     caso_de_op(uc.AnularOp).ejecutar(actor, op_id, "Se canceló la cocción")
     op.refresh_from_db()
-    assert (op.estado, op.cantidad, op.motivo_anulacion) == (
+    assert (op.estado, op.salidas.get().cantidad, op.motivo_anulacion) == (
         "ANULADA",
         D("400.0000"),
         "Se canceló la cocción",

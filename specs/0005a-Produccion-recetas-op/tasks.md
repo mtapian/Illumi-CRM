@@ -34,3 +34,17 @@ Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y par
 - [x] **T10. Escenarios de aceptación y cierre.** — todos
   - `tests/acceptance/pasos_produccion.py` y `test_e05a.py`; spec, plan y tareas a "implementada"; `MEMORY.md`.
   - Hecho cuando: los 14 escenarios de 0005a están en verde; suite, lint, formato, contratos y migraciones en verde; cada RF con escenario o test.
+
+## Enmienda 1: varios productos de salida (implementada, 2026-10-12)
+
+- [x] **T11. Dominio: reparto del costo por factor y lote por salida.** — RF-PRD-52
+  - Hecho cuando: `repartir` reproduce el ejemplo (1.893080 y 43.500000), cuadra al céntimo y pasa a comunes lo asignado a una salida con 0.
+- [x] **T12. Modelo y migración: `OpSalida`, componente asignado a una salida, conversión de las OP existentes.** — RF-PRD-49, 51
+  - Hecho cuando: un test de conversión pasa una OP con un producto a una salida con sus componentes asignados, y es reversible.
+- [x] **T13. Casos de uso: salidas al crear y editar, receta por salida, finalizar con producida y lote por salida.** — RF-PRD-49 a 52
+  - Hecho cuando: el envasado en dos presentaciones del ejemplo da sus costos y lotes; los tests de 0005a siguen en verde.
+- [x] **T14. Pantallas: productos de salida, columna "Para", diálogo de finalizar y Costos por salida.** — RF-PRD-53
+  - Hecho cuando: el test de pantalla crea y finaliza una OP con dos salidas.
+- [x] **T15. Escenario de aceptación y cierre.** — RF-PRD-49 a 53
+  - Hecho cuando: el escenario del envasado en dos presentaciones está en verde; suite, lint, contratos y migraciones en verde; `MEMORY.md` actualizado.
+

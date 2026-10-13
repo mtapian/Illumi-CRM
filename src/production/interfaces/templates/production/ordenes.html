@@ -24,11 +24,11 @@
 </form>
 {% include "listados/_aplicados.html" %}
 <div class="tarjeta tabla">
-<table><thead><tr><th>OP</th><th>Producto</th><th class="num">Programada</th><th class="num">Producida</th><th>Fecha programada</th><th>Responsable</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+<table><thead><tr><th>OP</th><th>Productos</th><th class="num">Programada</th><th class="num">Producida</th><th>Fecha programada</th><th>Responsable</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
 {% for o in pagina %}<tr>
-  <td><a href="{% url 'orden' o.id %}">OP-{{ o.numero|stringformat:"06d" }}</a></td><td>{{ o.producto.sku }} · {{ o.producto.nombre }}</td>
-  <td class="num">{{ o.cantidad.normalize }} {{ o.producto.unidad.abreviatura }}</td>
-  <td class="num">{% if o.cantidad_producida is not None %}{{ o.cantidad_producida.normalize }} {{ o.producto.unidad.abreviatura }}{% else %}—{% endif %}</td>
+  <td><a href="{% url 'orden' o.id %}">OP-{{ o.numero|stringformat:"06d" }}</a></td><td>{% for x in o.salidas.all %}{{ x.producto.sku }} · {{ x.producto.nombre }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+  <td class="num">{% for x in o.salidas.all %}{{ x.cantidad.normalize }} {{ x.producto.unidad.abreviatura }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+  <td class="num">{% for x in o.salidas.all %}{% if x.producida is not None %}{{ x.producida.normalize }} {{ x.producto.unidad.abreviatura }}{% else %}—{% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
   <td>{{ o.fecha_programada|date:"Y-m-d" }}</td><td>{{ o.responsable.nombre|default:o.responsable.email|default:"—" }}</td>
   <td><span class="chip {% if o.estado == 'FINALIZADA' %}ok{% elif o.estado == 'ANULADA' %}error{% else %}neutro{% endif %}">{% for v, n in estados %}{% if v == o.estado %}{{ n }}{% endif %}{% endfor %}</span></td>
   <td class="acciones"><a class="boton secundario chico" href="{% url 'orden' o.id %}">Abrir</a></td>

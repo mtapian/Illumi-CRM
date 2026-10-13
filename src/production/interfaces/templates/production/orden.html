@@ -8,7 +8,7 @@ Anulada: solo lectura con Costos y movimientos. Pensada para tablet (RNF-PRD-02)
 {% include "catalog/_migas.html" %}
 <div class="encabezado-documento">
   <div>
-    <h1>{% if op %}{{ numero }} · {{ op.producto.nombre }}{% else %}Nueva orden de producción{% endif %}</h1>
+    <h1>{% if op %}{{ numero }} · {{ titulo }}{% else %}Nueva orden de producción{% endif %}</h1>
     {% if op %}<p class="subtitulo">Creada por {{ op.creada_por.email|default:"—" }}{% if op.finalizada_por %} · finalizada por {{ op.finalizada_por.email }}{% endif %}</p>{% endif %}
   </div>
   {% if op %}<span class="chip {% if op.estado == 'FINALIZADA' %}ok{% elif op.estado == 'ANULADA' %}error{% endif %}">{{ estado_texto }}</span>{% endif %}
@@ -21,26 +21,33 @@ Anulada: solo lectura con Costos y movimientos. Pensada para tablet (RNF-PRD-02)
     <h2>Datos de la OP</h2>
     <p class="requerido-nota">Los campos con * son obligatorios.</p>
     <div class="tres-columnas">
-      <label>Producto *<select name="producto" required><option value="">Elige un bien que se fabrica</option>{% for p in fabricables %}<option value="{{ p.id }}"{% if valores.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.producto %}</label>
-      <label>Cantidad *<input name="cantidad" type="number" min="0" step="0.0001" required value="{{ valores.cantidad|default:'' }}">{% include "listados/_error.html" with error=request.errores_campo.cantidad %}</label>
       <label>Fecha programada *<input type="date" name="fecha_programada" required value="{{ valores.fecha_programada }}">{% include "listados/_error.html" with error=request.errores_campo.fecha_programada %}</label>
       <label>Almacén de los componentes *<select name="almacen_origen" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen_origen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.almacen_origen %}</label>
       <label>Almacén del producto *<select name="almacen_destino" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen_destino == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.almacen_destino %}</label>
       <label>Responsable *<select name="responsable" required>{% for i, n in responsables %}<option value="{{ i }}"{% if valores.responsable == i|stringformat:"s" %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.responsable %}</label>
     </div>
     <label>Comentario<textarea name="comentario" maxlength="250" placeholder="Por ejemplo, el pedido que atiende">{{ valores.comentario|default:'' }}</textarea></label>
-    {% if not op %}<label class="check"><input type="checkbox" name="usar_receta"{% if valores.usar_receta %} checked{% endif %}> Copiar los componentes de la receta del producto</label>
-    <small class="subtitulo">La copia es de la OP: puedes cambiarla sin tocar la receta.</small>{% endif %}
+  </section>
+  <section class="tarjeta">
+    <h2>Productos de salida *</h2>
+    <p class="subtitulo">Uno o varios bienes que se fabrican. El factor reparte el costo común y el indirecto entre ellos (p. ej. litros por unidad: botella 0.33, barril 20); vacío, se sugiere.</p>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad programada</th><th>Factor de reparto</th><th><span class="oculto">Quitar</span></th></tr></thead>
+    <tbody id="salidas">{% for f in salidas_form %}{% include "production/_salida.html" %}{% endfor %}</tbody></table></div>
+    {% include "listados/_error.html" with error=request.errores_campo.salidas %}
+    <template id="salidas-vacia">{% include "production/_salida.html" with f=None %}</template>
+    <p><button type="button" class="secundario" onclick="agregarFila('salidas')">+ Agregar producto</button></p>
+    {% if not op %}<label class="check"><input type="checkbox" name="usar_receta"{% if valores.usar_receta %} checked{% endif %}> Copiar los componentes de la receta de cada producto</label>
+    <small class="subtitulo">La copia es de la OP: puedes cambiarla sin tocar las recetas.</small>{% endif %}
   </section>
   {% if op %}
   <section class="tarjeta">
     <h2>Componentes</h2>
-    <p class="subtitulo">Lo previsto para producir {{ op.cantidad.normalize }} {{ op.producto.unidad.abreviatura }}. Cualquier producto activo del catálogo; un servicio lleva su costo. No se mueve stock hasta finalizar.</p>
-    <div class="tabla"><table><thead><tr><th>Producto</th><th>Por consumir</th><th>Costo (servicios)</th><th>Disponibilidad</th><th><span class="oculto">Quitar</span></th></tr></thead>
+    <p class="subtitulo">Lo previsto para producir. Cualquier producto activo del catálogo; un servicio lleva su costo. "Para" asigna el componente a un producto de salida (costo directo); "Común" lo reparte por factor. No se mueve stock hasta finalizar.</p>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th>Por consumir</th><th>Costo (servicios)</th><th>Para</th><th>Disponibilidad</th><th><span class="oculto">Quitar</span></th></tr></thead>
     <tbody id="componentes">{% for f in filas %}{% include "production/_componente.html" %}{% endfor %}</tbody></table></div>
     {% if accion_fallida != "finalizar" %}{% include "listados/_error.html" with error=request.errores_campo.componentes %}{% endif %}
-    <template id="componente-vacio">{% include "production/_componente.html" with f=None %}</template>
-    <p><button type="button" class="secundario" onclick="agregarComponente()">+ Agregar componente</button></p>
+    <template id="componentes-vacia">{% include "production/_componente.html" with f=None %}</template>
+    <p><button type="button" class="secundario" onclick="agregarFila('componentes')">+ Agregar componente</button></p>
   </section>
   {% endif %}
 </form>
@@ -48,10 +55,6 @@ Anulada: solo lectura con Costos y movimientos. Pensada para tablet (RNF-PRD-02)
 <section class="tarjeta">
   <h2>Datos de la OP</h2>
   <dl>
-    <dt>Producto</dt><dd>{{ op.producto.sku }} · {{ op.producto.nombre }}</dd>
-    <dt>Cantidad programada</dt><dd>{{ op.cantidad.normalize }} {{ op.producto.unidad.abreviatura }}</dd>
-    {% if op.cantidad_producida is not None %}<dt>Cantidad producida</dt><dd>{{ op.cantidad_producida.normalize }} {{ op.producto.unidad.abreviatura }}{% if rendimiento is not None %} · rendimiento {{ rendimiento }} %{% endif %}</dd>{% endif %}
-    {% if op.lote_codigo %}<dt>Lote</dt><dd>{{ op.lote_codigo }}</dd>{% endif %}
     <dt>Fecha programada</dt><dd>{{ op.fecha_programada|date:"Y-m-d" }}</dd>
     {% if op.fecha_fin %}<dt>Fecha de fin</dt><dd>{{ op.fecha_fin|date:"Y-m-d" }}</dd>{% endif %}
     <dt>Almacenes</dt><dd>{{ op.almacen_origen.nombre }} → {{ op.almacen_destino.nombre }}</dd>
@@ -61,9 +64,16 @@ Anulada: solo lectura con Costos y movimientos. Pensada para tablet (RNF-PRD-02)
   </dl>
 </section>
 <section class="tarjeta">
+  <h2>Productos de salida</h2>
+  <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Programada</th><th class="num">Factor</th>{% if op.estado == "FINALIZADA" %}<th class="num">Producida</th><th class="num">Rendimiento</th><th>Lote</th>{% if ve_costos %}<th class="num">Costo</th><th class="num">Costo unitario</th>{% endif %}{% endif %}</tr></thead><tbody>
+  {% for d in salidas %}<tr><td>{{ d.s.producto.sku }} · {{ d.s.producto.nombre }}</td><td class="num">{{ d.s.cantidad.normalize }} {{ d.s.producto.unidad.abreviatura }}</td><td class="num">{{ d.s.factor.normalize }}</td>
+    {% if op.estado == "FINALIZADA" %}<td class="num">{{ d.s.producida.normalize }}</td><td class="num">{{ d.rendimiento }} %</td><td>{{ d.s.lote_codigo|default:"—" }}</td>{% if ve_costos %}<td class="num">S/ {{ d.s.costo_total }}</td><td class="num">{% if d.s.costo_unitario is not None %}S/ {{ d.s.costo_unitario }}{% else %}—{% endif %}</td>{% endif %}{% endif %}</tr>{% endfor %}
+  </tbody></table></div>
+</section>
+<section class="tarjeta">
   <h2>Componentes</h2>
-  <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Por consumir</th>{% if op.estado == "FINALIZADA" %}<th class="num">Consumido</th><th class="num">Merma</th><th>Lote</th>{% if ve_costos %}<th class="num">Costo</th>{% endif %}{% else %}<th>Disponibilidad</th>{% endif %}</tr></thead><tbody>
-  {% for x in componentes %}<tr><td>{{ x.c.producto.sku }} · {{ x.c.producto.nombre }}</td><td class="num">{{ x.c.por_consumir.normalize }} {{ x.c.producto.unidad.abreviatura }}</td>
+  <div class="tabla"><table><thead><tr><th>Producto</th><th>Para</th><th class="num">Por consumir</th>{% if op.estado == "FINALIZADA" %}<th class="num">Consumido</th><th class="num">Merma</th><th>Lote</th>{% if ve_costos %}<th class="num">Costo</th>{% endif %}{% else %}<th>Disponibilidad</th>{% endif %}</tr></thead><tbody>
+  {% for x in componentes %}<tr><td>{{ x.c.producto.sku }} · {{ x.c.producto.nombre }}</td><td>{{ x.c.salida.producto.sku|default:"Común" }}</td><td class="num">{{ x.c.por_consumir.normalize }} {{ x.c.producto.unidad.abreviatura }}</td>
     {% if op.estado == "FINALIZADA" %}<td class="num">{{ x.c.consumido.normalize }}</td><td class="num">{{ x.merma.normalize }}</td><td>{{ x.c.lote_codigo|default:"—" }}</td>{% if ve_costos %}<td class="num">S/ {{ x.c.costo }}</td>{% endif %}
     {% else %}<td>{% if x.servicio %}—{% elif x.disponible %}<span class="chip ok">Disponible</span>{% else %}<span class="chip error">No disponible</span>{% endif %}</td>{% endif %}</tr>
   {% empty %}<tr><td colspan="6" class="subtitulo">Sin componentes.</td></tr>{% endfor %}
@@ -76,7 +86,6 @@ Anulada: solo lectura con Costos y movimientos. Pensada para tablet (RNF-PRD-02)
   <dl>
     <dt>Costo indirecto</dt><dd>S/ {{ op.costo_indirecto }}</dd>
     <dt>Costo total</dt><dd>S/ {{ op.costo_total }}</dd>
-    {% if op.costo_unitario is not None %}<dt>Costo unitario</dt><dd>S/ {{ op.costo_unitario }} por {{ op.producto.unidad.abreviatura }}</dd>{% endif %}
     {% if op.perdida %}<dt>Pérdida de producción</dt><dd>S/ {{ op.perdida }}</dd>{% endif %}
   </dl>
   {% else %}<p class="subtitulo">Tu rol no puede ver costos.</p>{% endif %}
@@ -123,20 +132,25 @@ Anulada: solo lectura con Costos y movimientos. Pensada para tablet (RNF-PRD-02)
 <dialog id="finalizar-op" class="tarjeta" aria-labelledby="titulo-finalizar">
   <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="finalizar">
     <h2 id="titulo-finalizar">Finalizar {{ numero }}</h2>
-    <p>Se consumirán los componentes del almacén <strong>{{ op.almacen_origen.nombre }}</strong> al costo promedio y entrará el producto <strong>{{ op.producto.nombre }}</strong> en <strong>{{ op.almacen_destino.nombre }}</strong> con su lote. Revisa lo consumido: la OP ya no se podrá editar.</p>
-    <div class="tabla"><table><thead><tr><th>Componente</th><th class="num">Por consumir</th><th>Consumido real</th><th>Lote</th></tr></thead><tbody>
-    {% for x in componentes %}<tr><td>{{ x.c.producto.sku }} · {{ x.c.producto.nombre }}</td><td class="num">{{ x.c.por_consumir.normalize }} {{ x.c.producto.unidad.abreviatura }}</td>
-      <td>{% if x.servicio %}Servicio · S/ {{ x.c.costo_servicio }}{% else %}<input name="consumido_{{ x.c.producto_id }}" type="number" min="0" step="0.0001" value="{{ x.c.por_consumir.normalize }}" aria-label="Consumido de {{ x.c.producto.sku }}">{% endif %}</td>
-      <td>{% if not x.servicio and x.lotes %}<select name="lote_{{ x.c.producto_id }}" aria-label="Lote de {{ x.c.producto.sku }}"><option value="">Según la estrategia del producto</option>{% for lote, q in x.lotes %}{% if lote %}<option value="{{ lote }}">{{ lote }} · {{ q.normalize }}</option>{% endif %}{% endfor %}</select>{% else %}—{% endif %}</td></tr>{% endfor %}
+    <p>Se consumirán los componentes del almacén <strong>{{ op.almacen_origen.nombre }}</strong> al costo promedio y entrará cada producto en <strong>{{ op.almacen_destino.nombre }}</strong> con su lote. Revisa lo consumido y lo producido: la OP ya no se podrá editar.</p>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Programada</th><th>Producida *</th><th>Lote</th><th>Vencimiento</th></tr></thead><tbody>
+    {% for d in salidas %}<tr><td>{{ d.s.producto.sku }} · {{ d.s.producto.nombre }}</td><td class="num">{{ d.s.cantidad.normalize }} {{ d.s.producto.unidad.abreviatura }}</td>
+      <td><input name="producida_{{ d.s.producto_id }}" type="number" min="0" step="0.0001" required value="{{ d.s.cantidad.normalize }}" aria-label="Producida de {{ d.s.producto.sku }}"></td>
+      <td><input name="lote_{{ d.s.producto_id }}" maxlength="40" placeholder="{{ d.sugerido }}" aria-label="Lote de {{ d.s.producto.sku }}"></td>
+      <td><input type="date" name="vence_{{ d.s.producto_id }}" aria-label="Vencimiento de {{ d.s.producto.sku }}"></td></tr>{% endfor %}
     </tbody></table></div>
-    {% if accion_fallida == "finalizar" %}{% include "listados/_error.html" with error=request.errores_campo.componentes %}{% include "listados/_error.html" with error=request.errores_campo.producto %}{% endif %}
+    <small class="subtitulo">Lote vacío: el sugerido. Vencimiento vacío: fecha de fin + vida útil del producto.</small>
+    {% include "listados/_error.html" with error=request.errores_campo.producida %}{% include "listados/_error.html" with error=request.errores_campo.vencimiento %}
+    <div class="tabla"><table><thead><tr><th>Componente</th><th>Para</th><th class="num">Por consumir</th><th>Consumido real</th><th>Lote</th></tr></thead><tbody>
+    {% for x in componentes %}<tr><td>{{ x.c.producto.sku }} · {{ x.c.producto.nombre }}</td><td>{{ x.c.salida.producto.sku|default:"Común" }}</td><td class="num">{{ x.c.por_consumir.normalize }} {{ x.c.producto.unidad.abreviatura }}</td>
+      <td>{% if x.servicio %}Servicio · S/ {{ x.c.costo_servicio }}{% else %}<input name="consumido_{{ x.clave }}" type="number" min="0" step="0.0001" value="{{ x.c.por_consumir.normalize }}" aria-label="Consumido de {{ x.c.producto.sku }}">{% endif %}</td>
+      <td>{% if not x.servicio and x.lotes %}<select name="lotecomp_{{ x.clave }}" aria-label="Lote de {{ x.c.producto.sku }}"><option value="">Según la estrategia del producto</option>{% for lote, q in x.lotes %}{% if lote %}<option value="{{ lote }}">{{ lote }} · {{ q.normalize }}</option>{% endif %}{% endfor %}</select>{% else %}—{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if accion_fallida == "finalizar" %}{% include "listados/_error.html" with error=request.errores_campo.componentes %}{% include "listados/_error.html" with error=request.errores_campo.salidas %}{% endif %}
     <div class="dos-columnas">
-      <label>Cantidad producida *<input name="producida" type="number" min="0" step="0.0001" required value="{% if accion_fallida == 'finalizar' %}{{ request.POST.producida }}{% else %}{{ op.cantidad.normalize }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.producida %}</label>
       <label>Fecha de fin *<input type="date" name="fecha_fin" required max="{{ hoy }}" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.fecha_fin }}{% else %}{{ hoy }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.fecha_fin %}</label>
-      <label>Lote del producto<input name="lote" maxlength="40" placeholder="{{ lote_sugerido }}" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.lote }}{% endif %}"><small class="subtitulo">Vacío: {{ lote_sugerido }}.</small></label>
-      <label>Vencimiento (opcional)<input type="date" name="vencimiento" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.vencimiento }}{% endif %}"><small class="subtitulo">Vacío: fecha de fin + vida útil del producto.</small>{% include "listados/_error.html" with error=request.errores_campo.vencimiento %}</label>
       <label>Costo indirecto (S/, opcional)<input name="costo_indirecto" type="number" min="0" step="0.01" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.costo_indirecto }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.costo_indirecto %}</label>
-      <label>Motivo del lote perdido<input name="motivo_perdida" maxlength="200" placeholder="Solo si la cantidad producida es 0" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.motivo_perdida }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.motivo_perdida %}</label>
+      <label>Motivo del lote perdido<input name="motivo_perdida" maxlength="200" placeholder="Solo si todo lo producido es 0" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.motivo_perdida }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.motivo_perdida %}</label>
     </div>
     <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver a revisar</button> <button type="submit">Confirmar y finalizar</button></p>
   </form>
@@ -152,14 +166,14 @@ Anulada: solo lectura con Costos y movimientos. Pensada para tablet (RNF-PRD-02)
   </form>
 </dialog>
 {% endif %}
-{% if editable %}
+{% if editable or not op %}
 <script>
-  // Un componente por fila, sin límite (como las líneas de la compra).
-  function agregarComponente() {
-    document.getElementById("componentes").appendChild(document.getElementById("componente-vacio").content.cloneNode(true));
+  // Productos de salida y componentes, una fila cada uno, sin límite (como las líneas de la compra).
+  function agregarFila(tabla) {
+    document.getElementById(tabla).appendChild(document.getElementById(tabla + "-vacia").content.cloneNode(true));
   }
-  function quitarComponente(boton) {
-    boton.closest("tr").remove();
+  function quitarFila(boton, tabla) {
+    if (tabla !== "salidas" || document.getElementById("salidas").rows.length > 1) boton.closest("tr").remove();
     document.getElementById("form-op").dispatchEvent(new Event("input"));
   }
 </script>

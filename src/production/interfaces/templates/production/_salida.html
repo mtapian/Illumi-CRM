@@ -1,0 +1,6 @@
+<tr>
+  <td><select name="salida_producto" aria-label="Producto de salida"><option value="">—</option>{% for p in fabricables %}<option value="{{ p.id }}"{% if f.salida_producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select></td>
+  <td><input name="salida_cantidad" type="number" min="0" step="0.0001" value="{{ f.salida_cantidad|default:'' }}" aria-label="Cantidad programada"></td>
+  <td><input name="salida_factor" type="number" min="0" step="0.0001" value="{{ f.salida_factor|default:'' }}" aria-label="Factor de reparto" placeholder="Litros por unidad o 1"></td>
+  <td><button type="button" class="btn-icono peligro" onclick="quitarFila(this, 'salidas')" aria-label="Quitar producto">Quitar</button></td>
+</tr>

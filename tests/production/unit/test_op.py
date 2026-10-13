@@ -73,12 +73,12 @@ def test_copiar_receta_escala_con_4_decimales():
 def test_componentes_invalidos(componentes, mensaje):
     """RF-PRD-38, 44."""
     with pytest.raises(OpInvalida, match=mensaje):
-        op.validar_componentes(9, componentes, ESTADOS)
+        op.validar_componentes({9}, componentes, ESTADOS)
 
 
 def test_componentes_validos_con_servicio():
     op.validar_componentes(
-        9, [op.Componente(1, D("1")), op.Componente(3, D("1"), D("80"))], ESTADOS
+        {9}, [op.Componente(1, D("1")), op.Componente(3, D("1"), D("80"))], ESTADOS
     )
 
 
@@ -89,22 +89,21 @@ def test_receta_desde_la_op():
 
 
 @pytest.mark.parametrize(
-    "producida, motivo, n, fin, mensaje",
+    "producida, motivo, fin, mensaje",
     [
-        (D("0"), "", 4, HOY, "Indica el motivo del lote perdido"),
-        (D("-1"), "", 4, HOY, "La cantidad producida no puede ser negativa"),
-        (D("10"), "", 0, HOY, "La OP no tiene componentes"),
-        (D("10"), "", 4, date(2026, 10, 13), "La fecha de fin no puede ser futura"),
+        (D("0"), "", HOY, "Indica el motivo del lote perdido"),
+        (D("-1"), "", HOY, "La cantidad producida no puede ser negativa"),
+        (D("10"), "", date(2026, 10, 13), "La fecha de fin no puede ser futura"),
     ],
 )
-def test_finalizacion_invalida(producida, motivo, n, fin, mensaje):
-    """RF-PRD-15, 41, 47."""
+def test_finalizacion_invalida(producida, motivo, fin, mensaje):
+    """RF-PRD-15, 41."""
     with pytest.raises(OpInvalida, match=mensaje):
-        op.validar_finalizacion(producida, motivo, n, fin, HOY)
+        op.validar_finalizacion(producida, motivo, fin, HOY)
 
 
 def test_lote_perdido_con_motivo_es_valido():
-    op.validar_finalizacion(D("0"), "Contaminación", 4, HOY, HOY)
+    op.validar_finalizacion(D("0"), "Contaminación", HOY, HOY)
 
 
 def test_faltantes_de_todos_los_componentes():
@@ -138,3 +137,47 @@ def test_lote_sugerido():
     assert op.sugerir_lote({1: {"IPA-0020", "IPA-0021"}}, "TER-IPA-330", 3) == "TER-IPA-330-0003"
     assert op.sugerir_lote({1: {"A"}, 2: {"B"}}, "GRA-IPA", 12) == "GRA-IPA-0012"
     assert op.sugerir_lote({}, "GRA-IPA", 1) == "GRA-IPA-0001"
+
+
+# --- Enmienda 1: varios productos de salida (RF-PRD-49 a 52) ---
+
+
+def test_reparto_del_ejemplo_de_la_spec():
+    """RF-PRD-52: lo asignado es directo; lo común y el indirecto, por producida × factor."""
+    salidas = [(1, D("1000"), D("0.33")), (2, D("3"), D("20"))]
+    directos = {1: D("1860.08"), 2: D("124.50")}
+    costos = op.repartir(salidas, directos, D("39"), D("0"))
+    assert costos == {1: D("1893.08"), 2: D("130.50")}
+    assert op.costo_unitario(costos[1], D("1000")) == D("1.893080")
+    assert op.costo_unitario(costos[2], D("3")) == D("43.500000")
+
+
+def test_reparto_cuadra_al_centimo_y_lo_de_una_salida_en_cero_pasa_a_comun():
+    costos = op.repartir(
+        [(1, D("1"), D("1")), (2, D("1"), D("1")), (3, D("1"), D("1"))], {}, D("10"), D("0")
+    )
+    assert costos == {1: D("3.33"), 2: D("3.33"), 3: D("3.34")}
+    costos = op.repartir(
+        [(1, D("5"), D("1")), (2, D("0"), D("1"))], {1: D("4"), 2: D("6")}, D("0"), D("2")
+    )
+    assert costos == {1: D("12.00"), 2: D("0")}
+    assert op.repartir([(1, D("0"), D("1"))], {1: D("6")}, D("1"), D("0")) == {1: D("0")}
+
+
+def test_factor_sugerido():
+    """RF-PRD-49: los litros por unidad del producto; si no tiene, 1."""
+    assert op.factor_sugerido(D("0.33")) == D("0.3300")
+    assert op.factor_sugerido(None) == D("1")
+
+
+def test_componentes_por_salida():
+    """RF-PRD-50, 51: el mismo componente en dos salidas; nunca una salida como componente."""
+    salidas = {9, 8}
+    ok = [op.Componente(1, D("330"), salida=9), op.Componente(1, D("60"), salida=8)]
+    op.validar_componentes(salidas, ok, ESTADOS)
+    with pytest.raises(OpInvalida, match="Un componente está repetido"):
+        op.validar_componentes(salidas, ok + [op.Componente(1, D("1"), salida=9)], ESTADOS)
+    with pytest.raises(OpInvalida, match="no es un producto de salida de la OP"):
+        op.validar_componentes(salidas, [op.Componente(1, D("1"), salida=7)], ESTADOS)
+    with pytest.raises(OpInvalida, match="Un producto no puede ser componente de sí mismo"):
+        op.validar_componentes(salidas, [op.Componente(8, D("1"))], ESTADOS)

@@ -1,6 +1,6 @@
 # Spec 0005a — Producción: órdenes de producción
 
-Estado: **implementada** (2026-10-12; aprobada por el PO: "procede") · consolidada el 2026-10-12 con la enmienda 4 de 0002a (OP de cualquier producto, referencia Odoo) y las decisiones del PO del 2026-10-11 y 2026-10-12; **absorbe 0005b** (envasado, cierre y costo del lote), que se retira
+Estado: **implementada** (2026-10-12; aprobada por el PO: "procede") · RF-PRD-47 ajustado (componentes opcionales, PO 2026-10-12) · **enmienda 1 (varios productos de salida) aprobada ("ok") e implementada (2026-10-12)** · consolidada el 2026-10-12 con la enmienda 4 de 0002a (OP de cualquier producto, referencia Odoo) y las decisiones del PO del 2026-10-11 y 2026-10-12; **absorbe 0005b** (envasado, cierre y costo del lote), que se retira
 
 Épica E05 (Producción). Depende de: 0002a (receta, enmienda 4), 0003a (inventario y lotes). La usan: 0008b (costo y pérdidas de producción).
 
@@ -87,7 +87,7 @@ Finalizada con 1000 UND: 1880.08 / 1000 = **1.880080 S/ por botella**, lote suge
 - RF-PRD-12: SI dos usuarios finalizan la misma OP a la vez, ENTONCES EL SISTEMA la finaliza una sola vez y consume los componentes una sola vez.
 - RF-PRD-14: SI la cantidad producida supera la programada, ENTONCES EL SISTEMA lo permite con una advertencia (rendimiento mayor a 100 %).
 - RF-PRD-15: CUANDO se finaliza una OP con cantidad producida 0 y un motivo (**lote perdido**; PO, 2026-10-12, resuelve Q10), EL SISTEMA consume sus componentes, no ingresa producto ni crea lote, y registra el costo total (componentes + costo indirecto) como **pérdida de producción** de la OP a su fecha de fin, para el estado de resultados (0008b). Sin motivo, una cantidad producida 0 se rechaza.
-- RF-PRD-47: SI la OP no tiene componentes, o el producto ya no está activo o ya no se fabrica, ENTONCES EL SISTEMA no la finaliza e indica el motivo.
+- RF-PRD-47: SI el producto ya no está activo o ya no se fabrica, ENTONCES EL SISTEMA no finaliza la OP e indica el motivo. *(PO, 2026-10-12)* Los componentes **no son obligatorios**: una OP sin componentes se finaliza y el costo del producto es solo su costo indirecto (0 si no tiene).
 
 ### UC-PRD-03 Anular una OP
 
@@ -100,6 +100,30 @@ Finalizada con 1000 UND: 1880.08 / 1000 = **1.880080 S/ por botella**, lote suge
 - RF-PRD-48: CUANDO un usuario con `produccion.op.ver` abre el listado de OP, EL SISTEMA lo muestra con la grilla estándar (docs/ux.md §5): número, producto, cantidad programada y producida, fecha programada, responsable y estado, con filtros por estado, producto, fechas y número.
 - RF-PRD-34: CUANDO un usuario con `produccion.reporte.ver` consulta una OP Finalizada, EL SISTEMA muestra su pestaña **Costos**: por cada componente, por consumir vs. consumido (cantidad y costo) y su merma (RF-PRD-42); el costo indirecto; la cantidad programada vs. producida y el rendimiento %; el costo total y el costo unitario del producto. Sin `inventario.costo.ver` (0001c, RF-TEN-51) los importes no se muestran.
 - RF-PRD-42: EL SISTEMA calcula la merma de cada componente como consumido real − por consumir; queda en el costo del producto (no se registra aparte).
+
+## Enmienda 1: varios productos de salida (aprobada e implementada, 2026-10-12)
+
+**Pedido del PO (2026-10-12):** "el lote de producción puede generar más de 1 producto". Casos: envasar un granel en varias presentaciones a la vez (botellas, latas, barriles) y una producción que da varios productos distintos. Decisiones del PO: el costo se reparte **por un factor de cada producto**; **cada producto lleva su propio lote**.
+
+- RF-PRD-49: EL SISTEMA permite que una OP tenga **uno o varios productos de salida**, cada uno un bien activo que se fabrica, sin repetirse, con su **cantidad programada** (mayor a 0) y su **factor de reparto** (mayor a 0, 4 decimales). El factor sugerido es el contenido en litros por unidad del producto, si lo tiene (botella 0.33, barril 20), y si no, 1; es editable. Reemplaza el producto y la cantidad únicos de RF-PRD-36.
+- RF-PRD-50: CUANDO se pide usar la receta, EL SISTEMA copia la receta de **cada** producto de salida por su cantidad programada, y cada componente copiado queda **asignado** a esa salida. Un mismo componente puede estar asignado a varias salidas (el granel en la botella y en el barril). Ajusta RF-PRD-37.
+- RF-PRD-51: EL SISTEMA permite que cada componente quede **asignado a una salida** (es costo directo de ella) o **común** (sin asignar; p. ej. la mano de obra de un servicio o un insumo compartido). Ajusta RF-PRD-38.
+- RF-PRD-52: CUANDO se finaliza la OP, EL SISTEMA pide la **cantidad producida** y el **lote** de cada salida (RF-PRD-46 por salida: sugerido el del único lote que consumen sus componentes asignados, si lo hay; si no, el SKU de esa salida con un correlativo). Ingresa cada salida con producción mayor a 0 a su costo unitario (6 decimales):
+  - costo de la salida = sus componentes asignados + (componentes comunes + costo indirecto) × (producida × factor) / Σ (producida × factor) de todas las salidas;
+  - el redondeo a céntimos se ajusta en la última salida, para que la suma sea exactamente el costo total de la OP;
+  - los componentes asignados a una salida con producción 0 se suman a los comunes;
+  - SI todas las salidas tienen producción 0, ENTONCES es un lote perdido (RF-PRD-15).
+  Ajusta RF-PRD-41, 42 y 46.
+- RF-PRD-53: EL SISTEMA muestra en la pestaña Costos, por cada salida, la cantidad programada y producida, el rendimiento, el lote, el costo total y el unitario (ajusta RF-PRD-34), y en el listado de OP sus productos de salida (ajusta RF-PRD-48).
+
+**Ejemplo (envasado en dos presentaciones):** granel GRA-IPA del lote IPA-0020 a 2.00 por litro. Salidas: 1000 botellas 330 ml (factor 0.33) y 3 barriles 20 L (factor 20). Componentes asignados: botella → granel 330 L, botella, tapa, etiqueta y caja; barril → granel 60 L y precinto 3 × 1.50. Común: servicio de limpieza S/ 39.00. Producidas 1000 y 3: Σ = 1000 × 0.33 + 3 × 20 = 390; la botella recibe 39 × 330/390 = 33.00 y el barril 39 × 60/390 = 6.00. Lote sugerido de cada salida: IPA-0020 (cada una consume solo ese lote de granel).
+
+| Salida | Asignados | Común | Costo | Unitario |
+|---|---|---|---|---|
+| TER-IPA-330 × 1000 | 660.00 + 850.00 + 50.00 + 200.00 + 100.08 = 1860.08 | 33.00 | 1893.08 | **1.893080** |
+| TER-IPA-20L × 3 | 120.00 + 4.50 = 124.50 | 6.00 | 130.50 | **43.500000** |
+
+Control: 1893.08 + 130.50 = 2023.58 = granel 780.00 + materiales 1204.58 + común 39.00.
 
 ## Requisitos no funcionales
 
@@ -136,6 +160,8 @@ Vínculo de la OP con pedidos (sugerir OP desde un pedido, cambiar el estado de 
 RF-PRD-01 a 03 (recetas versionadas: la receta es del producto, 0002a) · RF-PRD-04 a 06 (→ RF-PRD-36, 37, 39) · RF-PRD-07 y 43 (sugerir desde pedidos: fuera de alcance) · RF-PRD-08 y 10 (consumo al iniciar y adicionales → RF-PRD-38, 41) · RF-PRD-11, 19, 27, 32 (estados de pedidos) · RF-PRD-13 (→ RF-PRD-41, 46) · RF-PRD-17 (anular revertía consumos: ya no hay) · RF-PRD-20 a 31 de 0005b (envasado y cierre → OP).
 
 ## Dudas abiertas
+
+- ~~Enmienda 1: ¿una OP creada con un producto se puede convertir en varias salidas?~~ **Resuelta (PO, 2026-10-12): sí**, mientras esté Creada o En proceso, editando sus salidas en la ficha (RF-PRD-38 y 49).
 
 - [NECESITA ACLARACIÓN] **Contador (Q12):** el costo indirecto manual por OP (opcional, PO 2026-10-12) puede duplicar gastos de planta registrados como gasto operativo (0008a). ¿Algún reparo?
 - [NECESITA ACLARACIÓN] **Contador:** la pérdida de producción de un lote perdido (RF-PRD-15), ¿va como costo de producción del período o como gasto (desmedro)? ¿Requiere sustento?

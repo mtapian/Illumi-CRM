@@ -125,3 +125,15 @@ Comando: `pytest tests/production tests/acceptance -k "E05a"`.
 ## 9. Dependencias de dudas abiertas
 
 - **Contador (Q12):** costo indirecto manual y tratamiento de la pérdida de producción. No cambian el modelo: si el contador lo pide, el costo indirecto se puede ocultar y la pérdida se clasifica en 0008b.
+
+## Enmienda 1: varios productos de salida (implementada, 2026-10-12)
+
+| Parte | Cambio | RF |
+|---|---|---|
+| Modelo | Tabla nueva `production_opsalida` (op, producto, cantidad, factor `NUMERIC(10,4)` > 0, producida, lote_codigo, costo_total, costo_unitario; UNIQUE(op, producto)). `OpComponente.salida` (FK a la salida, nula = común), con UNIQUE(op, producto, salida) `NULLS NOT DISTINCT`. Se retiran de la OP `producto`, `cantidad`, `cantidad_producida`, `costo_unitario` y `lote_codigo`; la migración pasa cada OP existente a una salida (factor 1) y asigna sus componentes a ella. El CHECK de la OP finalizada pasa a la salida (producida > 0 ⇒ lote y costo unitario) | RF-PRD-49, 51 |
+| Dominio | `repartir(salidas, directos, comunes, indirecto)`: costo por salida por producida × factor, directos de salidas con 0 a comunes, ajuste del redondeo en la última; `factor_sugerido(litros)`; `sugerir_lote` por salida | RF-PRD-52 |
+| Casos de uso | `DatosOp.salidas` (producto, cantidad, factor) y `Componente.salida`; `CrearOp` copia la receta de cada salida; `FinalizarOp` recibe producida y lote por salida, una sola salida de componentes y una entrada por salida | RF-PRD-49 a 52 |
+| Pantallas | Ficha: tabla "Productos de salida" (producto, cantidad, factor) y columna "Para" en componentes (salida o "Común"); diálogo de finalizar con producida y lote por salida; Costos por salida; listado con los productos | RF-PRD-53 |
+| Decisión | El factor reparte solo lo común y el indirecto; lo asignado es costo directo | Repartir todo por factor | Los materiales de cada presentación (botella, barril) no deben cargarse a las otras |
+| Tests | Unitario de `repartir` con el ejemplo de la spec (1.893080 y 43.500000), redondeo y salida con 0; caso de uso del envasado en dos presentaciones; migración de una OP existente; escenario nuevo | RF-PRD-49 a 53 |
+

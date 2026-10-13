@@ -9,8 +9,9 @@ from pytest_bdd import given, parsers, then, when
 from catalog.infrastructure.models import RecetaComponente
 from inventory.infrastructure.models import Movimiento, Stock
 from production.application import ordenes as uc
+from production.domain.op import Componente, Salida
 from production.infrastructure.contenedor import caso_de_op
-from production.infrastructure.models import OpComponente, OrdenProduccion
+from production.infrastructure.models import OpComponente, OpSalida, OrdenProduccion
 from production.interfaces.views import _componentes
 from shared.domain.errores import DomainError
 from shared.domain.tenant import tenant_context
@@ -106,10 +107,22 @@ def sin_permiso(ctx, permiso):
 # --- Crear y preparar la OP ---
 
 
+def salidas_de(fila) -> tuple:
+    filas = OpSalida.all_tenants.filter(op_id=fila.id).order_by("id")
+    return tuple(Salida(x.producto_id, x.cantidad, x.factor) for x in filas)
+
+
+def salida(ctx) -> OpSalida:
+    return OpSalida.all_tenants.filter(op_id=ctx["op"]).order_by("id").first()
+
+
+def salida_unica(ctx) -> int:
+    return OpSalida.all_tenants.filter(op_id=ctx["op"]).order_by("id").first().producto_id
+
+
 def crear(ctx, n, sku, comentario=""):
     datos = uc.DatosOp(
-        producto(ctx, sku).id,
-        D(n),
+        (Salida(producto(ctx, sku).id, D(n)),),
         timezone.localdate(),
         almacen(ctx),
         almacen(ctx),
@@ -129,8 +142,10 @@ def en_proceso(ctx):
 
 
 def finalizar(ctx, producida, consumos=(), indirecto="0", motivo=""):
-    reales = tuple(uc.ConsumoReal(producto(ctx, s).id, D(q)) for s, q in consumos)
-    f = uc.Finalizacion(D(producida), timezone.localdate(), reales, D(indirecto), "", None, motivo)
+    salida = salida_unica(ctx)
+    reales = tuple(uc.ConsumoReal(producto(ctx, s).id, D(q), None, salida) for s, q in consumos)
+    producidos = (uc.Producido(salida, D(producida)),)
+    f = uc.Finalizacion(producidos, timezone.localdate(), reales, D(indirecto), motivo)
     hoy = timezone.localdate()
     ctx["avisos"] = intentar(
         ctx, lambda: caso_de_op(uc.FinalizarOp).ejecutar(actor(email(ctx)), ctx["op"], f, hoy)
@@ -179,19 +194,20 @@ def op_finalizada(ctx, n, sku, p):
     )
 )
 def cambio_componentes(ctx, a, qa, b, qb):
-    from production.domain.op import Componente
-
     crear_directo(ctx, b)
     fila = op(ctx)
     with tenant_context(ctx["empresa"].id):
-        actuales = list(fila.componentes.select_related("producto").order_by("id"))
+        actuales = list(fila.componentes.select_related("producto", "salida").order_by("id"))
     lista = [
-        Componente(c.producto_id, D(qa) if c.producto.sku == a else c.por_consumir)
+        Componente(
+            c.producto_id,
+            D(qa) if c.producto.sku == a else c.por_consumir,
+            salida=c.salida.producto_id if c.salida_id else None,
+        )
         for c in actuales
     ] + [Componente(producto(ctx, b).id, D(qb))]
     datos = uc.DatosOp(
-        fila.producto_id,
-        fila.cantidad,
+        salidas_de(fila),
         fila.fecha_programada,
         fila.almacen_origen_id,
         fila.almacen_destino_id,
@@ -239,17 +255,13 @@ def anulo(ctx, motivo):
 def intento(ctx, accion):
     a, fila = actor(email(ctx)), op(ctx)
     datos = uc.DatosOp(
-        fila.producto_id,
-        fila.cantidad,
-        fila.fecha_programada,
-        fila.almacen_origen_id,
-        fila.almacen_destino_id,
+        salidas_de(fila), fila.fecha_programada, fila.almacen_origen_id, fila.almacen_destino_id
     )
     hoy = timezone.localdate()
     acciones = {
         "anular": lambda: caso_de_op(uc.AnularOp).ejecutar(a, fila.id, "x"),
         "finalizar": lambda: caso_de_op(uc.FinalizarOp).ejecutar(
-            a, fila.id, uc.Finalizacion(D("1"), hoy), hoy
+            a, fila.id, uc.Finalizacion((), hoy), hoy
         ),
         "editar": lambda: caso_de_op(uc.EditarOp).ejecutar(a, fila.id, datos),
     }
@@ -316,7 +328,7 @@ def op_queda(ctx, estado, aviso, sku):
     if aviso:
         assert ctx["avisos"] == [aviso]
     if sku:
-        assert fila.lote_codigo == "" and stock(ctx, sku) == 0
+        assert salida(ctx).lote_codigo == "" and stock(ctx, sku) == 0
 
 
 @then(re_(r"el stock de {} es (?P<n>[\d.]+)", "sku"))
@@ -348,7 +360,7 @@ def merma(ctx, sku, n):
 
 @then(re_("se sugiere el lote {}", "lote"))
 def lote_sugerido(ctx, lote):
-    assert op(ctx).lote_codigo == lote  # se finalizó sin indicar lote: quedó el sugerido
+    assert salida(ctx).lote_codigo == lote  # se finalizó sin indicar lote: quedó el sugerido
 
 
 @then(re_(r"el lote {} de {} queda con (?P<n>[\d.]+)", "lote", "sku"))
@@ -377,3 +389,74 @@ def una_sola_vez(ctx):
 def sin_importes(ctx, pestana):
     seccion = ctx["pagina"].split(f"<h2>{pestana}</h2>")[1].split("</section>")[0]
     assert "Tu rol no puede ver costos" in seccion and "S/" not in seccion
+
+
+# --- Enmienda 1: varios productos de salida ---
+
+
+@given("los envases y el servicio de limpieza con su costo")
+def envases_y_limpieza(ctx):
+    for sku, cantidad, costo in [
+        ("ENV-BOT330", "2000", "0.85"),
+        ("ENV-TAPA", "2000", "0.05"),
+        ("ENV-ETQ", "2000", "0.20"),
+        ("ENV-CAJA24", "100", "2.40"),
+        ("ENV-PREC", "10", "1.50"),
+    ]:
+        crear_directo(ctx, sku, u="UND")
+        mover(ctx, "ENTRADA", "COMPRA", sku, cantidad, costo)
+    crear_directo(ctx, "SRV-LIMP", u="SERV", tipo="SERVICIO", se_compra=True)
+    recetas = {
+        "TER-IPA-330": [
+            ("GRA-IPA", "0.33"),
+            ("ENV-BOT330", "1"),
+            ("ENV-TAPA", "1"),
+            ("ENV-ETQ", "1"),
+            ("ENV-CAJA24", "0.0417"),
+        ],
+        "TER-IPA-20L": [("GRA-IPA", "20"), ("ENV-PREC", "1")],
+    }
+    for sku, filas in recetas.items():
+        p = crear_directo(
+            ctx, sku, u="UND", se_compra=False, se_fabrica=True, se_vende=True, precio_venta=D("12")
+        )
+        for componente, q in filas:
+            RecetaComponente.objects.create(
+                producto=p, componente=producto(ctx, componente), cantidad_por_unidad=D(q)
+            )
+
+
+@when(
+    parsers.re(
+        r'finalizo una OP con salidas "(?P<a>[^"]+)" (?P<qa>[\d.]+) \(factor (?P<fa>[\d.]+)\) '
+        r'y "(?P<b>[^"]+)" (?P<qb>[\d.]+) \(factor (?P<fb>[\d.]+)\) '
+        r"y la limpieza común de (?P<costo>[\d.]+)"
+    )
+)
+def finalizo_dos_salidas(ctx, a, qa, fa, b, qb, fb, costo):
+    salidas = (
+        Salida(producto(ctx, a).id, D(qa), D(fa)),
+        Salida(producto(ctx, b).id, D(qb), D(fb)),
+    )
+    datos = uc.DatosOp(salidas, timezone.localdate(), almacen(ctx), almacen(ctx))
+    usuario = actor(email(ctx))
+    ctx["op"] = intentar(ctx, lambda: caso_de_op(uc.CrearOp).ejecutar(usuario, datos))
+    with tenant_context(ctx["empresa"].id):
+        actuales = list(op(ctx).componentes.select_related("salida"))
+    lista = tuple(
+        Componente(c.producto_id, c.por_consumir, c.costo_servicio, c.salida.producto_id)
+        for c in actuales
+    ) + (Componente(producto(ctx, "SRV-LIMP").id, D("1"), D(costo)),)
+    datos = uc.DatosOp(
+        salidas, datos.fecha_programada, almacen(ctx), almacen(ctx), componentes=lista
+    )
+    intentar(ctx, lambda: caso_de_op(uc.EditarOp).ejecutar(usuario, ctx["op"], datos))
+    en_proceso(ctx)
+    hoy = timezone.localdate()
+    intentar(
+        ctx,
+        lambda: caso_de_op(uc.FinalizarOp).ejecutar(
+            usuario, ctx["op"], uc.Finalizacion((), hoy), hoy
+        ),
+    )
+    assert not ctx["textos"], ctx["textos"]

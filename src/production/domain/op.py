@@ -25,10 +25,20 @@ TRANSICIONES = {
 
 
 @dataclass(frozen=True)
+class Salida:
+    """Producto de salida de la OP (enmienda 1, RF-PRD-49)."""
+
+    producto_id: int
+    cantidad: Decimal
+    factor: Decimal = Decimal("1")  # reparto del costo común (RF-PRD-52)
+
+
+@dataclass(frozen=True)
 class Componente:
     producto_id: int
     por_consumir: Decimal
     costo_servicio: Decimal | None = None  # solo servicios (RF-PRD-44)
+    salida: int | None = None  # producto de salida al que se asigna; None = común (RF-PRD-51)
 
 
 def transicion(estado: str, accion: str) -> str:
@@ -53,19 +63,43 @@ def _importe(x: Decimal) -> Decimal:
     return x.quantize(CENTIMO, ROUND_HALF_UP)
 
 
-def copiar_receta(receta, cantidad: Decimal) -> tuple[Componente, ...]:
-    """RF-PRD-37: por consumir = cantidad por unidad × cantidad de la OP."""
-    return tuple(Componente(c, _cuatro(q * cantidad)) for c, q in receta)
+def copiar_receta(receta, cantidad: Decimal, salida: int | None = None) -> tuple[Componente, ...]:
+    """RF-PRD-37, 50: cantidad por unidad × cantidad de la salida, asignado a ella."""
+    return tuple(Componente(c, _cuatro(q * cantidad), salida=salida) for c, q in receta)
 
 
-def validar_componentes(producto_id: int, componentes, estados: dict) -> None:
-    """RF-PRD-38, 44. `estados`: producto_id → (tipo, activo, sku)."""
-    ids = [c.producto_id for c in componentes]
-    if producto_id in ids:
-        raise OpInvalida("Un producto no puede ser componente de sí mismo", "componentes")
+def factor_sugerido(litros: Decimal | None) -> Decimal:
+    """RF-PRD-49: los litros por unidad del producto (botella 0.33, barril 20); si no, 1."""
+    return _cuatro(litros) if litros else Decimal("1")
+
+
+def validar_salidas(salidas) -> None:
+    """RF-PRD-49: al menos una, sin repetir, cantidad y factor mayores a 0."""
+    if not salidas:
+        raise OpInvalida("Indica al menos un producto de salida", "salidas")
+    ids = [x.producto_id for x in salidas]
     if len(set(ids)) != len(ids):
+        raise OpInvalida("Un producto de salida está repetido", "salidas")
+    if any(x.cantidad <= 0 for x in salidas):
+        raise OpInvalida("La cantidad debe ser mayor a 0", "salidas")
+    if any(x.factor <= 0 for x in salidas):
+        raise OpInvalida("El factor de reparto debe ser mayor a 0", "salidas")
+
+
+def validar_componentes(salidas: set[int], componentes, estados: dict) -> None:
+    """RF-PRD-38, 44, 51. `salidas`: productos de salida; `estados`: producto_id → (tipo,
+    activo, sku). Un componente se repite solo asignado a otra salida."""
+    claves = [(c.producto_id, c.salida) for c in componentes]
+    if any(c.producto_id in salidas for c in componentes):
+        raise OpInvalida("Un producto no puede ser componente de sí mismo", "componentes")
+    if len(set(claves)) != len(claves):
         raise OpInvalida("Un componente está repetido en la OP", "componentes")
     for c in componentes:
+        if c.salida is not None and c.salida not in salidas:
+            raise OpInvalida(
+                "El componente se asigna a algo que no es un producto de salida de la OP",
+                "componentes",
+            )
         tipo, activo, sku = estados.get(c.producto_id, (None, False, str(c.producto_id)))
         if not activo:
             raise OpInvalida(f"El componente {sku} no existe o está inactivo", "componentes")
@@ -84,12 +118,9 @@ def receta_desde_op(componentes, cantidad: Decimal) -> tuple[tuple[int, Decimal]
     )
 
 
-def validar_finalizacion(
-    producida: Decimal, motivo: str, n_componentes: int, fecha_fin: date, hoy: date
-) -> None:
-    """RF-PRD-15, 41, 47: con 0 producido es un lote perdido y exige motivo."""
-    if not n_componentes:
-        raise OpInvalida("La OP no tiene componentes", "componentes")
+def validar_finalizacion(producida: Decimal, motivo: str, fecha_fin: date, hoy: date) -> None:
+    """RF-PRD-15, 41: con 0 producido es un lote perdido y exige motivo. Los componentes no
+    son obligatorios (RF-PRD-47, PO 2026-10-12)."""
     if producida < 0:
         raise OpInvalida("La cantidad producida no puede ser negativa", "producida")
     if producida == 0 and not motivo.strip():
@@ -121,6 +152,27 @@ def costo_total(importes, servicios, indirecto: Decimal) -> Decimal:
 def costo_unitario(total: Decimal, producida: Decimal) -> Decimal | None:
     """A 6 decimales (art. 4.1); None en un lote perdido."""
     return (total / producida).quantize(SEIS, ROUND_HALF_UP) if producida else None
+
+
+def repartir(salidas, directos: dict, comunes: Decimal, indirecto: Decimal) -> dict:
+    """RF-PRD-52. `salidas`: (clave, producida, factor). Cada salida carga sus directos y una
+    parte de lo común y del indirecto por producida × factor; lo asignado a una salida con 0
+    pasa a lo común; el redondeo se ajusta en la última. Todas en 0: lote perdido (0 a todas)."""
+    producen = [(k, p * f) for k, p, f in salidas if p > 0]
+    if not producen:
+        return {k: Decimal("0") for k, _, _ in salidas}
+    comun = (
+        comunes
+        + indirecto
+        + sum((directos.get(k, Decimal("0")) for k, p, _ in salidas if p <= 0), Decimal("0"))
+    )
+    total_peso = sum((peso for _, peso in producen), Decimal("0"))
+    costos, repartido = {k: Decimal("0") for k, _, _ in salidas}, Decimal("0")
+    for n, (k, peso) in enumerate(producen):
+        parte = comun - repartido if n == len(producen) - 1 else _importe(comun * peso / total_peso)
+        repartido += parte
+        costos[k] = _importe(directos.get(k, Decimal("0")) + parte)
+    return costos
 
 
 def merma(por_consumir: Decimal, consumido: Decimal) -> Decimal:
