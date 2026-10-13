@@ -1,0 +1,7 @@
+<tr>
+  <td><select name="componente" aria-label="Componente"><option value="">—</option>{% for p in productos %}{% if p.id != op.producto_id %}<option value="{{ p.id }}" data-servicio="{% if p.tipo == 'SERVICIO' %}si{% endif %}"{% if f.componente == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endif %}{% endfor %}</select></td>
+  <td><input name="por_consumir" type="number" min="0" step="0.0001" value="{{ f.por_consumir|default:'' }}" aria-label="Por consumir"></td>
+  <td><input name="costo" type="number" min="0" step="0.01" value="{{ f.costo|default:'' }}" aria-label="Costo del servicio" placeholder="Solo servicios"></td>
+  <td>{% if f.x %}{% if f.x.servicio %}—{% elif f.x.disponible %}<span class="chip ok">Disponible</span>{% else %}<span class="chip error">No disponible</span>{% endif %}{% endif %}</td>
+  <td><button type="button" class="btn-icono peligro" onclick="quitarComponente(this)" aria-label="Quitar componente">Quitar</button></td>
+</tr>

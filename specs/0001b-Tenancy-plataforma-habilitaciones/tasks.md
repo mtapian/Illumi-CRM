@@ -12,7 +12,7 @@ Reglas (constitución, art. 8):
 ## Dominio puro
 
 - [x] **T1. Crear el catálogo `shared/domain/accesos.py` (`CATALOGO`, `P`, dependencias) y `dependencias_faltantes()`.** — RF-TEN-26, RF-TEN-31
-  - Hecho cuando: un test comprueba que el catálogo no tiene ciclos y que todo permiso pertenece a una funcionalidad. Además, "Envasado multipresentación" sin sus dependencias devuelve `[Recetas, Órdenes de producción]`.
+  - Hecho cuando: un test comprueba que el catálogo no tiene ciclos y que todo permiso pertenece a una funcionalidad. Además, "Ajustes de inventario" sin sus dependencias devuelve `[Productos y presentaciones, Stock y kardex]` (antes el ejemplo era el envasado, retirado por 0005a).
   - Nota: los códigos de permiso se usan como texto validado contra `PERMISOS`; la clase `P` con constantes se omitió (no la usa nadie todavía).
 - [x] **T2. Implementar `ajuste_vigente`, `habilitaciones_efectivas` y `estado_funcionalidad`.** — RF-TEN-28, RF-TEN-30, RF-TEN-33
   - Hecho cuando: `test_habilitaciones.py` comprueba que:

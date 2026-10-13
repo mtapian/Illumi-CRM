@@ -22,7 +22,7 @@ def test_despues_de_migrar_las_tablas_coinciden_con_el_catalogo():
     assert set(Permiso.objects.values_list("codigo", flat=True)) == set(PERMISOS)
     assert Modulo.objects.filter(codigo="PRODUCCION").exists()
     assert FuncionalidadDependencia.objects.filter(
-        funcionalidad_id="produccion.envasado", requiere_id="produccion.op"
+        funcionalidad_id="produccion.op", requiere_id="inventario.stock"
     ).exists()
 
 

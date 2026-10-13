@@ -1,6 +1,6 @@
 # Plan 0005a — Producción: órdenes de producción
 
-Estado: aprobado (PO: "dale", 2026-10-12), para la spec consolidada aprobada el 2026-10-12 ("procede")
+Estado: implementado (2026-10-12; aprobado por el PO: "dale"), para la spec consolidada aprobada el 2026-10-12 ("procede")
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 

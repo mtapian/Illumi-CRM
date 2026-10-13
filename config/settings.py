@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "catalog.infrastructure.apps.CatalogConfig",
     "purchasing.infrastructure.apps.PurchasingConfig",
     "inventory.infrastructure.apps.InventoryConfig",
+    "production.infrastructure.apps.ProductionConfig",
     "shared.infrastructure.apps.SharedConfig",
 ]
 

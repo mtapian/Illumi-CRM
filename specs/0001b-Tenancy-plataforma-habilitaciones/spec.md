@@ -27,7 +27,7 @@ La plataforma necesita **decidir qué módulos y funcionalidades contrata cada e
 ## Definiciones
 
 - **Módulo:** área del sistema que aparece en el menú (Inventario, Producción…).
-- **Funcionalidad:** capacidad comercializable dentro de un módulo (p. ej. "Envasado multipresentación"). Es lo que habilita el super admin.
+- **Funcionalidad:** capacidad comercializable dentro de un módulo (p. ej. "Órdenes de producción"). Es lo que habilita el super admin.
 - **Permiso:** acción concreta (p. ej. `ventas.venta.anular`). Es lo que el administrador de la empresa asigna a sus roles (spec 0001c).
 - **Habilitaciones de una empresa:** funcionalidades de su plan + las agregadas a esa empresa − las quitadas a esa empresa, considerando solo los ajustes vigentes. CORE siempre está habilitado.
 - **Ajuste vigente:** ajuste sin fecha de fin, o con fecha de fin igual o posterior a hoy (hora de Lima).
@@ -63,9 +63,7 @@ El catálogo de módulos, funcionalidades y permisos lo define el producto. El s
 | | Multialmacén | `inventario.almacen.gestionar` | Stock y kardex |
 | | Lotes y vencimientos | `inventario.lote.ver` | Stock y kardex |
 | **COMPRAS** | Compras y proveedores | `compras.proveedor.gestionar`, `compras.compra.ver`, `compras.compra.registrar`, `compras.compra.anular` | INVENTARIO |
-| **PRODUCCION** | Recetas | `produccion.receta.ver`, `produccion.receta.gestionar` | INVENTARIO |
-| | Órdenes de producción | `produccion.op.ver`, `produccion.op.planificar`, `produccion.op.ejecutar`, `produccion.op.anular`, `produccion.reporte.ver` | Recetas |
-| | Envasado multipresentación | `produccion.envasado.registrar` | Órdenes de producción |
+| **PRODUCCION** | Órdenes de producción | `produccion.op.ver`, `produccion.op.planificar`, `produccion.op.ejecutar`, `produccion.op.anular`, `produccion.reporte.ver` | Stock y kardex *(0005a, 2026-10-12: se retiran "Recetas", que pasa al catálogo, y "Envasado multipresentación", que es una OP)* |
 | **VENTAS** | Clientes | `ventas.cliente.ver`, `ventas.cliente.gestionar` | CATALOGO |
 | | Pedidos | `ventas.pedido.ver`, `ventas.pedido.gestionar`, `ventas.pedido.cancelar` | Clientes, INVENTARIO |
 | | Ventas | `ventas.venta.ver`, `ventas.venta.registrar`, `ventas.venta.anular` | Clientes, INVENTARIO |

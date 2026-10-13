@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% comment %}Listado de órdenes de producción (plan 0005a §5; RF-PRD-48) con la grilla estándar (docs/ux.md §5).{% endcomment %}
+{% block titulo %}Órdenes de producción{% endblock %}
+{% block contenido %}
+{% include "catalog/_migas.html" %}
+<div class="encabezado-listado">
+  <div><h1>Órdenes de producción</h1><p class="subtitulo">De creada a finalizada: al finalizar se consumen los componentes y entra el producto con su lote.</p></div>
+  {% if puede_crear %}<div class="acciones-listado"><a class="boton principal" href="{% url 'nueva_op' %}">+ Nueva OP</a></div>{% endif %}
+</div>
+<form method="get" class="tarjeta barra-filtros">
+  <label class="buscar">Buscar OP<input type="search" name="q" value="{{ filtro.q }}" placeholder="N.°, lote o comentario"></label>
+  <label>Estado<select name="estado"><option value="">Todos</option>{% for v, n in estados %}<option value="{{ v }}"{% if filtro.estado == v %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+  <label>Producto<select name="producto"><option value="">Todos</option>{% for p in productos %}<option value="{{ p.id }}"{% if filtro.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }}</option>{% endfor %}</select></label>
+  <div class="acciones-filtro">
+    <details class="mas-filtros"{% if filtro.desde or filtro.hasta %} data-activos{% endif %}>
+      <summary>Más filtros</summary>
+      <div class="panel-filtros">
+        <label>Programada desde<input type="date" name="desde" value="{{ filtro.desde }}"></label>
+        <label>Programada hasta<input type="date" name="hasta" value="{{ filtro.hasta }}"></label>
+      </div>
+    </details>
+    <button type="submit">Filtrar</button>
+  </div>
+</form>
+{% include "listados/_aplicados.html" %}
+<div class="tarjeta tabla">
+<table><thead><tr><th>OP</th><th>Producto</th><th class="num">Programada</th><th class="num">Producida</th><th>Fecha programada</th><th>Responsable</th><th>Estado</th><th class="acciones">Acciones</th></tr></thead><tbody>
+{% for o in pagina %}<tr>
+  <td><a href="{% url 'orden' o.id %}">OP-{{ o.numero|stringformat:"06d" }}</a></td><td>{{ o.producto.sku }} · {{ o.producto.nombre }}</td>
+  <td class="num">{{ o.cantidad.normalize }} {{ o.producto.unidad.abreviatura }}</td>
+  <td class="num">{% if o.cantidad_producida is not None %}{{ o.cantidad_producida.normalize }} {{ o.producto.unidad.abreviatura }}{% else %}—{% endif %}</td>
+  <td>{{ o.fecha_programada|date:"Y-m-d" }}</td><td>{{ o.responsable.nombre|default:o.responsable.email|default:"—" }}</td>
+  <td><span class="chip {% if o.estado == 'FINALIZADA' %}ok{% elif o.estado == 'ANULADA' %}error{% else %}neutro{% endif %}">{% for v, n in estados %}{% if v == o.estado %}{{ n }}{% endif %}{% endfor %}</span></td>
+  <td class="acciones"><a class="boton secundario chico" href="{% url 'orden' o.id %}">Abrir</a></td>
+</tr>{% empty %}<tr><td colspan="8" class="subtitulo">{% if aplicados %}No hay OP con esos filtros.{% else %}Aún no hay órdenes de producción.{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+{% include "listados/_pie.html" with nombres="OP,OP" %}
+</div>
+{% endblock %}

@@ -148,7 +148,7 @@ def agrego_modulo(client, ctx, nombre, modulo, fecha, motivo):
     post_modulos(client, ctx, nombre, "agregar", f"M:{modulo}", motivo, fecha)
 
 
-@then(re_(r"{} tiene habilitadas (?P<lista>.+) con estado {}", "nombre", "estado"))
+@then(re_(r"{} tiene habilitadas? (?P<lista>.+) con estado {}", "nombre", "estado"))
 def tiene_habilitadas(client, nombre, lista, estado):
     pagina = contenido(client.get(url_modulos(nombre)))
     for funcionalidad in re.findall(r'"([^"]+)"', lista):
@@ -189,9 +189,9 @@ def deja_de_tener(ctx, nombre, modulo):
 
 @then("sus datos de producción se conservan")
 def datos_produccion_se_conservan():
-    # Los datos de producción llegan con la épica 0005; aquí se verifica que el ajuste
-    # vencido no se borró ni se revocó: solo dejó de aplicarse (RN-GEN-11).
-    assert EmpresaAjuste.objects.filter(revocado_en__isnull=True).count() == 3
+    # El ajuste vencido no se borró ni se revocó: solo dejó de aplicarse (RN-GEN-11). Las OP
+    # (0005a) son datos de la empresa: un módulo deshabilitado no las borra (art. 3.3).
+    assert EmpresaAjuste.objects.filter(revocado_en__isnull=True).count() == 1
 
 
 @when(re_("quito a {} la funcionalidad {} con motivo {}", "nombre", "funcionalidad", "motivo"))

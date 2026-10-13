@@ -69,12 +69,29 @@ def _ajeno_compra(otra):
 
 
 # ruta → función que crea un registro de la otra empresa y devuelve su id
+def _ajeno_op(otra):
+    from inventory.infrastructure.models import Almacen
+    from production.infrastructure.models import OrdenProduccion
+
+    almacen = Almacen.all_tenants.create(empresa=otra, nombre="Ajeno OP")
+    return OrdenProduccion.all_tenants.create(
+        empresa=otra,
+        numero=1,
+        producto_id=_ajeno_producto(otra),
+        cantidad=1,
+        fecha_programada="2026-10-12",
+        almacen_origen=almacen,
+        almacen_destino=almacen,
+    ).id
+
+
 RUTAS = {
     "usuarios/<int:usuario_id>/": _ajeno_usuario,
     "roles/<int:rol_id>/": _ajeno_rol,
     "catalogo/productos/<int:producto_id>/": _ajeno_producto,
     "inventario/ajustes/<int:ajuste_id>/": _ajeno_ajuste,
     "compras/<int:compra_id>/": _ajeno_compra,
+    "produccion/<int:op_id>/": _ajeno_op,
 }
 
 

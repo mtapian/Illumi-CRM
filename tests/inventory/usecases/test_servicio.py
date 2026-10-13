@@ -5,8 +5,9 @@ from datetime import date
 from decimal import Decimal as D
 
 import pytest
+from django.utils import timezone
 
-from inventory.application.servicio import Linea
+from inventory.application.servicio import Consumo, Linea
 from inventory.domain.errores import (
     AnulacionConConsumoPosterior,
     LoteConOtroVencimiento,
@@ -141,3 +142,21 @@ def test_revertir_una_salida_devuelve_el_stock_a_su_lote(inv):
     inventario().revertir("VENTA", 9, inv["admin"].id)
     assert Stock.objects.get(lote__codigo="IPA-0015").cantidad == D("10.0000")
     assert costo(inv, "ipa") == (D("10.0000"), D("40.00"), D("4.000000"))
+
+
+def test_existencias_en_orden_consumido_y_fecha_de_la_salida(inv):
+    """0005a, T3 (RF-PRD-09, 39, 41, 46): existencias en el orden de la estrategia, sin
+    vencidos; lote, cantidad e importe de cada salida; la salida lleva la fecha de negocio."""
+    entra(inv, "ipa", "10", "4", lote="IPA-0012", vencimiento=date(2026, 10, 30))
+    entra(inv, "ipa", "48", "4", lote="IPA-0015", vencimiento=date(2026, 12, 15))
+    entra(inv, "ipa", "120", "4", lote="IPA-0018", vencimiento=date(2027, 2, 20))
+    servicio = inventario()
+    orden = servicio.existencias_en_orden(inv["ipa"], inv["principal"], HOY)
+    assert orden == [("IPA-0015", D("48.0000")), ("IPA-0018", D("120.0000"))]
+    ids = sale(inv, "ipa", "60")
+    assert servicio.consumido(ids) == [
+        Consumo(inv["ipa"], "IPA-0015", D("48.0000"), D("192.00")),
+        Consumo(inv["ipa"], "IPA-0018", D("12.0000"), D("48.00")),
+    ]
+    fechas = {timezone.localtime(m.fecha).date() for m in Movimiento.objects.filter(pk__in=ids)}
+    assert fechas == {HOY}

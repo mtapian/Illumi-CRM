@@ -65,9 +65,11 @@ def test_toda_accion_exige_motivo(empresa):
 
 
 def test_configurar_plan_valida_dependencias_y_muestra_el_impacto(empresa):
-    with pytest.raises(DependenciasFaltantes, match="requiere: Recetas, Órdenes de producción"):
+    with pytest.raises(
+        DependenciasFaltantes, match="Ajustes de inventario requiere: Stock y kardex"
+    ):
         plataforma().configurar_plan(
-            empresa.plan_id, EMPRENDEDOR | {"produccion.envasado"}, {}, confirmado=False
+            empresa.plan_id, {"catalogo.productos", "inventario.ajustes"}, {}, confirmado=False
         )
     nuevas = EMPRENDEDOR | {"transversal.exportacion"}
     assert plataforma().configurar_plan(empresa.plan_id, nuevas, {}, confirmado=False) == 1
@@ -89,8 +91,11 @@ def test_cambiar_plan_conserva_los_ajustes(empresa):
 
 
 def test_agregar_valida_dependencias(empresa):
-    with pytest.raises(DependenciasFaltantes, match="Envasado multipresentación requiere"):
-        plataforma().agregar(empresa.id, ["produccion.envasado"], "x", None, None, HOY)
+    PlanFuncionalidad.objects.filter(plan=empresa.plan).exclude(
+        funcionalidad_id="catalogo.productos"
+    ).delete()
+    with pytest.raises(DependenciasFaltantes, match="Ajustes de inventario requiere"):
+        plataforma().agregar(empresa.id, ["inventario.ajustes"], "x", None, None, HOY)
 
 
 def test_quitar_rechaza_dependencias_y_core(empresa):
@@ -116,7 +121,7 @@ def test_quitar_con_operaciones_en_curso_advierte_antes_de_guardar(empresa):
         )
     )
     p = Plataforma(PlataformaOrm(), registro, transaction.atomic)
-    produccion = ["produccion.recetas", "produccion.op", "produccion.envasado"]
+    produccion = ["produccion.op"]
     p.agregar(empresa.id, produccion, "Piloto", None, None, HOY)
     assert p.quitar(empresa.id, produccion, "Fin", None, None, HOY, False) == [
         "La empresa tiene 2 OP en proceso"
@@ -124,4 +129,4 @@ def test_quitar_con_operaciones_en_curso_advierte_antes_de_guardar(empresa):
     assert "produccion.op" in p.habilitadas(empresa.id, HOY)
     assert p.quitar(empresa.id, produccion, "Fin", None, None, HOY, True) == []
     assert "produccion.op" not in p.habilitadas(empresa.id, HOY)
-    assert EmpresaAjuste.objects.filter(revocado_en__isnull=True, tipo="QUITAR").count() == 3
+    assert EmpresaAjuste.objects.filter(revocado_en__isnull=True, tipo="QUITAR").count() == 1

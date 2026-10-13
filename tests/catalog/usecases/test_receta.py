@@ -127,3 +127,26 @@ def test_constraints_de_la_receta(base):
     ):
         with pytest.raises(IntegrityError), transaction.atomic():
             RecetaComponente.objects.create(producto_id=ipa, **kw)
+
+
+def test_guardar_receta_desde_la_op(base):
+    """0005a, T7 (RF-PRD-38): reemplaza la receta, valida ciclos, deja historial y exige
+    gestionar productos."""
+    from catalog.infrastructure.models import ProductoHistorial
+    from shared.application.autorizacion import Actor
+    from shared.domain.errores import AccesoDenegado
+
+    actor, ids, _ = base
+    ipa = crear(actor, IPA_BOTELLA, receta_botella(ids))
+    nueva = ((ids["granel"], Decimal("0.3400")), (ids["caja"], Decimal("0.0417")))
+    caso_de_uso(uc.GuardarReceta).ejecutar(actor, ipa, nueva)
+    assert catalogo_query().receta(ipa) == nueva
+    cambio = ProductoHistorial.objects.filter(producto_id=ipa, accion="editado").last()
+    assert "receta" in cambio.despues
+    with pytest.raises(RecetaInvalida, match="crea un ciclo"):
+        caso_de_uso(uc.GuardarReceta).ejecutar(actor, ids["granel"], ((ipa, Decimal("1")),))
+    with pytest.raises(RecetaInvalida, match="no se fabrica"):
+        caso_de_uso(uc.GuardarReceta).ejecutar(actor, ids["malta"], nueva)
+    sin = Actor(actor.usuario_id, actor.empresa_id, actor.permisos - {uc.GESTIONAR})
+    with pytest.raises(AccesoDenegado):
+        caso_de_uso(uc.GuardarReceta).ejecutar(sin, ipa, nueva)

@@ -20,8 +20,11 @@ Característica: Habilitación de módulos y funcionalidades por la plataforma
 
   @UC-TEN-07 @critico @RF-TEN-25 @RF-TEN-26
   Escenario: Agregar una funcionalidad a un plan valida sus dependencias
-    Cuando agrego al plan "Emprendedor" la funcionalidad "Envasado multipresentación"
-    Entonces la operación es rechazada con el mensaje "Envasado multipresentación requiere: Recetas, Órdenes de producción"
+    Dado el plan "Básico" incluye las funcionalidades:
+      | modulo     | funcionalidad              |
+      | CATALOGO   | Productos y presentaciones |
+    Cuando agrego al plan "Básico" la funcionalidad "Ajustes de inventario"
+    Entonces la operación es rechazada con el mensaje "Ajustes de inventario requiere: Stock y kardex"
 
   @UC-TEN-07 @critico @RF-TEN-27
   Escenario: Cambio en el plan impacta a todas sus empresas
@@ -33,7 +36,7 @@ Característica: Habilitación de módulos y funcionalidades por la plataforma
   @UC-TEN-08 @critico @RF-TEN-29 @RF-TEN-34
   Escenario: Agregar un módulo a una empresa con vigencia
     Cuando agrego a "Cervecería Andina" el módulo "PRODUCCION" hasta el "2026-12-31" con motivo "Piloto cervecero"
-    Entonces "Cervecería Andina" tiene habilitadas "Recetas", "Órdenes de producción" y "Envasado multipresentación" con estado "Agregada"
+    Entonces "Cervecería Andina" tiene habilitada "Órdenes de producción" con estado "Agregada"
     Y el plan "Emprendedor" no cambia
     Y el registro de actividad guarda la acción, el super admin, la vigencia y el motivo
 
@@ -87,4 +90,4 @@ Característica: Habilitación de módulos y funcionalidades por la plataforma
       | Stock y kardex             | Incluida en el plan |
       | Ajustes de inventario      | Quitada             |
       | Multialmacén               | Agregada            |
-      | Envasado multipresentación | No incluida         |
+      | Órdenes de producción      | No incluida         |

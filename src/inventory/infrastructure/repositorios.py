@@ -7,6 +7,7 @@ from decimal import Decimal
 from django.db.models import F, Sum
 from django.utils import timezone
 
+from inventory.application.servicio import Consumo
 from inventory.domain.costo import CostoProducto as Costo
 from inventory.domain.existencia import Existencia
 from inventory.domain.existencia import Movimiento as Mov
@@ -62,10 +63,10 @@ class InventarioOrm:
     def almacen(self, almacen_id):
         return Almacen.objects.filter(pk=almacen_id).values_list("nombre", flat=True).first()
 
-    def existencias(self, producto_id, almacen_id):
+    def existencias(self, producto_id, almacen_id, bloquear=True):
+        filas = Stock.objects.select_for_update(of=("self",)) if bloquear else Stock.objects
         filas = (
-            Stock.objects.select_for_update(of=("self",))
-            .select_related("lote")
+            filas.select_related("lote")
             .filter(producto_id=producto_id, almacen_id=almacen_id)
             .order_by("lote_id", "id")
         )
@@ -116,6 +117,13 @@ class InventarioOrm:
             ref_tipo=ref_tipo, ref_id=ref_id, revierte__isnull=True
         ).exclude(pk__in=Movimiento.objects.filter(revierte__isnull=False).values("revierte_id"))
         return [_mov(m) for m in filas.order_by("id")]
+
+    def consumos(self, ids):
+        filas = Movimiento.objects.filter(pk__in=ids).select_related("lote").order_by("id")
+        return [
+            Consumo(m.producto_id, m.lote.codigo if m.lote else None, m.cantidad, m.costo_total)
+            for m in filas
+        ]
 
     def movimientos(self, producto_id):
         return [_mov(m) for m in Movimiento.objects.filter(producto_id=producto_id).order_by("id")]

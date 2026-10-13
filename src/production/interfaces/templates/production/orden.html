@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% comment %}OP (plan 0005a §5; reglas de docs/ux.md, como la compra): datos y componentes en tarjetas;
+barra de acciones abajo con la acción principal según el estado (Creada: "Pasar a en proceso"; En
+proceso: "Finalizar", que confirma lo consumido, lo producido y el lote en un diálogo). Finalizada o
+Anulada: solo lectura con Costos y movimientos. Pensada para tablet (RNF-PRD-02).{% endcomment %}
+{% block titulo %}{% if op %}{{ numero }}{% else %}Nueva OP{% endif %}{% endblock %}
+{% block contenido %}
+{% include "catalog/_migas.html" %}
+<div class="encabezado-documento">
+  <div>
+    <h1>{% if op %}{{ numero }} · {{ op.producto.nombre }}{% else %}Nueva orden de producción{% endif %}</h1>
+    {% if op %}<p class="subtitulo">Creada por {{ op.creada_por.email|default:"—" }}{% if op.finalizada_por %} · finalizada por {{ op.finalizada_por.email }}{% endif %}</p>{% endif %}
+  </div>
+  {% if op %}<span class="chip {% if op.estado == 'FINALIZADA' %}ok{% elif op.estado == 'ANULADA' %}error{% endif %}">{{ estado_texto }}</span>{% endif %}
+</div>
+{% if op %}<ol class="barra-estados" aria-label="Secuencia de estados">{% for v, n in estados %}<li{% if op.estado == v %} aria-current="step" class="actual"{% endif %}>{{ n }}</li>{% endfor %}</ol>{% endif %}
+
+{% if editable or not op %}
+<form method="post" id="form-op" data-cambios>{% csrf_token %}<input type="hidden" name="accion" value="guardar">
+  <section class="tarjeta">
+    <h2>Datos de la OP</h2>
+    <p class="requerido-nota">Los campos con * son obligatorios.</p>
+    <div class="tres-columnas">
+      <label>Producto *<select name="producto" required><option value="">Elige un bien que se fabrica</option>{% for p in fabricables %}<option value="{{ p.id }}"{% if valores.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.producto %}</label>
+      <label>Cantidad *<input name="cantidad" type="number" min="0" step="0.0001" required value="{{ valores.cantidad|default:'' }}">{% include "listados/_error.html" with error=request.errores_campo.cantidad %}</label>
+      <label>Fecha programada *<input type="date" name="fecha_programada" required value="{{ valores.fecha_programada }}">{% include "listados/_error.html" with error=request.errores_campo.fecha_programada %}</label>
+      <label>Almacén de los componentes *<select name="almacen_origen" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen_origen == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.almacen_origen %}</label>
+      <label>Almacén del producto *<select name="almacen_destino" required>{% for a in almacenes %}<option value="{{ a.id }}"{% if valores.almacen_destino == a.id|stringformat:"s" %} selected{% endif %}>{{ a.nombre }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.almacen_destino %}</label>
+      <label>Responsable *<select name="responsable" required>{% for i, n in responsables %}<option value="{{ i }}"{% if valores.responsable == i|stringformat:"s" %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>{% include "listados/_error.html" with error=request.errores_campo.responsable %}</label>
+    </div>
+    <label>Comentario<textarea name="comentario" maxlength="250" placeholder="Por ejemplo, el pedido que atiende">{{ valores.comentario|default:'' }}</textarea></label>
+    {% if not op %}<label class="check"><input type="checkbox" name="usar_receta"{% if valores.usar_receta %} checked{% endif %}> Copiar los componentes de la receta del producto</label>
+    <small class="subtitulo">La copia es de la OP: puedes cambiarla sin tocar la receta.</small>{% endif %}
+  </section>
+  {% if op %}
+  <section class="tarjeta">
+    <h2>Componentes</h2>
+    <p class="subtitulo">Lo previsto para producir {{ op.cantidad.normalize }} {{ op.producto.unidad.abreviatura }}. Cualquier producto activo del catálogo; un servicio lleva su costo. No se mueve stock hasta finalizar.</p>
+    <div class="tabla"><table><thead><tr><th>Producto</th><th>Por consumir</th><th>Costo (servicios)</th><th>Disponibilidad</th><th><span class="oculto">Quitar</span></th></tr></thead>
+    <tbody id="componentes">{% for f in filas %}{% include "production/_componente.html" %}{% endfor %}</tbody></table></div>
+    {% if accion_fallida != "finalizar" %}{% include "listados/_error.html" with error=request.errores_campo.componentes %}{% endif %}
+    <template id="componente-vacio">{% include "production/_componente.html" with f=None %}</template>
+    <p><button type="button" class="secundario" onclick="agregarComponente()">+ Agregar componente</button></p>
+  </section>
+  {% endif %}
+</form>
+{% else %}
+<section class="tarjeta">
+  <h2>Datos de la OP</h2>
+  <dl>
+    <dt>Producto</dt><dd>{{ op.producto.sku }} · {{ op.producto.nombre }}</dd>
+    <dt>Cantidad programada</dt><dd>{{ op.cantidad.normalize }} {{ op.producto.unidad.abreviatura }}</dd>
+    {% if op.cantidad_producida is not None %}<dt>Cantidad producida</dt><dd>{{ op.cantidad_producida.normalize }} {{ op.producto.unidad.abreviatura }}{% if rendimiento is not None %} · rendimiento {{ rendimiento }} %{% endif %}</dd>{% endif %}
+    {% if op.lote_codigo %}<dt>Lote</dt><dd>{{ op.lote_codigo }}</dd>{% endif %}
+    <dt>Fecha programada</dt><dd>{{ op.fecha_programada|date:"Y-m-d" }}</dd>
+    {% if op.fecha_fin %}<dt>Fecha de fin</dt><dd>{{ op.fecha_fin|date:"Y-m-d" }}</dd>{% endif %}
+    <dt>Almacenes</dt><dd>{{ op.almacen_origen.nombre }} → {{ op.almacen_destino.nombre }}</dd>
+    <dt>Responsable</dt><dd>{{ op.responsable.nombre|default:op.responsable.email|default:"—" }}</dd>
+    {% if op.comentario %}<dt>Comentario</dt><dd>{{ op.comentario }}</dd>{% endif %}
+    {% if op.motivo_perdida %}<dt>Lote perdido</dt><dd>{{ op.motivo_perdida }}</dd>{% endif %}
+  </dl>
+</section>
+<section class="tarjeta">
+  <h2>Componentes</h2>
+  <div class="tabla"><table><thead><tr><th>Producto</th><th class="num">Por consumir</th>{% if op.estado == "FINALIZADA" %}<th class="num">Consumido</th><th class="num">Merma</th><th>Lote</th>{% if ve_costos %}<th class="num">Costo</th>{% endif %}{% else %}<th>Disponibilidad</th>{% endif %}</tr></thead><tbody>
+  {% for x in componentes %}<tr><td>{{ x.c.producto.sku }} · {{ x.c.producto.nombre }}</td><td class="num">{{ x.c.por_consumir.normalize }} {{ x.c.producto.unidad.abreviatura }}</td>
+    {% if op.estado == "FINALIZADA" %}<td class="num">{{ x.c.consumido.normalize }}</td><td class="num">{{ x.merma.normalize }}</td><td>{{ x.c.lote_codigo|default:"—" }}</td>{% if ve_costos %}<td class="num">S/ {{ x.c.costo }}</td>{% endif %}
+    {% else %}<td>{% if x.servicio %}—{% elif x.disponible %}<span class="chip ok">Disponible</span>{% else %}<span class="chip error">No disponible</span>{% endif %}</td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="6" class="subtitulo">Sin componentes.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% if op.estado == "FINALIZADA" and "produccion.reporte.ver" in permisos %}
+<section class="tarjeta" id="costos">
+  <h2>Costos</h2>
+  {% if ve_costos %}
+  <dl>
+    <dt>Costo indirecto</dt><dd>S/ {{ op.costo_indirecto }}</dd>
+    <dt>Costo total</dt><dd>S/ {{ op.costo_total }}</dd>
+    {% if op.costo_unitario is not None %}<dt>Costo unitario</dt><dd>S/ {{ op.costo_unitario }} por {{ op.producto.unidad.abreviatura }}</dd>{% endif %}
+    {% if op.perdida %}<dt>Pérdida de producción</dt><dd>S/ {{ op.perdida }}</dd>{% endif %}
+  </dl>
+  {% else %}<p class="subtitulo">Tu rol no puede ver costos.</p>{% endif %}
+</section>
+{% endif %}
+{% if op.estado == "ANULADA" %}<p class="aviso">Anulada por {{ op.anulada_por.email|default:"—" }} el {{ op.anulada_en|date:"Y-m-d H:i" }}. Motivo: {{ op.motivo_anulacion }}</p>{% endif %}
+{% if movimientos %}
+<section class="tarjeta" id="movimientos">
+  <h2>Movimientos de kardex</h2>
+  <div class="tabla"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Almacén</th><th>Lote</th><th class="num">Cantidad</th>{% if ve_costos %}<th class="num">Costo unit.</th>{% endif %}</tr></thead><tbody>
+  {% for m in movimientos %}<tr><td>{{ m.fecha|date:"Y-m-d H:i" }}</td><td>{{ m.tipo|title }}</td><td>{{ m.producto.sku }}</td><td>{{ m.almacen.nombre }}</td><td>{{ m.lote.codigo|default:"" }}</td><td class="num">{{ m.cantidad.normalize }}</td>{% if ve_costos %}<td class="num">S/ {{ m.costo_unitario }}</td>{% endif %}</tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+{% endif %}
+
+<div class="acciones-documento">
+  {% if not op %}
+    <a class="boton secundario" href="{% url 'ordenes' %}" data-descartar>Cancelar</a>
+    <button type="submit" form="form-op">Crear OP</button>
+  {% else %}
+    {% if editable %}<span class="estado-cambios" data-aviso-cambios="form-op" role="status">Sin cambios pendientes</span>
+    <button type="submit" form="form-op" class="secundario" data-con-cambios disabled>Guardar cambios</button>{% else %}<a class="boton secundario" href="{% url 'ordenes' %}">Volver al listado</a>{% endif %}
+    {% if puede_ejecutar and op.estado == "CREADA" %}
+      {% if editable %}<button type="submit" form="form-op" name="accion" value="en_proceso">Pasar a en proceso</button>
+      {% else %}<form method="post">{% csrf_token %}<button type="submit" name="accion" value="en_proceso">Pasar a en proceso</button></form>{% endif %}
+    {% elif puede_ejecutar and op.estado == "EN_PROCESO" %}
+      <button type="button" {% if editable %}data-sin-cambios {% endif %}onclick="document.getElementById('finalizar-op').showModal()">Finalizar</button>
+    {% endif %}
+    {% if editable or puede_anular %}
+    <details class="mas-acciones">
+      <summary>Más acciones ▾</summary>
+      <div class="menu">
+        {% if editable %}<a href="{{ request.path }}" data-descartar>Descartar cambios</a>{% endif %}
+        {% if puede_receta %}<button type="submit" form="form-op" name="accion" value="receta">Guardar como receta del producto</button>{% endif %}
+        {% if puede_anular %}<hr><button type="button" class="peligro" onclick="document.getElementById('anular-op').showModal()">Anular OP</button>{% endif %}
+      </div>
+    </details>
+    {% endif %}
+  {% endif %}
+</div>
+
+{% if puede_ejecutar and op.estado == "EN_PROCESO" %}
+<dialog id="finalizar-op" class="tarjeta" aria-labelledby="titulo-finalizar">
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="finalizar">
+    <h2 id="titulo-finalizar">Finalizar {{ numero }}</h2>
+    <p>Se consumirán los componentes del almacén <strong>{{ op.almacen_origen.nombre }}</strong> al costo promedio y entrará el producto <strong>{{ op.producto.nombre }}</strong> en <strong>{{ op.almacen_destino.nombre }}</strong> con su lote. Revisa lo consumido: la OP ya no se podrá editar.</p>
+    <div class="tabla"><table><thead><tr><th>Componente</th><th class="num">Por consumir</th><th>Consumido real</th><th>Lote</th></tr></thead><tbody>
+    {% for x in componentes %}<tr><td>{{ x.c.producto.sku }} · {{ x.c.producto.nombre }}</td><td class="num">{{ x.c.por_consumir.normalize }} {{ x.c.producto.unidad.abreviatura }}</td>
+      <td>{% if x.servicio %}Servicio · S/ {{ x.c.costo_servicio }}{% else %}<input name="consumido_{{ x.c.producto_id }}" type="number" min="0" step="0.0001" value="{{ x.c.por_consumir.normalize }}" aria-label="Consumido de {{ x.c.producto.sku }}">{% endif %}</td>
+      <td>{% if not x.servicio and x.lotes %}<select name="lote_{{ x.c.producto_id }}" aria-label="Lote de {{ x.c.producto.sku }}"><option value="">Según la estrategia del producto</option>{% for lote, q in x.lotes %}{% if lote %}<option value="{{ lote }}">{{ lote }} · {{ q.normalize }}</option>{% endif %}{% endfor %}</select>{% else %}—{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if accion_fallida == "finalizar" %}{% include "listados/_error.html" with error=request.errores_campo.componentes %}{% include "listados/_error.html" with error=request.errores_campo.producto %}{% endif %}
+    <div class="dos-columnas">
+      <label>Cantidad producida *<input name="producida" type="number" min="0" step="0.0001" required value="{% if accion_fallida == 'finalizar' %}{{ request.POST.producida }}{% else %}{{ op.cantidad.normalize }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.producida %}</label>
+      <label>Fecha de fin *<input type="date" name="fecha_fin" required max="{{ hoy }}" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.fecha_fin }}{% else %}{{ hoy }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.fecha_fin %}</label>
+      <label>Lote del producto<input name="lote" maxlength="40" placeholder="{{ lote_sugerido }}" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.lote }}{% endif %}"><small class="subtitulo">Vacío: {{ lote_sugerido }}.</small></label>
+      <label>Vencimiento (opcional)<input type="date" name="vencimiento" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.vencimiento }}{% endif %}"><small class="subtitulo">Vacío: fecha de fin + vida útil del producto.</small>{% include "listados/_error.html" with error=request.errores_campo.vencimiento %}</label>
+      <label>Costo indirecto (S/, opcional)<input name="costo_indirecto" type="number" min="0" step="0.01" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.costo_indirecto }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.costo_indirecto %}</label>
+      <label>Motivo del lote perdido<input name="motivo_perdida" maxlength="200" placeholder="Solo si la cantidad producida es 0" value="{% if accion_fallida == 'finalizar' %}{{ request.POST.motivo_perdida }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.motivo_perdida %}</label>
+    </div>
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver a revisar</button> <button type="submit">Confirmar y finalizar</button></p>
+  </form>
+</dialog>
+{% endif %}
+{% if puede_anular %}
+<dialog id="anular-op" class="tarjeta" aria-labelledby="titulo-anular">
+  <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="anular">
+    <h2 id="titulo-anular">Anular {{ numero }}</h2>
+    <p>La OP <strong>{{ numero }}</strong> quedará anulada. Aún no consumió componentes ni ingresó producto, así que no se mueve el inventario. La anulación no se puede deshacer.</p>
+    <label>Motivo *<input name="motivo" required maxlength="200" value="{% if accion_fallida == 'anular' %}{{ request.POST.motivo }}{% endif %}">{% include "listados/_error.html" with error=request.errores_campo.motivo %}</label>
+    <p class="acciones-dialogo"><button type="button" class="secundario" onclick="this.closest('dialog').close()">Volver</button> <button type="submit" class="peligro">Confirmar anulación</button></p>
+  </form>
+</dialog>
+{% endif %}
+{% if editable %}
+<script>
+  // Un componente por fila, sin límite (como las líneas de la compra).
+  function agregarComponente() {
+    document.getElementById("componentes").appendChild(document.getElementById("componente-vacio").content.cloneNode(true));
+  }
+  function quitarComponente(boton) {
+    boton.closest("tr").remove();
+    document.getElementById("form-op").dispatchEvent(new Event("input"));
+  }
+</script>
+{% endif %}
+{% if accion_fallida == "finalizar" or accion_fallida == "anular" %}
+<script>  // la acción falló: su diálogo vuelve abierto, con el error y lo escrito (docs/ux.md §1)
+  document.getElementById("{% if accion_fallida == 'finalizar' %}finalizar-op{% else %}anular-op{% endif %}")?.showModal();
+</script>
+{% endif %}
+{% endblock %}

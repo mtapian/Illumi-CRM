@@ -15,8 +15,9 @@ from inventory.domain import costo as cp
 from inventory.domain.errores import AnulacionConConsumoPosterior as AnulacionConConsumoPosterior
 from inventory.domain.errores import CostoRequerido
 from inventory.domain.existencia import ENTRADA, SALIDA, Existencia, Movimiento, salir
-from inventory.domain.fefo import asignar_fefo
+from inventory.domain.fefo import ORDEN, asignar_fefo
 from inventory.domain.lotes import (
+    lote_vencido,
     sugerir_vencimiento,
     validar_bien,
     validar_lote_existente,
@@ -41,12 +42,25 @@ class Linea:
     exacto: bool = False  # en salidas: `lote=None` es el stock sin lote, no FEFO (CONTEO)
 
 
+@dataclass(frozen=True)
+class Consumo:
+    """Lo que sacó una salida: producto, lote (None = sin lote), cantidad e importe."""
+
+    producto_id: int
+    lote: str | None
+    cantidad: Decimal
+    importe: Decimal
+
+
 class InventarioRepo(Protocol):
     def bloquear(self, producto_ids: list[int]) -> None: ...
     def costo(self, producto_id: int) -> cp.CostoProducto: ...
     def guardar_costo(self, producto_id: int, costo: cp.CostoProducto) -> None: ...
     def almacen(self, almacen_id: int) -> str | None: ...
-    def existencias(self, producto_id: int, almacen_id: int) -> list[Existencia]: ...
+    def existencias(
+        self, producto_id: int, almacen_id: int, bloquear: bool = True
+    ) -> list[Existencia]: ...
+    def consumos(self, ids: list[int]) -> list[Consumo]: ...
     def lote(self, producto_id: int, codigo: str) -> tuple[int, date | None] | None: ...
     def crear_lote(self, producto_id, codigo, ingreso, vencimiento, origen) -> int: ...
     def sumar_stock(self, producto_id, almacen_id, lote_id, cantidad: Decimal) -> None: ...
@@ -163,6 +177,23 @@ class InventarioService:
             )
         return [(existencias[0] if existencias else vacia, x.cantidad)]
 
+    def existencias_en_orden(
+        self, producto_id: int, almacen_id: int, hoy: date
+    ) -> list[tuple[str | None, Decimal]]:
+        """Lectura, sin bloquear: (lote, cantidad) con stock y sin vencer, en el orden en que
+        saldrían según la estrategia del producto; el stock sin lote, al último (0005a)."""
+        producto = self._producto(producto_id)
+        existencias = self._repo.existencias(producto_id, almacen_id, bloquear=False)
+        usables = [
+            e for e in existencias if e.cantidad > 0 and not lote_vencido(e.vencimiento, hoy)
+        ]
+        usables.sort(key=ORDEN[producto.estrategia_salida])
+        return [(e.lote, e.cantidad) for e in usables]
+
+    def consumido(self, ids: list[int]) -> list[Consumo]:
+        """Producto, lote, cantidad e importe de los movimientos indicados (0005a, RF-PRD-41)."""
+        return self._repo.consumos(ids)
+
     def stock_en(self, producto_id: int, almacen_id: int, lote: str | None) -> Decimal:
         """Stock de una existencia (lote `None` = sin lote), para el CONTEO de 0003b."""
         self._almacen(almacen_id)
@@ -241,6 +272,7 @@ class InventarioService:
                         lote_id=e.lote_id,
                         cantidad=cant,
                         costo_unitario=antes.promedio,
+                        fecha=hoy,  # la de fin en una OP (0005a, RF-PRD-41)
                     )
                 )
         return ids

@@ -43,20 +43,21 @@ select = ["E", "F", "I", "B", "UP", "DJ"]
 where = ["src"]
 
 [tool.importlinter]
-root_packages = ["shared", "tenancy", "catalog", "purchasing", "inventory"]
+root_packages = ["shared", "tenancy", "catalog", "purchasing", "inventory", "production"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Capas de cada contexto (plan 0000 §2)"
 type = "layers"
 layers = ["interfaces", "infrastructure", "application", "domain"]
-containers = ["shared", "tenancy", "catalog", "purchasing", "inventory"]
+containers = ["shared", "tenancy", "catalog", "purchasing", "inventory", "production"]
 
 [[tool.importlinter.contracts]]
 name = "El dominio es Python puro: no importa Django"
 type = "forbidden"
 source_modules = [
     "shared.domain", "tenancy.domain", "catalog.domain", "purchasing.domain", "inventory.domain",
+    "production.domain",
 ]
 forbidden_modules = ["django"]
 
@@ -64,7 +65,7 @@ forbidden_modules = ["django"]
 name = "El shared kernel no depende de ningún contexto"
 type = "forbidden"
 source_modules = ["shared"]
-forbidden_modules = ["tenancy", "catalog", "purchasing", "inventory"]
+forbidden_modules = ["tenancy", "catalog", "purchasing", "inventory", "production"]
 
 [[tool.importlinter.contracts]]
 name = "Tenancy no depende del catálogo (los contextos de abajo no conocen a los de arriba)"
@@ -114,3 +115,23 @@ forbidden_modules = [
     "catalog.infrastructure", "catalog.interfaces", "catalog.domain",
     "purchasing",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Producción usa tenancy, el catálogo y el inventario solo por sus fachadas, sus registros y su capa web"
+type = "forbidden"
+source_modules = ["production.domain", "production.application"]
+# Solo imports directos: la fachada del catálogo puede usar su propio dominio (plan 0005a §6).
+allow_indirect_imports = "True"
+forbidden_modules = [
+    "tenancy.infrastructure", "tenancy.interfaces", "tenancy.domain",
+    "catalog.infrastructure", "catalog.interfaces", "catalog.domain",
+    "inventory.infrastructure", "inventory.interfaces", "inventory.domain",
+    "purchasing",
+]
+
+[[tool.importlinter.contracts]]
+name = "Nadie depende de producción"
+type = "forbidden"
+source_modules = ["tenancy", "catalog", "purchasing", "inventory"]
+forbidden_modules = ["production"]
+

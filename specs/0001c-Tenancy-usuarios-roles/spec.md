@@ -43,7 +43,7 @@ Se crean como roles **editables** al registrar la empresa (spec 0001a, RF-TEN-01
 | `inventario.costo.ver` | ✔ | ✔ | ✔ | ✔ | — |
 | Ajustes: registrar / anular | ✔ / ✔ | ✔ / ✔ | — | ✔ / — | — |
 | Compras: registrar / anular | ✔ / ✔ | ✔ / ✔ | — | ✔ / — | — |
-| Producción: recetas, OP, envasado | ✔ | ✔ | ✔ (sin anular OP) | — | — |
+| Producción: órdenes de producción (0005a; la receta está en el catálogo y el envasado es una OP) | ✔ | ✔ | ✔ (sin anular OP) | — | — |
 | `produccion.op.anular` | ✔ | ✔ | — | — | — |
 | Ventas: clientes, pedidos, registrar venta | ✔ | ✔ | — | — | ✔ |
 | `ventas.venta.anular` | ✔ | ✔ | — | — | — |

@@ -272,7 +272,7 @@ def vuelve_a_poder(email):
 
 @when(re_("el super admin agrega a {} la funcionalidad {}", "nombre", "funcionalidad"))
 def super_agrega(ctx, nombre, funcionalidad):
-    # RN-TEN-09: "Órdenes de producción" requiere "Recetas"; el super admin las agrega juntas.
+    # RN-TEN-09: una funcionalidad se agrega junto con las que requiere.
     codigo = por_nombre(funcionalidad)
     funcs = [codigo, *requeridas(codigo)]
     plataforma().agregar(ctx["empresa"].id, funcs, "Piloto", None, None, hoy())

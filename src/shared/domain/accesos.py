@@ -97,13 +97,6 @@ CATALOGO = {
             ("inventario.stock",),
         ),
         _F(
-            "produccion.recetas",
-            "Recetas",
-            "PRODUCCION",
-            ("produccion.receta.ver", "produccion.receta.gestionar"),
-            ("inventario.stock",),
-        ),
-        _F(
             "produccion.op",
             "Órdenes de producción",
             "PRODUCCION",
@@ -114,14 +107,9 @@ CATALOGO = {
                 "produccion.op.anular",
                 "produccion.reporte.ver",
             ),
-            ("produccion.recetas",),
-        ),
-        _F(
-            "produccion.envasado",
-            "Envasado multipresentación",
-            "PRODUCCION",
-            ("produccion.envasado.registrar",),
-            ("produccion.op",),
+            # 0005a: la receta es del catálogo y el envasado es una OP (se retiran
+            # "Recetas" y "Envasado multipresentación").
+            ("inventario.stock",),
         ),
         _F(
             "ventas.clientes",

@@ -106,14 +106,15 @@ Característica: Órdenes de producción
   @UC-PRD-03 @critico @RF-PRD-16
   Escenario: Anular una OP en proceso no mueve stock
     Dado una OP de 500 "GRA-IPA" en proceso con su receta
-    Y que soy usuario "gerente" de "Cervecería Andina"
+    Y que trabajo como usuario "gerente"
     Cuando anulo la OP con el motivo "Se canceló la cocción"
     Entonces la OP queda "Anulada"
     Y el stock de "INS-MALTA" es 300
 
   @UC-PRD-03 @borde @RF-PRD-18 @RF-PRD-33
   Esquema del escenario: Transiciones no permitidas
-    Dado una OP de 500 "GRA-IPA" en estado "<estado>"
+    Dado que trabajo como usuario "gerente"
+    Y una OP de 500 "GRA-IPA" en estado "<estado>"
     Cuando intento <accion> la OP
     Entonces la operación es rechazada con el mensaje "<mensaje>"
 

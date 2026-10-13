@@ -27,7 +27,9 @@ def test_cada_permiso_pertenece_a_una_sola_funcionalidad():
     assert PERMISOS["ventas.venta.anular"] == "ventas.ventas"
 
 
-def test_envasado_sin_sus_dependencias_indica_las_que_faltan_en_orden():
-    plan = {"catalogo.productos", "inventario.stock", "produccion.envasado"}
-    faltan = dependencias_faltantes(plan)
-    assert [funcionalidad(c).nombre for c in faltan] == ["Recetas", "Órdenes de producción"]
+def test_ajustes_sin_sus_dependencias_indica_las_que_faltan_en_orden():
+    faltan = dependencias_faltantes({"inventario.ajustes"})
+    assert [funcionalidad(c).nombre for c in faltan] == [
+        "Productos y presentaciones",
+        "Stock y kardex",
+    ]

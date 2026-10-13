@@ -1,6 +1,6 @@
 # Spec 0005a — Producción: órdenes de producción
 
-Estado: **aprobada** (PO: "procede", 2026-10-12) · consolidada el 2026-10-12 con la enmienda 4 de 0002a (OP de cualquier producto, referencia Odoo) y las decisiones del PO del 2026-10-11 y 2026-10-12; **absorbe 0005b** (envasado, cierre y costo del lote), que se retira
+Estado: **implementada** (2026-10-12; aprobada por el PO: "procede") · consolidada el 2026-10-12 con la enmienda 4 de 0002a (OP de cualquier producto, referencia Odoo) y las decisiones del PO del 2026-10-11 y 2026-10-12; **absorbe 0005b** (envasado, cierre y costo del lote), que se retira
 
 Épica E05 (Producción). Depende de: 0002a (receta, enmienda 4), 0003a (inventario y lotes). La usan: 0008b (costo y pérdidas de producción).
 

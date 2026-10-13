@@ -268,6 +268,28 @@ class EditarProducto(_Base):
                 )
 
 
+class GuardarReceta(_Base):
+    """Guarda los componentes de una OP como la receta del producto (0005a, RF-PRD-38): las
+    mismas reglas que la receta de la ficha (RF-CAT-41) y su historial (RF-CAT-32)."""
+
+    def ejecutar(self, actor: Actor, producto_id: int, receta: Receta) -> None:
+        original = self._repo.producto(producto_id)
+        if not original.se_fabrica:
+            raise RecetaInvalida("El producto no se fabrica: no lleva receta", CAMPO)
+        receta = tuple(receta)
+        self._validar_receta(producto_id, receta)
+        with self._atomic():
+            previa = self._repo.receta(producto_id)
+            self._repo.guardar_receta(producto_id, receta)
+            antes, despues = solo_cambios(
+                instantanea(original, previa), instantanea(original, receta)
+            )
+            if despues:
+                self._repo.registrar_historial(
+                    producto_id, actor.usuario_id, "editado", antes, despues
+                )
+
+
 class CambiarEstadoProducto(_Base):
     """Desactivar no borra nada: el producto sigue en el historial (RF-CAT-19)."""
 

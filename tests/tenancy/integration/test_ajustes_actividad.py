@@ -55,4 +55,4 @@ def test_el_plan_de_prueba_incluye_todo(crear_empresa):
     empresa = crear_empresa()
     empresa.plan.es_plan_prueba = True
     empresa.plan.save()
-    assert "produccion.envasado" in tenancy_service().habilitaciones_de(empresa.id, HOY)
+    assert "produccion.op" in tenancy_service().habilitaciones_de(empresa.id, HOY)
