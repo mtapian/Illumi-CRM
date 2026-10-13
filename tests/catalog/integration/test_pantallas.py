@@ -371,3 +371,38 @@ def test_impuesto_con_criterio_elegido(client, lucia):
     html = client.get("/catalogo/impuestos/").content.decode()
     assert "<td>Porcentaje</td>" in html and "25 %" in html
     assert "Según el código" in client.get("/catalogo/impuestos/?nuevo=1").content.decode()
+
+
+def test_impuestos_del_producto_en_la_ficha(client, lucia):
+    """0002e T7 (RF-CAT-56, 57): etiquetas de venta y de compra en la ficha; el alta trae el
+    IGV de cada lista y un error de la lista va junto a su campo."""
+    sembrar_impuestos(lucia.empresa_id, lucia.id, date(2026, 1, 1))
+    with tenant_context(lucia.empresa_id):
+        ids = {(i.nombre, i.tipo): i.id for i in Impuesto.objects.all()}
+    nuevo = client.get("/catalogo/productos/nuevo/").content.decode()
+    assert 'name="impuestos_venta"' in nuevo and 'name="impuestos_compra"' in nuevo
+    datos = {"tipo": "BIEN", "se_vende": "on", "se_compra": "on", "sku": "LIB-1", "nombre": "Libro"}
+    datos |= {"unidad": "UND", "precio_venta": "50", "impuestos_venta_presente": "1"}
+    datos |= {"impuestos_compra_presente": "1"}
+    exonerado = datos | {"impuestos_venta": [ids["Exonerado", "VENTA"]]}
+    exonerado |= {"impuestos_compra": [ids["IGV 18%", "COMPRA"]]}
+    client.post("/catalogo/productos/nuevo/", exonerado)
+    with tenant_context(lucia.empresa_id):
+        libro = Producto.objects.get(sku="LIB-1")
+        assert set(libro.impuestos.values_list("nombre", "tipo")) == {
+            ("Exonerado", "VENTA"),
+            ("IGV 18%", "COMPRA"),
+        }
+    ficha = client.get(f"/catalogo/productos/{libro.id}/").content.decode()
+    assert "valor 50.00" in ficha  # exonerado: sin IGV en el desglose
+    doble = datos | {"sku": "LIB-2", "impuestos_compra": [ids["IGV 18%", "COMPRA"]]}
+    doble |= {"impuestos_venta": [ids["IGV 18%", "VENTA"], ids["Exonerado", "VENTA"]]}
+    html = client.post("/catalogo/productos/nuevo/", doble).content.decode()
+    assert "error-campo" in html and "debe tener un impuesto de IGV" in html
+    assert 'id="pes-ventas" class="pestana-radio" checked' in html
+
+
+def test_la_empresa_ya_no_edita_el_igv(client, lucia):
+    """0002e T7 (0001a RF-TEN-15, 16): el IGV vive en los impuestos del catálogo."""
+    html = client.get("/configuracion/empresa/").content.decode()
+    assert 'value="igv"' not in html and "/catalogo/impuestos/" in html

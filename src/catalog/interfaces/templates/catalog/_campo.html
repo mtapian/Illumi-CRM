@@ -1,0 +1,8 @@
+{% comment %}Un campo de la ficha de producto con su ayuda, enlaces y error (docs/ux.md §4). Las listas
+de impuestos llevan una marca: si la lista no se pinta, no se envía y el guardado no la toca.{% endcomment %}
+<p class="campo-{{ f.name }}">{{ f.label_tag }} {{ f }}{% if f.help_text %} <small class="subtitulo">{{ f.help_text }}</small>{% endif %}
+  {% if f.name == "unidad" and "catalogo.unidad.gestionar" in permisos %}<small><a href="{% url 'unidades' %}">Administrar unidades</a></small>{% endif %}
+  {% if f.name == "categoria" %}<small><a href="{% url 'categorias' %}">Administrar categorías</a></small>{% endif %}
+  {% if f.name == "marca" %}<small><a href="{% url 'marcas' %}">Administrar marcas</a></small>{% endif %}
+  {% if f.name == "impuestos_venta" or f.name == "impuestos_compra" %}<input type="hidden" name="{{ f.name }}_presente" value="1" form="ficha">{% if "catalogo.isc.gestionar" in permisos %}<small><a href="{% url 'impuestos' %}">Administrar impuestos</a></small>{% endif %}{% endif %}
+  {% include "listados/_error.html" with error=f.errors|first %}</p>

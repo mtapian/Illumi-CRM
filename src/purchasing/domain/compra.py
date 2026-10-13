@@ -58,16 +58,20 @@ def subtotal_linea(x: LineaCompra) -> Decimal:
 
 
 def totales(
-    lineas: list[LineaCompra], doc_tipo: str, igv_pct: Decimal
+    lineas: list[LineaCompra], doc_tipo: str, igv: Decimal | list[tuple[str, Decimal]]
 ) -> tuple[Decimal, Decimal, Decimal]:
-    """Subtotal e IGV por línea con half-up a 2 decimales; total = subtotal + IGV (RF-COM-09)."""
-    subtotal = igv = Decimal("0.00")
-    for x in lineas:
+    """Subtotal e IGV por línea con half-up a 2 decimales; total = subtotal + IGV (RF-COM-09).
+    `igv`: el % de todas las líneas, o el (criterio, importe) de cada una según el impuesto de
+    compra de su producto (RF-CAT-61): % del subtotal o monto fijo por unidad."""
+    tasas = [("PORCENTAJE", igv)] * len(lineas) if isinstance(igv, Decimal) else igv
+    subtotal = total_igv = Decimal("0.00")
+    for x, (criterio, importe) in zip(lineas, tasas, strict=True):
         sub = subtotal_linea(x)
         subtotal += sub
         if separa_igv(doc_tipo):
-            igv += _importe(sub * igv_pct / 100)
-    return subtotal, igv, subtotal + igv
+            base = x.cantidad if criterio == "FIJO" else sub / 100
+            total_igv += _importe(base * importe)
+    return subtotal, total_igv, subtotal + total_igv
 
 
 def validar_documento_compra(doc_tipo: str, serie_numero: str, tipo_doc_proveedor: str) -> str:

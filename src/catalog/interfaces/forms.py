@@ -25,7 +25,10 @@ _PESTANA_DE = {
     "vida_util_dias": "inventario",
     "peso_kg": "inventario",
     "volumen_m3": "inventario",
+    "impuestos_venta": "ventas",  # 0002e, RF-CAT-56
+    "impuestos_compra": "compras",  # pestaña de compras (0002d); si no está, va a General
 }
+IMPUESTOS = ("impuestos_venta", "impuestos_compra")
 
 
 class ProductoForm(forms.Form):
@@ -68,6 +71,12 @@ class ProductoForm(forms.Form):
     tasa_desde = forms.DateField(
         label="Vigente desde", required=False, widget=forms.DateInput(attrs={"type": "date"})
     )
+    impuestos_venta = forms.MultipleChoiceField(
+        label="Impuestos de venta", required=False, widget=forms.CheckboxSelectMultiple
+    )
+    impuestos_compra = forms.MultipleChoiceField(
+        label="Impuestos de compra", required=False, widget=forms.CheckboxSelectMultiple
+    )
     stock_minimo = forms.DecimalField(
         label="Stock mínimo", decimal_places=4, initial=0, min_value=0, required=False
     )
@@ -92,6 +101,8 @@ class ProductoForm(forms.Form):
         marcas=(),
         componentes=(),
         bloqueados=(),
+        impuestos_venta=(),
+        impuestos_compra=(),
         **kw,
     ):
         super().__init__(*args, **kw)
@@ -101,6 +112,10 @@ class ProductoForm(forms.Form):
             (str(i), n) for i, n in categorias
         ]
         self.fields["marca"].choices = [("", "— Sin marca —")] + [(str(i), n) for i, n in marcas]
+        # (id, nombre) de los impuestos activos de cada tipo más los que ya tiene (RF-CAT-56)
+        self.fields["impuestos_venta"].choices = [(str(i), n) for i, n in impuestos_venta]
+        self.fields["impuestos_compra"].choices = [(str(i), n) for i, n in impuestos_compra]
+        self.fields["impuestos_compra"].widget.attrs["form"] = "ficha"  # puede ir en otra pestaña
         opciones = [("", "—")] + [(str(i), n) for i, n in componentes]
         for i in range(self.FILAS_RECETA):  # receta opcional (RF-CAT-41)
             self.fields[f"componente_{i}"] = forms.ChoiceField(
@@ -129,14 +144,25 @@ class ProductoForm(forms.Form):
     def encabezado(self):
         return [self[c] for c in ENCABEZADO]
 
-    def pestanas(self) -> list[dict]:
+    def _clave(self, campo, externas) -> str:
+        if campo.startswith(("componente_", "cantidad_")):
+            return "produccion"
+        clave = _PESTANA_DE.get(campo, "general")
+        propias = {c for c, *_ in PESTANAS}
+        return clave if clave in propias or clave in externas else "general"
+
+    def campos_de(self, clave, externas=()) -> list:
+        """Campos del formulario que se pintan en la pestaña `clave` (también externas)."""
+        return [
+            f for f in self if f.name not in ENCABEZADO and self._clave(f.name, externas) == clave
+        ]
+
+    def pestanas(self, externas=()) -> list[dict]:
         campos = {}
         for f in self:
             if f.name in ENCABEZADO:
                 continue
-            receta = f.name.startswith(("componente_", "cantidad_"))
-            clave = "produccion" if receta else _PESTANA_DE.get(f.name, "general")
-            campos.setdefault(clave, []).append(f)
+            campos.setdefault(self._clave(f.name, externas), []).append(f)
         activas = self.casillas_activas()
         return [
             {
@@ -145,8 +171,8 @@ class ProductoForm(forms.Form):
                 "orden": o,
                 "casilla": casilla,
                 "activa": casilla is None or casilla in activas,
-                "campos": campos[c],
-                "errores": any(f.errors for f in campos[c]),
+                "campos": campos.get(c, []),
+                "errores": any(f.errors for f in campos.get(c, [])),
             }
             for c, e, o, casilla in PESTANAS
         ]
@@ -175,6 +201,12 @@ class ProductoForm(forms.Form):
             referencia=c.get("referencia", ""),
             codigo_barras=c.get("codigo_barras", ""),
         )
+
+    def impuestos(self, campo) -> list[int] | None:
+        """Ids elegidos, o None si la lista no se pintó (no se envía): no se toca."""
+        if f"{campo}_presente" not in self.data:
+            return None
+        return [int(i) for i in self.cleaned_data.get(campo, [])]
 
     def tasa(self):
         """(monto, desde) de una tasa nueva, o None si no se ingresó (RF-CAT-46)."""

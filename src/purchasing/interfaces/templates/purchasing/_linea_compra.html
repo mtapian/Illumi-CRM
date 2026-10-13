@@ -1,5 +1,5 @@
 <tr>
-  <td><select name="producto" aria-label="Producto"><option value="">—</option>{% for p in productos %}<option value="{{ p.id }}"{% if f.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select></td>
+  <td><select name="producto" aria-label="Producto"><option value="">—</option>{% for p in productos %}<option value="{{ p.id }}" data-igv="{{ p.igv_importe }}" data-igv-criterio="{{ p.igv_criterio }}"{% if f.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select></td>
   <td><input name="cantidad" type="number" min="0" step="0.0001" value="{{ f.cantidad|default:'' }}" aria-label="Cantidad"></td>
   <td><input name="costo" type="number" min="0" step="0.000001" value="{{ f.costo|default:'' }}" aria-label="Costo unitario"></td>
   <td><select name="bonificacion" aria-label="Bonificación"><option value="">No</option><option value="si"{% if f.bonificacion == "si" %} selected{% endif %}>Sí</option></select></td>

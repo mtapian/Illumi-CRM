@@ -211,6 +211,35 @@ class CatalogoOrm:
             creado_por_id=actor_id,
         )
 
+    # --- Impuestos del producto (spec 0002e, RF-CAT-56) ---
+
+    def impuestos_estado(self, ids):
+        filas = Impuesto.objects.filter(pk__in=ids).values_list("id", "tipo", "codigo", "activo")
+        return {i: (t, c, a) for i, t, c, a in filas}
+
+    def impuestos_de(self, producto_id, tipo):
+        filas = ProductoImpuesto.objects.filter(producto_id=producto_id, impuesto__tipo=tipo)
+        return list(filas.values_list("impuesto_id", flat=True))
+
+    def impuesto_por_defecto(self, tipo):
+        filas = Impuesto.objects.filter(tipo=tipo, codigo="IGV", activo=True).order_by("id")
+        return filas.values_list("id", flat=True).first()
+
+    def guardar_impuestos(self, producto_id, tipo, ids):
+        ProductoImpuesto.objects.filter(producto_id=producto_id, impuesto__tipo=tipo).delete()
+        ProductoImpuesto.objects.bulk_create(
+            ProductoImpuesto(empresa_id=empresa_actual(), producto_id=producto_id, impuesto_id=i)
+            for i in ids
+        )
+
+    def impuestos_del_producto(self, producto_id, tipo):
+        """(nombre, código, criterio, [(vigente desde, importe)]) de cada impuesto."""
+        filas = Impuesto.objects.filter(productos=producto_id, tipo=tipo).prefetch_related("tasas")
+        return [
+            (i.nombre, i.codigo, i.criterio, [(t.vigente_desde, t.importe) for t in i.tasas.all()])
+            for i in filas
+        ]
+
     def isc_de_producto(self, producto_id):
         """(código de tipo de sistema, litros por unidad) o None si no está afecto."""
         p = Producto.objects.filter(pk=producto_id, isc_sistema__isnull=False).first()

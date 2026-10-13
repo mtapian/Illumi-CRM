@@ -21,7 +21,7 @@ from catalog.domain.tipos import TipoProducto
 from catalog.infrastructure.contenedor import caso_de_impuestos, caso_de_uso, catalogo_query
 from catalog.infrastructure.models import Categoria, Impuesto, Marca, Producto, Unidad
 from catalog.infrastructure.repositorios import CatalogoOrm
-from catalog.interfaces.forms import ProductoForm
+from catalog.interfaces.forms import IMPUESTOS, ProductoForm
 from catalog.interfaces.pestanas import pestanas
 from shared.domain.vigencia import SinValorVigente, valor_vigente
 from shared.interfaces import listados
@@ -38,8 +38,22 @@ def _opciones(modelo, actual=None):
     return list(filas.values_list("id", "nombre"))
 
 
+def _impuestos(tipo, actuales):
+    """Activos de un tipo más los que ya tiene el producto, aunque estén inactivos."""
+    filas = Impuesto.objects.filter(Q(activo=True) | Q(pk__in=actuales), tipo=tipo)
+    return list(filas.order_by("nombre").values_list("id", "nombre"))
+
+
 def _form(request, inicial=None, bloqueados=(), producto_id=None):
     inicial = inicial or {}
+    repo = CatalogoOrm()
+    for tipo in ("VENTA", "COMPRA"):  # RF-CAT-56: lo guardado o, si es nuevo, el IGV
+        campo = f"impuestos_{tipo.lower()}"
+        if campo not in inicial:
+            actuales = repo.impuestos_de(producto_id, tipo) if producto_id else None
+            defecto = repo.impuesto_por_defecto(tipo)
+            inicial[campo] = actuales if actuales is not None else ([defecto] if defecto else [])
+        inicial[campo] = [str(i) for i in inicial[campo]]
     unidades = (
         Unidad.objects.filter(activo=True).order_by("nombre").values_list("abreviatura", "nombre")
     )
@@ -54,6 +68,8 @@ def _form(request, inicial=None, bloqueados=(), producto_id=None):
         marcas=_opciones(Marca, inicial.get("marca_id")),
         bloqueados=bloqueados,
         componentes=[(i, f"{s} · {n}") for i, s, n in activos.values_list("id", "sku", "nombre")],
+        impuestos_venta=_impuestos("VENTA", [int(i) for i in inicial["impuestos_venta"]]),
+        impuestos_compra=_impuestos("COMPRA", [int(i) for i in inicial["impuestos_compra"]]),
     )
 
 
@@ -123,9 +139,10 @@ def producto_nuevo(request):
     if request.method == "POST" and form.is_valid():
         caso, nuevo = caso_de_uso(uc.CrearProducto), {}
         datos, receta, tasa = form.datos(), form.receta(), form.tasa()
+        listas = {c: form.impuestos(c) for c in IMPUESTOS}
         if _intentar(
             request,
-            lambda: nuevo.update(id=caso.ejecutar(request.actor, datos, receta, tasa)),
+            lambda: nuevo.update(id=caso.ejecutar(request.actor, datos, receta, tasa, **listas)),
         ):
             messages.success(request, "Producto creado.")
             return redirect("producto", producto_id=nuevo["id"])
@@ -141,14 +158,19 @@ def _errores_al_form(request, form):
 
 
 def _pestanas(form, externas=()):
-    """Pestañas propias y externas en orden; abre la primera con errores (RF-CAT-04)."""
-    todas = sorted([*form.pestanas(), *externas], key=lambda p: p.get("orden", 30))
+    """Pestañas propias y externas en orden; abre la primera con errores (RF-CAT-04). Una
+    externa puede llevar campos de la ficha (los impuestos de compra van en "Compras")."""
+    claves = {p["clave"] for p in externas}
+    for p in externas:
+        p["campos_ficha"] = form.campos_de(p["clave"], claves)
+        p["errores"] = any(f.errors for f in p["campos_ficha"])
+    todas = sorted([*form.pestanas(claves), *externas], key=lambda p: p.get("orden", 30))
     abierta = next((p["clave"] for p in todas if p.get("errores")), "general")
     return {"pestanas": todas, "abierta": abierta}
 
 
 ISC_CAMPOS = ("afecto_isc", "isc_codigo_tipo_sistema", "contenido_litros", "tasa_monto")
-ISC_CAMPOS += ("tasa_desde",)
+ISC_CAMPOS += ("tasa_desde", *IMPUESTOS)  # gestionar impuestos exige el mismo permiso
 
 
 def _sin_permiso_isc(request):
@@ -167,9 +189,16 @@ def _desglose(producto_id, datos):
     """Desglose informativo con el IGV y el ISC de hoy (RF-CAT-30)."""
     if not (datos.se_vende and datos.precio_venta):
         return None
-    hoy = timezone.localdate()
+    hoy, q = timezone.localdate(), catalogo_query()
+    if CatalogoOrm().impuestos_de(producto_id, "VENTA"):  # spec 0002e (RF-CAT-59)
+        try:
+            d = q.desglose_de_linea(producto_id, datos.precio_venta, Decimal("1"), hoy)
+        except ImpuestoInvalido as e:
+            return {"error": e.mensaje}
+        return {"precio": datos.precio_venta} | vars(d)
+    # ponytail: productos sin impuestos asignados, hasta la conversión de T6 (RF-CAT-60).
     try:
-        isc = catalogo_query().isc_de_linea(producto_id, Decimal("1"), hoy)
+        isc = q.isc_de_linea(producto_id, Decimal("1"), hoy)
     except IscSinTarifaVigente as e:
         return {"error": str(e)}
     igv = tenancy_service().igv_vigente(hoy)
@@ -203,8 +232,10 @@ def producto(request, producto_id):
         if accion == "guardar" and form.is_valid():
             caso = caso_de_uso(uc.EditarProducto)
             datos_form, receta, tasa = form.datos(), form.receta(), form.tasa()
+            listas = {c: form.impuestos(c) for c in IMPUESTOS}
             hecho = _intentar(
-                request, lambda: caso.ejecutar(actor, producto_id, datos_form, receta, tasa)
+                request,
+                lambda: caso.ejecutar(actor, producto_id, datos_form, receta, tasa, **listas),
             )
         elif accion in ("activar", "desactivar"):
             caso = caso_de_uso(uc.CambiarEstadoProducto)

@@ -48,18 +48,18 @@ Característica: Impuestos de venta y de compra
       | Exonerado | 18      | 2027-01-01 | Un impuesto exonerado o inafecto tiene tasa 0 |
       | IGV 18%   | -1      | 2027-01-01 | La tasa no puede ser negativa                 |
 
-  @borrador @UC-CAT-10 @critico @RF-CAT-57 @RF-CAT-59
+  @UC-CAT-10 @critico @RF-CAT-57 @RF-CAT-59
   Escenario: Producto exonerado no lleva IGV
     Dado el bien "LIB-001" que se vende a 50.00 con impuesto de venta "Exonerado"
     Entonces el desglose de "LIB-001" es valor 50.00, ISC 0.00 e IGV 0.00
 
-  @borrador @UC-CAT-10 @critico @RF-CAT-58 @RF-CAT-59
+  @UC-CAT-10 @critico @RF-CAT-58 @RF-CAT-59
   Escenario: Cerveza con IGV e ISC por unidad
     Dado el impuesto "ISC 330 ml" de monto fijo 0.8283 desde "2024-07-01"
     Y el bien "TER-IPA-330" que se vende a 12.00 con impuestos de venta "IGV 18%" e "ISC 330 ml"
     Entonces una venta de 24 "TER-IPA-330" se desglosa en valor 224.19, ISC 19.88 e IGV 43.93
 
-  @borrador @UC-CAT-10 @borde @RF-CAT-57 @RF-CAT-58
+  @UC-CAT-10 @borde @RF-CAT-57 @RF-CAT-58
   Esquema del escenario: Impuestos del producto inválidos
     Cuando creo el <tipo> "X-1" con impuestos de <lista> "<impuestos>"
     Entonces la operación es rechazada con el mensaje "<mensaje>"
@@ -71,13 +71,13 @@ Característica: Impuestos de venta y de compra
       | bien     | compra | IGV 18%, Inafecto   | El producto debe tener un impuesto de IGV, exonerado o inafecto |
       | servicio | venta  | IGV 18%, ISC 330 ml | Un servicio no lleva ISC                                        |
 
-  @borrador @UC-CAT-10 @critico @RF-CAT-53 @RF-CAT-59
+  @UC-CAT-10 @critico @RF-CAT-53 @RF-CAT-59
   Escenario: ISC porcentual elegido por el usuario (enmienda 1)
     Dado el impuesto "ISC 25%" de venta con criterio "porcentaje" y tasa 25 desde "2026-01-01"
     Y el bien "LIC-001" que se vende a 100.00 con impuestos de venta "IGV 18%" e "ISC 25%"
     Entonces el desglose de "LIC-001" es valor 67.80, ISC 16.95 e IGV 15.25
 
-  @borrador @UC-CAT-10 @critico @RF-CAT-61
+  @UC-CAT-10 @critico @RF-CAT-61
   Escenario: Insumo exonerado comprado con factura no lleva IGV
     Dado el bien "INS-001" que se compra con impuesto de compra "Exonerado"
     Y el bien "INS-002" que se compra con impuesto de compra "IGV 18%"

@@ -23,11 +23,7 @@
     {% for p in pestanas %}{% if p.campos %}<section class="panel-pestana pan-{{ p.clave }}">
       {% if p.clave == "produccion" %}<p class="subtitulo">Receta opcional: uno o varios productos del catálogo por unidad. La orden de producción la copia y la puede editar.</p>{% endif %}
       <div class="dos-columnas">
-      {% for f in p.campos %}<p class="campo-{{ f.name }}">{{ f.label_tag }} {{ f }}{% if f.help_text %} <small class="subtitulo">{{ f.help_text }}</small>{% endif %}
-        {% if f.name == "unidad" and "catalogo.unidad.gestionar" in permisos %}<small><a href="{% url 'unidades' %}">Administrar unidades</a></small>{% endif %}
-        {% if f.name == "categoria" %}<small><a href="{% url 'categorias' %}">Administrar categorías</a></small>{% endif %}
-        {% if f.name == "marca" %}<small><a href="{% url 'marcas' %}">Administrar marcas</a></small>{% endif %}
-        {% include "listados/_error.html" with error=f.errors|first %}</p>{% endfor %}
+      {% for f in p.campos %}{% include "catalog/_campo.html" %}{% endfor %}
       </div>
       {% if p.clave == "ventas" and tasas_isc %}
         <table class="tasas-isc"><thead><tr><th>Tasa de ISC vigente desde</th><th>S/ por litro</th><th></th></tr></thead><tbody>
@@ -38,9 +34,11 @@
       {% if p.clave == "ventas" and desglose %}
         {% if desglose.error %}<p class="aviso">{{ desglose.error }}</p>
         {% else %}<p class="desglose">S/ {{ desglose.precio|floatformat:2 }} = valor {{ desglose.valor|floatformat:2 }}{% if desglose.isc %} + ISC {{ desglose.isc|floatformat:2 }}{% endif %} + IGV {{ desglose.igv|floatformat:2 }}
-          <br><small class="subtitulo">Informativo, con el IGV ({{ desglose.igv_pct|floatformat:"-2" }} %) y el ISC de hoy. Cada venta calcula sus impuestos a su fecha.</small></p>{% endif %}
+          <br><small class="subtitulo">Informativo, con {% if "igv_pct" in desglose %}el IGV ({{ desglose.igv_pct|floatformat:"-2" }} %) y el ISC{% else %}los impuestos de venta del producto{% endif %} de hoy. Cada venta calcula sus impuestos a su fecha.</small></p>{% endif %}
       {% endif %}
     </section>{% endif %}{% endfor %}
   </form>
-  {% for p in pestanas %}{% if not p.campos %}<section class="panel-pestana pan-{{ p.clave }} tarjeta">{{ p.html|safe }}</section>{% endif %}{% endfor %}
+  {% for p in pestanas %}{% if not p.campos %}<section class="panel-pestana pan-{{ p.clave }} tarjeta">
+    {% if p.campos_ficha %}<div class="dos-columnas">{% for f in p.campos_ficha %}{% include "catalog/_campo.html" %}{% endfor %}</div>{% endif %}
+    {{ p.html|safe }}</section>{% endif %}{% endfor %}
 </div>

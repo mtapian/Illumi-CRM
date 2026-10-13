@@ -92,3 +92,13 @@ def test_guia_de_remision():
 
 def test_numero_de_compra():
     assert numero_compra(1) == "C-000001"
+
+
+def test_igv_por_linea_con_el_impuesto_de_compra_del_producto():
+    """RF-CAT-61 (0002e): exonerado 0 %, gravado 18 %; un IGV fijo es cantidad × monto."""
+    lineas = [LineaCompra(1, D("10"), D("5.00")), LineaCompra(2, D("10"), D("5.00"))]
+    tasas = [("PORCENTAJE", D("0")), ("PORCENTAJE", D("18"))]
+    assert totales(lineas, "FACTURA", tasas) == (D("100.00"), D("9.00"), D("109.00"))
+    fijo = [("FIJO", D("0.50")), ("PORCENTAJE", D("18"))]
+    assert totales(lineas, "FACTURA", fijo) == (D("100.00"), D("14.00"), D("114.00"))
+    assert totales(lineas, "BOLETA", tasas) == (D("100.00"), D("0.00"), D("100.00"))

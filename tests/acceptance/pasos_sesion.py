@@ -10,11 +10,15 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from pytest_bdd import given, parsers, then, when
 
+from catalog.application import impuestos as ui
+from catalog.infrastructure.contenedor import caso_de_impuestos, sembrar_impuestos
+from catalog.infrastructure.models import Impuesto, ImpuestoTasa
 from shared.domain.accesos import CATALOGO
 from shared.domain.tenant import tenant_context
+from shared.domain.vigencia import valor_vigente
 from shared.infrastructure.correo import enviar_pendientes
 from tenancy.domain.plantillas import PLANTILLAS
-from tenancy.infrastructure.contenedor import tenancy_service
+from tenancy.infrastructure.contenedor import actor_de
 from tenancy.infrastructure.models import Empresa, Plan, PlanFuncionalidad, Rol, Usuario
 from tenancy.infrastructure.repositorios import AccesosOrm
 from tests.acceptance.conftest import contenido
@@ -203,23 +207,35 @@ def venta_con_igv_18(ctx):
     )
 
 
+def igv_a(ctx, fecha):
+    """% vigente a la fecha en los dos "IGV 18%" de la empresa (0002e: el IGV vive en el
+    maestro de impuestos; ajusta RF-TEN-15 y 16)."""
+    pcts = set()
+    for tipo in ("VENTA", "COMPRA"):
+        tasas = ImpuestoTasa.all_tenants.filter(
+            empresa=ctx["empresa"], impuesto__nombre="IGV 18%", impuesto__tipo=tipo
+        ).values_list("vigente_desde", "importe")
+        pcts.add(valor_vigente(list(tasas), fecha))
+    assert len(pcts) == 1
+    return pcts.pop()
+
+
 @when(parsers.parse('"{email}" cambia el IGV a {pct:d} %'))
 def cambia_igv(client, ctx, email, pct):
-    iniciar_sesion(client, email)
-    datos = {"accion": "igv", "igv_pct": pct, "vigente_desde": timezone.localdate().isoformat()}
-    ctx["respuesta"] = client.post("/configuracion/empresa/", datos, follow=True)
-    assert "IGV registrado" in contenido(ctx["respuesta"])
+    sembrar_impuestos(ctx["empresa"].id, None, ctx["fecha_venta"])
+    with tenant_context(ctx["empresa"].id):
+        actor = actor_de(Usuario.objects.get(email=email), timezone.localdate())
+        for igv in Impuesto.objects.filter(nombre="IGV 18%"):
+            caso_de_impuestos(ui.AgregarTasa).ejecutar(actor, igv.id, pct, timezone.localdate())
 
 
 @then(parsers.parse("la venta existente mantiene su IGV de {pct:d} %"))
 def venta_mantiene_igv(ctx, pct):
-    with tenant_context(ctx["empresa"].id):
-        assert tenancy_service().igv_vigente(ctx["fecha_venta"]) == pct
+    assert igv_a(ctx, ctx["fecha_venta"]) == pct
 
 
 @then(parsers.parse("las ventas nuevas usan {pct:d} %"))
 def ventas_nuevas(ctx, pct):
-    with tenant_context(ctx["empresa"].id):
-        assert tenancy_service().igv_vigente(timezone.localdate()) == pct
+    assert igv_a(ctx, timezone.localdate()) == pct
     if ctx["pendientes"]:
         pytest.skip("Parcial; pendiente de otras specs: " + "; ".join(ctx["pendientes"]))

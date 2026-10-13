@@ -118,9 +118,17 @@ class _Base(CasoDeUso):
         return replace(datos, doc_serie_numero=serie, observacion=datos.observacion.strip())
 
     def _totales(self, datos: DatosCompra) -> Totales:
-        """RF-COM-08 y 09: el IGV vigente de la empresa a la fecha de la compra."""
-        pct = self._igv.igv_vigente(datos.fecha)
-        return Totales(pct, *totales(datos.lineas, datos.doc_tipo, pct))
+        """RF-COM-08 y 09 (ajustado por RF-CAT-61): el IGV de cada línea sale del impuesto de
+        compra de su producto a la fecha de la compra. `igv_pct` guarda el mayor % usado."""
+        empresa = self._igv.igv_vigente(datos.fecha)
+        # ponytail: sin impuestos de compra (datos previos a 0002e), el IGV de la empresa;
+        # la conversión de T6 (RF-CAT-60) los asigna a todos.
+        tasas = [
+            self._catalogo.igv_de_compra(x.producto_id, datos.fecha) or ("PORCENTAJE", empresa)
+            for x in datos.lineas
+        ]
+        pct = max((i for c, i in tasas if c == "PORCENTAJE"), default=Decimal("0"))
+        return Totales(pct, *totales(datos.lineas, datos.doc_tipo, tasas))
 
     def _editable(self, compra_id: int) -> tuple[str, DatosCompra]:
         fila = self._repo.bloquear(compra_id)

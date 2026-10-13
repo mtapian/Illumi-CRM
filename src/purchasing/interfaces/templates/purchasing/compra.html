@@ -39,8 +39,8 @@ diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% e
     <p class="subtitulo" id="ayuda-costo">Ingresa el total pagado por unidad.</p>
     <div class="pie-productos">
       <label>Observaciones<textarea name="observacion" maxlength="250" placeholder="Agrega una referencia o indicación para esta compra">{{ valores.observacion|default:'' }}</textarea></label>
-      <div class="caja-totales" data-igv="{{ igv }}" aria-live="polite">
-        <dl><dt>Subtotal</dt><dd id="subtotal">S/ 0.00</dd><dt>IGV <span id="tasa-igv"></span></dt><dd id="igv">S/ 0.00</dd>
+      <div class="caja-totales" aria-live="polite">
+        <dl><dt>Subtotal</dt><dd id="subtotal">S/ 0.00</dd><dt>IGV</dt><dd id="igv">S/ 0.00</dd>
           <dt class="total">Total</dt><dd class="total" id="total">S/ 0.00</dd></dl>
         <small class="subtitulo">Cálculo provisional: el sistema recalcula al guardar.</small>
       </div>
@@ -98,17 +98,19 @@ diálogo; Finalizada: "Ver recepción"). Finalizada o Anulada: solo lectura.{% e
   const soles = (n) => "S/ " + n.toFixed(2);
   function recalcular() {
     const factura = document.getElementById("doc_tipo").value === "FACTURA";
-    const pct = factura ? Number(document.querySelector(".caja-totales").dataset.igv) : 0;
     document.getElementById("etiqueta-costo").textContent = factura ? "Costo sin IGV" : "Total por unidad";
     document.getElementById("ayuda-costo").textContent = factura
       ? "Ingresa el costo unitario sin IGV. El IGV se calcula sobre el subtotal."
       : "Ingresa el total pagado por unidad.";
-    document.getElementById("tasa-igv").textContent = factura ? `(${pct} %)` : "";
     let subtotal = 0, igv = 0;
     for (const fila of document.getElementById("lineas").rows) {
       const sub = Math.round(Number(fila.querySelector("[name=cantidad]").value) * Number(fila.querySelector("[name=costo]").value) * 100) / 100;
       fila.querySelector(".subtotal").textContent = soles(sub);
-      subtotal += sub; igv += Math.round(sub * pct) / 100;
+      // IGV de la línea con el impuesto de compra del producto: % del subtotal o fijo por unidad
+      const opcion = fila.querySelector("[name=producto]").selectedOptions[0];
+      const tasa = factura && opcion ? Number(opcion.dataset.igv || 0) : 0;
+      const base = opcion && opcion.dataset.igvCriterio === "FIJO" ? Number(fila.querySelector("[name=cantidad]").value) * 100 : sub;
+      subtotal += sub; igv += Math.round(base * tasa) / 100;
     }
     document.getElementById("subtotal").textContent = soles(subtotal);
     document.getElementById("igv").textContent = soles(igv);

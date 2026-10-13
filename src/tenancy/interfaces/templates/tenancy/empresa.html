@@ -15,13 +15,7 @@
 </section>
 <section class="tarjeta">
 <h2>IGV</h2>
-<p class="subtitulo">Cada cambio se registra con su fecha de vigencia; los documentos ya emitidos no cambian.</p>
-<form method="post">
-  {% csrf_token %}
-  <input type="hidden" name="accion" value="igv">
-  {{ form_igv.as_p }}
-  <button type="submit">Registrar IGV</button>
-</form>
+<p class="subtitulo">El IGV y sus tasas por vigencia se registran en los impuestos del catálogo ("IGV 18%" de venta y de compra): <a href="/catalogo/impuestos/">Catálogo → Impuestos</a>.</p>
 </section>
 </div>
 {% endblock %}

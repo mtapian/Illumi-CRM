@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+from catalog.infrastructure.contenedor import catalogo_query
 from catalog.infrastructure.models import Producto
 from inventory.infrastructure.models import Almacen, Movimiento
 from purchasing.application import compras as cc
@@ -21,6 +22,7 @@ from purchasing.domain.errores import CompraInvalida, ProveedorInvalido
 from purchasing.domain.proveedor import DatosProveedor
 from purchasing.infrastructure.contenedor import caso_de_compra, caso_de_uso
 from purchasing.infrastructure.models import Compra, Proveedor, ProveedorProducto
+from shared.domain.errores import DomainError
 from shared.interfaces import listados
 from tenancy.infrastructure.contenedor import tenancy_service
 from tenancy.interfaces.acceso import requiere
@@ -212,10 +214,28 @@ def _formulario(request, compra=None) -> dict:
         "igv": tenancy_service().igv_vigente(timezone.localdate()),  # totales informativos
         "proveedores": Proveedor.objects.filter(activo=True).order_by("razon_social"),
         "almacenes": Almacen.objects.filter(activo=True).order_by("nombre"),
-        "productos": Producto.objects.filter(activo=True, tipo="BIEN", se_compra=True)
-        .select_related("unidad")
-        .order_by("nombre"),
+        "productos": _con_igv(
+            Producto.objects.filter(activo=True, tipo="BIEN", se_compra=True)
+            .select_related("unidad")
+            .order_by("nombre")
+        ),
     }
+
+
+def _con_igv(productos):
+    """Cada producto con su IGV de compra de hoy para los totales informativos (RF-CAT-61).
+    ponytail: una consulta por producto; agrupar si el catálogo de compras crece mucho."""
+    hoy, q, empresa = timezone.localdate(), catalogo_query(), None
+    for p in productos:
+        try:
+            criterio, importe = q.igv_de_compra(p.id, hoy) or ("PORCENTAJE", None)
+        except DomainError:  # sin tasa vigente: lo rechazará el guardado
+            criterio, importe = "PORCENTAJE", Decimal("0")
+        if importe is None:  # sin impuestos de compra todavía: el de la empresa (hasta T6)
+            empresa = empresa if empresa is not None else tenancy_service().igv_vigente(hoy)
+            importe = empresa
+        p.igv_criterio, p.igv_importe = criterio, importe
+    return productos
 
 
 @requiere(cc.VER)

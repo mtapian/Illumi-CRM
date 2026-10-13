@@ -13,6 +13,7 @@ from catalog.domain.errores import (
     CampoInmutable,
     CodigoBarrasDuplicado,
     ContenidoInmutable,
+    ImpuestoInvalido,
     IscInvalido,
     LimiteProductosPlan,
     NoSePuedeDesactivar,
@@ -22,6 +23,7 @@ from catalog.domain.errores import (
     SkuDuplicado,
     UnidadInvalida,
 )
+from catalog.domain.impuestos import COMPRA, VENTA, Impuesto, validar_impuestos
 from catalog.domain.producto import (
     DatosProducto,
     cabe_en_limite,
@@ -100,6 +102,10 @@ class CatalogoRepo(Protocol):
     def registrar_historial(
         self, producto_id: int, actor_id: int, accion: str, antes: dict | None, despues: dict | None
     ) -> None: ...
+    def impuestos_estado(self, ids) -> dict[int, tuple[str, str, bool]]: ...  # tipo, código, activo
+    def impuestos_de(self, producto_id: int, tipo: str) -> list[int]: ...
+    def impuesto_por_defecto(self, tipo: str) -> int | None: ...  # "IGV 18%" (RF-CAT-56)
+    def guardar_impuestos(self, producto_id: int, tipo: str, ids) -> None: ...
 
 
 class _Base(CasoDeUso):
@@ -174,6 +180,36 @@ class _Base(CasoDeUso):
                 "La receta crea un ciclo: un componente ya usa este producto", CAMPO
             )
 
+    def _impuestos(self, actor: Actor, d: DatosProducto, tipo: str, ids, actuales) -> list | None:
+        """Impuestos de venta o de compra a guardar (RF-CAT-56 a 58), o None si no se tocan.
+        Sin lista: al crear, el IGV de su tipo; al editar, se conservan. Cambiarlos exige
+        `catalogo.isc.gestionar` ("Gestionar impuestos")."""
+        if not (d.se_vende if tipo == VENTA else d.se_compra):
+            return None  # lista oculta: se conserva, como la receta
+        defecto = self._repo.impuesto_por_defecto(tipo)
+        previos = actuales if actuales is not None else ([defecto] if defecto else [])
+        if ids is None:
+            return previos if actuales is None else None
+        ids = list(dict.fromkeys(ids))
+        if set(ids) != set(previos):
+            actor.exige(ISC)
+        estados = self._repo.impuestos_estado(ids)
+        campo = f"impuestos_{tipo.lower()}"
+        if any(i not in estados or not (estados[i][2] or i in previos) for i in ids):
+            raise ImpuestoInvalido("Un impuesto no existe o está inactivo", campo)
+        try:
+            validar_impuestos(
+                tipo, [Impuesto(*estados[i][:2]) for i in ids], d.tipo == TipoProducto.SERVICIO
+            )
+        except ImpuestoInvalido as e:
+            raise ImpuestoInvalido(e.mensaje, campo) from None
+        return ids
+
+    def _guardar_impuestos(self, producto_id: int, listas: dict) -> None:
+        for tipo, ids in listas.items():
+            if ids is not None:
+                self._repo.guardar_impuestos(producto_id, tipo, ids)
+
     def _sku_libre(self, sku: str, excluir_id: int | None = None) -> None:
         if self._repo.existe_sku(sku, excluir_id):
             raise SkuDuplicado(f"Ya existe un producto con el SKU {sku}", "sku")  # RN-CAT-01
@@ -194,9 +230,15 @@ class CrearProducto(_Base):
         datos: DatosProducto,
         receta: Receta | None = None,
         tasa: Tasa | None = None,
+        impuestos_venta: list[int] | None = None,
+        impuestos_compra: list[int] | None = None,
     ) -> int:
         d = validar_producto(datos)
         self._exigir_permiso_isc(actor, d, None, tasa)
+        listas = {
+            VENTA: self._impuestos(actor, d, VENTA, impuestos_venta, None),
+            COMPRA: self._impuestos(actor, d, COMPRA, impuestos_compra, None),
+        }
         if d.afecto_isc and not tasa:
             raise IscInvalido(SIN_TASA, "tasa_monto")
         self._validar_agrupaciones(d, None)
@@ -211,6 +253,7 @@ class CrearProducto(_Base):
             producto_id = self._repo.crear_producto(d, unidad_id)
             if receta:
                 self._repo.guardar_receta(producto_id, receta)
+            self._guardar_impuestos(producto_id, listas)
             if d.afecto_isc:
                 self._agregar_tasa(actor, producto_id, tasa)
             self._repo.registrar_historial(producto_id, actor.usuario_id, "creado", None, None)
@@ -228,10 +271,16 @@ class EditarProducto(_Base):
         datos: DatosProducto,
         receta: Receta | None = None,
         tasa: Tasa | None = None,
+        impuestos_venta: list[int] | None = None,
+        impuestos_compra: list[int] | None = None,
     ) -> None:
         original = self._repo.producto(producto_id)
         d = replace(validar_producto(datos), activo=original.activo)
         self._exigir_permiso_isc(actor, d, original, tasa)
+        listas = {
+            t: self._impuestos(actor, d, t, ids, self._repo.impuestos_de(producto_id, t))
+            for t, ids in ((VENTA, impuestos_venta), (COMPRA, impuestos_compra))
+        }
         if d.afecto_isc and not tasa and not self._repo.tasas_isc(producto_id):
             raise IscInvalido(SIN_TASA, "tasa_monto")
         self._validar_agrupaciones(d, original)
@@ -261,6 +310,7 @@ class EditarProducto(_Base):
             if receta is not None:
                 # Rige para producciones futuras; el costo ya congelado no cambia (RF-CAT-18).
                 self._repo.guardar_receta(producto_id, receta)
+            self._guardar_impuestos(producto_id, listas)
             if tasa and d.afecto_isc:
                 self._agregar_tasa(actor, producto_id, tasa)
             antes, despues = solo_cambios(

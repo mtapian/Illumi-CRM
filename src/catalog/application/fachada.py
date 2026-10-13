@@ -2,13 +2,16 @@
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Protocol
 
-from catalog.domain.errores import IscSinTarifaVigente
+from catalog.domain.errores import ImpuestoInvalido, IscSinTarifaVigente
+from catalog.domain.impuestos import AFECTACION, COMPRA, FIJO, ISC, VENTA, Tasa, desglose_linea
 from catalog.domain.isc import CODIGO_TRIBUTO, Tarifa, isc_linea, tarifa_aplicable
+from catalog.domain.precio import Desglose
 from catalog.domain.receta import Receta, componentes_para
 from catalog.domain.tipos import TipoProducto
+from shared.domain.vigencia import SinValorVigente, valor_vigente
 
 
 @dataclass(frozen=True)
@@ -51,6 +54,7 @@ class ConsultaRepo(Protocol):
     def receta(self, producto_id: int) -> Receta: ...
     def isc_de_producto(self, producto_id: int) -> tuple[str, Decimal] | None: ...
     def tasas_isc(self, producto_id: int) -> list[Tarifa]: ...
+    def impuestos_del_producto(self, producto_id: int, tipo: str) -> list: ...
 
 
 class CatalogoQuery:
@@ -89,7 +93,43 @@ class CatalogoQuery:
             )
         return IscDTO(tarifa.monto_por_litro, contenido, CODIGO_TRIBUTO, codigo_tipo_sistema)
 
+    def _vigentes(self, producto_id: int, tipo: str, fecha: date) -> dict[str, Tasa]:
+        """Código → (criterio, importe vigente) de los impuestos del producto (RF-CAT-59)."""
+        vigentes = {}
+        for nombre, codigo, criterio, tasas in self._repo.impuestos_del_producto(producto_id, tipo):
+            try:
+                vigentes[codigo] = (criterio, valor_vigente(tasas, fecha))
+            except SinValorVigente:
+                raise ImpuestoInvalido(
+                    f"El impuesto {nombre} no tiene tasa vigente al {fecha:%Y-%m-%d}"
+                ) from None
+        return vigentes
+
+    def desglose_de_linea(
+        self, producto_id: int, total: Decimal, cantidad: Decimal, fecha: date
+    ) -> Desglose:
+        """Valor, ISC e IGV de una línea de venta con precio que incluye impuestos (RF-CAT-59)."""
+        vigentes = self._vigentes(producto_id, VENTA, fecha)
+        afectacion = next((vigentes[c] for c in AFECTACION if c in vigentes), None)
+        if afectacion is None:
+            raise ImpuestoInvalido("El producto no tiene impuesto de IGV, exonerado o inafecto")
+        return desglose_linea(total, cantidad, afectacion, vigentes.get(ISC))
+
+    def igv_de_compra(self, producto_id: int, fecha: date) -> Tasa | None:
+        """(criterio, importe) de la afectación de compra a la fecha; None si el producto aún
+        no tiene impuestos de compra (RF-CAT-61)."""
+        vigentes = self._vigentes(producto_id, COMPRA, fecha)
+        return next((vigentes[c] for c in AFECTACION if c in vigentes), None)
+
     def isc_de_linea(self, producto_id: int, cantidad: Decimal, fecha: date) -> Decimal:
+        """Con un ISC de monto fijo entre sus impuestos de venta, cantidad × monto; un ISC
+        porcentual depende del precio: usar `desglose_de_linea`."""
+        criterio, importe = self._vigentes(producto_id, VENTA, fecha).get(ISC, (None, None))
+        if criterio == FIJO:
+            return (cantidad * importe).quantize(Decimal("0.01"), ROUND_HALF_UP)
+        if criterio is not None:
+            raise ImpuestoInvalido("El ISC porcentual depende del precio de la línea")
+        # ponytail: ISC por litro de la enmienda 4 hasta la conversión de T6 (RF-CAT-60).
         isc = self.isc_aplicable(producto_id, fecha)
         if isc is None:
             return isc_linea(cantidad, Decimal("0"), None)

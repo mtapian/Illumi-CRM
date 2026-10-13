@@ -33,11 +33,3 @@ class EmpresaForm(forms.Form):
     telefono = forms.CharField(label="Teléfono", max_length=30, required=False)
     email = forms.EmailField(label="Email", required=False)
     logo = forms.FileField(label="Logo", required=False)
-
-
-class IgvForm(forms.Form):
-    required_css_class = "requerido"  # obligatorios con * (docs/ux.md §4)
-    igv_pct = forms.DecimalField(label="IGV %", max_digits=5, decimal_places=2)
-    vigente_desde = forms.DateField(
-        label="Vigente desde", widget=forms.DateInput(attrs={"type": "date"})
-    )
