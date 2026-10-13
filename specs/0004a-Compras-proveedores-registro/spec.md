@@ -52,7 +52,7 @@ Movido a la spec 0002d (RF-COM-01 a 03).
 - RF-COM-06: CUANDO una línea trae un código de lote, EL SISTEMA lo registra con el vencimiento indicado, que es opcional; si no se indica y el producto tiene vida útil, sugiere la fecha de recepción + vida útil (RF-CAT-40, RF-INV-26). El lote es opcional en cada línea.
 - RF-COM-07: CUANDO una línea trae un código de lote que ya existe para ese producto con el mismo vencimiento, EL SISTEMA suma la cantidad a ese lote; si el código no existe, lo crea con el vencimiento indicado.
 - RF-COM-19: SI una línea trae un código de lote que ya existe para ese producto con otro vencimiento, ENTONCES EL SISTEMA la rechaza.
-- RF-COM-08: CUANDO el documento es `FACTURA`, EL SISTEMA calcula el IGV con el % de la empresa y deja el costo de inventario sin IGV. Con cualquier otro documento, el IGV es 0 y el costo de inventario es el total pagado.
+- RF-COM-08 (ajustado por 0002e, RF-CAT-61): CUANDO el documento es `FACTURA`, EL SISTEMA calcula el IGV de cada línea con el impuesto de compra del producto vigente a la fecha de la compra (0 si es exonerado o inafecto; si el producto no tiene impuesto de compra, el IGV vigente de la empresa) y deja el costo de inventario sin IGV. Con cualquier otro documento, el IGV es 0 y el costo de inventario es el total pagado.
 - RF-COM-20: SI el documento es `FACTURA` y el proveedor no tiene RUC, ENTONCES EL SISTEMA rechaza la compra.
 - RF-COM-09: EL SISTEMA calcula el total = subtotal + IGV, con redondeo *half-up* a 2 decimales por línea y en el total (RN-COM-05).
 - RF-COM-10: CUANDO se finaliza la compra, EL SISTEMA registra una entrada de inventario por línea al costo indicado y recalcula el costo promedio (épica 0003, RN-INV-01). Una compra Creada o En proceso no tiene movimientos.

@@ -1,6 +1,6 @@
 # Spec 0002e — Catálogo: impuestos
 
-Estado: aprobada (PO: "go", 2026-10-11). Propuesta del 2026-10-10 (capturas de Odoo del PO), ajustada el 2026-10-11; reglas validadas con el contador el 2026-10-11 (constitución, art. 5.5). **Enmienda 1 (2026-10-12): criterio seleccionable**, aprobada por el PO ("continúa con las tareas"); falta el visto bueno del contador
+Estado: implementada (2026-10-12; aprobada por el PO: "go", 2026-10-11). Propuesta del 2026-10-10 (capturas de Odoo del PO), ajustada el 2026-10-11; reglas validadas con el contador el 2026-10-11 (constitución, art. 5.5). **Enmienda 1 (2026-10-12): criterio seleccionable**, aprobada por el PO ("continúa con las tareas"); falta el visto bueno del contador
 
 Épica E02 (Catálogo), parte 5. Depende de: 0001a, 0002a (enmienda 4), 0004a. La usan: 0004a (compras), 0006b (ventas), 0007a (facturación).
 
@@ -89,7 +89,7 @@ ISC por Precio de Venta al Público (`03`); ISC en compras; exportación (EXP), 
 - Cada RF de esta spec tiene al menos un escenario o una prueba que lo cubre.
 - La conversión probada con los datos de la empresa demo.
 
-## Impacto en otras specs (se ajustan en el mismo cambio, al aprobarse)
+## Impacto en otras specs (ajustadas el 2026-10-12, T8)
 
 - **0001a (implementada):** RF-TEN-15 y 16: el % de IGV deja de editarse en la configuración de la empresa; pasa a las tasas de los impuestos "IGV 18%" (misma regla de vigencia, RN-TEN-07).
 - **0002a (implementada):** RF-CAT-45, 46 y 48 (ISC en la ficha con tasas por producto y litros obligatorios) quedan reemplazados por RF-CAT-56 a 60; RF-CAT-30 (desglose) usa los impuestos de venta del producto.

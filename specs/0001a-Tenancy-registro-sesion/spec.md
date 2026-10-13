@@ -51,8 +51,8 @@ Cada cervecera (empresa) necesita un espacio propio, con sus datos aislados de l
 
 ### UC-TEN-04 Configurar datos de empresa
 
-- RF-TEN-15: CUANDO un usuario con `core.empresa.gestionar` edita la razón social, nombre comercial, dirección fiscal, ubigeo, teléfono, email, logo o % de IGV, EL SISTEMA guarda los cambios.
-- RF-TEN-16: SI el % de IGV no está entre 0 y 100 con hasta 2 decimales, ENTONCES EL SISTEMA lo rechaza. Cada cambio de IGV se registra con su fecha de vigencia y los documentos usan el IGV vigente a su fecha de emisión (RN-TEN-07).
+- RF-TEN-15: CUANDO un usuario con `core.empresa.gestionar` edita la razón social, nombre comercial, dirección fiscal, ubigeo, teléfono, email o logo, EL SISTEMA guarda los cambios. (Ajustado por 0002e: el % de IGV ya no se edita aquí.)
+- RF-TEN-16 (ajustado por 0002e, RF-CAT-54): EL SISTEMA registra cada cambio de IGV como una tasa nueva, con su fecha de vigencia, de los impuestos "IGV 18%" de venta y de compra (maestro de impuestos); una tasa negativa se rechaza y los documentos usan la tasa vigente a su fecha de emisión (RN-TEN-07). La configuración de la empresa solo enlaza al maestro.
 - RF-TEN-17: EL SISTEMA no permite editar el RUC después del registro.
 
 ### UC-TEN-05 Restringir acceso por suscripción

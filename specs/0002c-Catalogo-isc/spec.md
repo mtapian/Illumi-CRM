@@ -1,6 +1,6 @@
 # Spec 0002c — Catálogo: categorías y tarifas de ISC
 
-Estado: implementada (2026-10-10) · **las categorías se retiraron: el ISC está en la ficha del producto (0002a enmienda 4, RF-CAT-45 a 48, implementada 2026-10-10)**. Siguen vigentes RF-CAT-23 a 27; RF-CAT-22 y 28 (categorías) quedan reemplazados
+Estado: implementada (2026-10-10) · **las categorías se retiraron: el ISC está en la ficha del producto (0002a enmienda 4, RF-CAT-45 a 48, implementada 2026-10-10)**. Siguen vigentes RF-CAT-23 a 27; RF-CAT-22 y 28 (categorías) quedan reemplazados · **0002e (2026-10-12): el ISC es un impuesto de venta del maestro, de monto fijo por unidad o porcentaje; ajusta RF-CAT-23, 26 y 27**
 
 Épica E02 (Catálogo), parte 3 de 3. Depende de: 0002a. La usan: 0006, 0007.
 
@@ -40,11 +40,11 @@ El sistema de referencia trata todo como "producto vendible" con stock entero.
 ### UC-CAT-05 Gestionar categorías de ISC
 
 - RF-CAT-22: CUANDO un usuario con `catalogo.isc.gestionar` crea una categoría de ISC, EL SISTEMA pide nombre, sistema de cálculo, código de tipo de sistema para el comprobante y una primera tarifa con su fecha de vigencia.
-- RF-CAT-23: EL SISTEMA solo admite en el MVP el **Sistema Específico**: un monto fijo en S/ por litro, que no depende del precio ni de la graduación.
+- RF-CAT-23 (ajustado por 0002e, enmienda 1): EL SISTEMA calcula el ISC según el criterio del impuesto: un monto fijo en S/ por unidad vendida (Sistema Específico; lo define el usuario por presentación) o un porcentaje del valor.
 - RF-CAT-24: CUANDO cambia la tarifa, EL SISTEMA la registra como una tarifa nueva con su fecha de inicio; no permite editar ni borrar tarifas existentes, y los comprobantes ya emitidos no cambian (RN-CAT-10).
 - RF-CAT-25: CUANDO se calcula el ISC de una venta, EL SISTEMA usa la tarifa aplicable a la fecha de emisión (RN-CAT-10).
-- RF-CAT-26: SI un producto con categoría de ISC por litro no tiene contenido en litros mayor a 0, ENTONCES EL SISTEMA lo rechaza (RN-CAT-10).
-- RF-CAT-27: MIENTRAS un producto no tenga categoría de ISC, EL SISTEMA no le calcula ISC.
+- ~~RF-CAT-26~~ **Reemplazado por 0002e (RF-CAT-58): los litros por unidad ya no intervienen en el cálculo.**
+- RF-CAT-27 (ajustado por 0002e): MIENTRAS un producto no tenga un ISC entre sus impuestos de venta, EL SISTEMA no le calcula ISC.
 - RF-CAT-28: SI se intenta desactivar una categoría asignada a productos activos, ENTONCES EL SISTEMA lo rechaza.
 
 ## Requisitos no funcionales

@@ -4,7 +4,7 @@
 
 ## Fase actual
 
-**Implementación** de las épicas 0001 (0001a–0001d) y 0002 (0002a–0002d) completas, la épica 0003 (0003a–0003c) completa y 0004a (registro de compras) implementada. El resto sigue en **Clarificación**; 0004b (anulación de compras) implementada; siguen las fases B (grillas) y C (formularios) de las reglas de UX. 0002e (impuestos) espera al contador.
+**Implementación** de las épicas 0001 (0001a–0001d) y 0002 (0002a–0002d) completas, la épica 0003 (0003a–0003c) completa y 0004a (registro de compras) implementada. El resto sigue en **Clarificación**; 0004b (anulación de compras) implementada; siguen las fases B (grillas) y C (formularios) de las reglas de UX. 0002e (impuestos) implementada; su enmienda 1 (criterio % o fijo) espera el visto bueno del contador.
 
 Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas siguen en `borrador`, esperando respuestas a sus `[NECESITA ACLARACIÓN]`; sus `tasks.md` son ejemplos.
 
@@ -19,7 +19,7 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0002b](specs/0002b-Catalogo-presentaciones/) Catálogo: presentaciones y materiales | **implementada** (4 RF) | implementado | 8/8 ✔ | — (el escenario del costo promedio ya corre con el inventario real) |
 | [0002d](specs/0002d-Catalogo-proveedores/) Catálogo: proveedores y proveedores del producto | **implementada** (5 RF: RF-COM-01 a 03, 21, 22) | implementado | 8/8 ✔ | — ("tiene compras" ya ve las compras reales) |
 | [0002c](specs/0002c-Catalogo-isc/) Catálogo: ISC (reglas de cálculo) | **implementada**; categorías retiradas por 0002a enmienda 4 (ISC en la ficha) | implementado | 9/9 ✔ | código ISC (01 vs 02): dato de cada producto |
-| [0002e](specs/0002e-Catalogo-impuestos/) Catálogo: impuestos (maestro y por producto) | **aprobada** (10 RF: RF-CAT-52 a 61) | aprobado | 9/10 | — (contador: validado el 2026-10-11) |
+| [0002e](specs/0002e-Catalogo-impuestos/) Catálogo: impuestos (maestro y por producto) | **implementada** (10 RF: RF-CAT-52 a 61) | implementado | 10/10 ✔ | contador: enmienda 1 (criterio % o fijo) |
 | [0003a](specs/0003a-Inventario-movimientos-costo/) Inventario: almacenes, movimientos y costo promedio | **implementada** (13 RF; enmienda 4 de 0002a y Q12 = A) | implementado | 18/18 ✔ | visto bueno del contador sobre Q12 = A |
 | [0003b](specs/0003b-Inventario-ajustes/) Inventario: ajustes | **implementada** (9 RF: RF-INV-08 a 13, 27 a 29) | implementado | 10/10 ✔ | 1 escenario parcial (estado de resultados, 0008b); mermas solo con motivo hasta que responda el contador |
 | [0003c](specs/0003c-Inventario-consultas-alertas/) Inventario: stock, kardex y alertas | **implementada** (8 RF) | implementado | 7/7 ✔ | — |
@@ -37,6 +37,8 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 | [0008b](specs/0008b-Finanzas-resultados-reportes/) Finanzas: estado de resultados, dashboard y exportación | borrador (11 RF) | borrador | ejemplo (13 tareas) | Q10 |
 
 ## Historial
+
+- **2026-10-12 — 0002e implementada (T8).** Specs ajustadas: 0001a RF-TEN-15 y 16 (el IGV se registra como tasa de los dos "IGV 18%"), 0002a RF-CAT-30 (desglose con los impuestos de venta) y RF-CAT-45, 46, 48 reemplazados, 0002c RF-CAT-23 y 27 ajustados y RF-CAT-26 reemplazado, 0004a RF-COM-08 (IGV por el impuesto de compra del producto; el de la empresa solo si el producto no tiene). Todos los RF de 0002e con escenario o test. Falta el visto bueno del contador sobre la enmienda 1.
 
 - **2026-10-12 — 0002e, T6: conversión de datos.** Migración `0012_conversion_impuestos` (reversible): el IGV que veía cada empresa (propio o de la plataforma) pasa con su historial a los dos "IGV 18%"; cada ISC por litro pasa a un ISC de venta de monto fijo (tasa × litros, 4 decimales) "ISC <litros> L", compartido por los productos con el mismo historial; cada producto recibe "IGV 18%" en cada casilla marcada. Tolera empresas ya sembradas con `sembrar_impuestos` y productos con impuestos. Se retiran `ProductoIscTasa`, `isc_sistema`, `isc_codigo_tipo_sistema`, `AgregarTasaIsc`, `isc_aplicable`, `domain/isc.py`, `desglose_precio` y los campos del ISC de la ficha; los litros por unidad quedan informativos (sugeridos desde la receta, sin permiso de ISC ni bloqueo con movimientos). El desglose de la ficha sale siempre de los impuestos de venta. Compras conserva el IGV de la empresa solo para un producto sin impuesto de compra (los creados fuera del catálogo). Escenarios de 0002a (desglose) y 0002c (se retira el de litros obligatorios y el de tasas por producto, cubierto por 0002e) ajustados; specs de 0001a, 0002a, 0002c y 0004a quedan para T8.
 

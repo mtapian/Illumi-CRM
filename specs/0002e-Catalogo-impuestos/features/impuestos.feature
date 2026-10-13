@@ -32,7 +32,7 @@ Característica: Impuestos de venta y de compra
     Cuando defino el impuesto "ISC compra" de tipo "Compra" con código "ISC"
     Entonces la operación es rechazada con el mensaje "El ISC es solo un impuesto de venta"
 
-  @UC-CAT-09 @critico @RF-CAT-54 @RF-CAT-59
+  @UC-CAT-09 @critico @RF-CAT-54 @RF-CAT-59 @RF-CAT-23 @RF-CAT-24 @RF-CAT-25
   Escenario: Un cambio de tasa aplica desde su fecha
     Dado el impuesto "ISC por 750 ml" de monto fijo 2.01 desde "2026-01-01"
     Cuando agrego al impuesto "ISC por 750 ml" la tasa 2.20 desde "2027-01-01"

@@ -1,6 +1,6 @@
 # Plan 0002e — Catálogo: impuestos
 
-Estado: aprobado (PO, 2026-10-11); **enmienda 1 aprobada (2026-10-12): criterio seleccionable** (§2, §3, §6, T9–T10). Historia: ( borrador del 2026-10-10, ajustado el 2026-10-11: impuestos de venta y de compra, ISC solo monto fijo, compras con IGV por producto)
+Estado: implementado (2026-10-12; aprobado por el PO el 2026-10-11); **enmienda 1 aprobada (2026-10-12): criterio seleccionable** (§2, §3, §6, T9–T10). Historia: ( borrador del 2026-10-10, ajustado el 2026-10-11: impuestos de venta y de compra, ISC solo monto fijo, compras con IGV por producto)
 
 Spec: `./spec.md` · Base técnica: `../0000-Arquitectura/plan.md` · Constitución: `../../docs/constitution.md` (v1.1.0)
 
@@ -19,7 +19,7 @@ Contexto: `src/catalog`. Los impuestos son del catálogo porque se asignan al pr
 | `src/catalog/infrastructure/contenedor.py` | Sembrador de los seis impuestos iniciales | RF-CAT-52 |
 | `src/catalog/interfaces/` | `/catalogo/impuestos/` (listado de maestro con filtro por tipo, ficha con tasas y "Agregar tasa"); etiquetas en las pestañas Ventas y Compras de la ficha de producto | RF-CAT-53 a 57 |
 | `src/purchasing/application/puertos.py`, `compras.py` | `IgvPort.igv_vigente(fecha)` pasa a `igv_de_compra(producto_id, fecha)`; el IGV se calcula por línea con el % del producto. Lo cumple la fachada del catálogo (ya permitida por import-linter) | RF-CAT-61 |
-| `src/tenancy/...` | Se retira el % de IGV de la configuración de la empresa y `igv_vigente` de su fachada | 0001a RF-TEN-15, 16 |
+| `src/tenancy/...` | Se retira el % de IGV de la configuración de la empresa. **Al implementar:** `igv_vigente` de su fachada se conserva: el sembrador de impuestos toma de ella el IGV de la plataforma y compras la usa para un producto sin impuesto de compra (RF-COM-08 ajustado) | 0001a RF-TEN-15, 16 |
 | `src/shared/domain/accesos.py` | La etiqueta de `catalogo.isc.gestionar` pasa a "Gestionar impuestos" (mismo código: no cambia roles) | — |
 
 ## 2. Modelo de datos
