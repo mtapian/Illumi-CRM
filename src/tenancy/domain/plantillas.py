@@ -43,7 +43,7 @@ PLANTILLAS: dict[str, frozenset[str]] = {
         | _PRODUCCION
         | {"produccion.op.anular"}
         | _VENTAS
-        | {"ventas.venta.anular"}
+        | {"ventas.venta.anular", "ventas.cobranza.anular", "ventas.metodo_pago.gestionar"}
         | {"facturacion.comprobante.ver", "facturacion.comprobante.gestionar"}
         | _FINANZAS
         | {"reportes.exportar"}

@@ -31,12 +31,12 @@ Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y par
 - [x] **T10. Correcciones de la revisión.** — RF-VEN-50, 54
   - Búsqueda de clientes con `ventas.cliente.ver`; pago no anterior a la emisión; kardex enlaza la venta.
   - Hecho cuando: un test por cada corrección (cajero busca clientes, fecha anterior a la emisión, enlace del kardex).
-- [ ] **T11. Segregar funciones en la cobranza (enmienda 1, C1 y Q3).** — RF-VEN-61, 64
+- [x] **T11. Segregar funciones en la cobranza (enmienda 1, C1 y Q3).** — RF-VEN-61, 64
   - Permisos `ventas.cobranza.anular` y `ventas.metodo_pago.gestionar`, plantilla Gerente, migración de roles, casos de uso, botones y menú.
   - Hecho cuando: los tests prueban que Ventas no anula pagos ni gestiona métodos, Gerente sí, y la migración de roles.
-- [ ] **T12. Aviso de cobranzas vencidas (enmienda 1, U2).** — RF-VEN-62
+- [x] **T12. Aviso de cobranzas vencidas (enmienda 1, U2).** — RF-VEN-62
   - Hecho cuando: el test del inicio lo muestra con vencidas, no sin ellas, y solo con permiso.
-- [ ] **T13. Estado de cobro en los pedidos (enmienda 1, U3).** — RF-VEN-63
+- [x] **T13. Estado de cobro en los pedidos (enmienda 1, U3).** — RF-VEN-63
   - Hecho cuando: el test muestra Por cobrar, Cobro parcial y Cobro vencido en Lista y Kanban, y nada en un pedido pagado.
 - [ ] **T9. Escenarios de aceptación y cierre.** — todos (después de T11–T13)
   - `tests/acceptance/pasos_ventas.py` y `test_e06b.py`; se quita `@borrador`; spec, plan y tareas a "implementada"; `MEMORY.md`; Docker.

@@ -12,6 +12,8 @@ from shared.application.autorizacion import Actor, CasoDeUso
 
 VER = "ventas.cobranza.ver"
 GESTIONAR = "ventas.cobranza.gestionar"
+ANULAR = "ventas.cobranza.anular"  # segregación de funciones (RF-VEN-61)
+METODOS = "ventas.metodo_pago.gestionar"  # RF-VEN-64
 
 
 @dataclass(frozen=True)
@@ -70,7 +72,10 @@ class RegistrarPago(_Base):
 
 
 class AnularPago(_Base):
-    """RF-VEN-56: con motivo, una sola vez; el estado se recalcula (Parcial o Pendiente)."""
+    """RF-VEN-56 y 61: con motivo, una sola vez; el estado se recalcula (Parcial o Pendiente).
+    Quien registra pagos no los anula (permiso propio)."""
+
+    permiso_requerido = ANULAR
 
     def ejecutar(self, actor: Actor, pago_id: int, motivo: str) -> None:
         if not motivo.strip():
@@ -87,7 +92,9 @@ class AnularPago(_Base):
 
 
 class GuardarMetodoPago(_Base):
-    """RF-VEN-59: crear o renombrar; nombre único sin mayúsculas."""
+    """RF-VEN-59 y 64: crear o renombrar; nombre único sin mayúsculas."""
+
+    permiso_requerido = METODOS
 
     def ejecutar(self, actor: Actor, metodo_id: int | None, nombre: str) -> int:
         nombre = nombre.strip()
@@ -100,7 +107,9 @@ class GuardarMetodoPago(_Base):
 
 
 class CambiarEstadoMetodoPago(_Base):
-    """RF-VEN-59: no se elimina; inactivo no se ofrece en pagos nuevos."""
+    """RF-VEN-59 y 64: no se elimina; inactivo no se ofrece en pagos nuevos."""
+
+    permiso_requerido = METODOS
 
     def ejecutar(self, actor: Actor, metodo_id: int, activo: bool) -> None:
         self._repo.estado_metodo(metodo_id, activo)

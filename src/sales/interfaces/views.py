@@ -19,11 +19,13 @@ from sales.application import clientes as uc
 from sales.application import cobranzas as ucob
 from sales.application import facturacion as uf
 from sales.application import pedidos as up
+from sales.domain import cobranza as cobranza_dom
 from sales.domain import facturacion as fac
 from sales.domain import pedido as dom
 from sales.domain.cliente import DatosCliente
 from sales.domain.cobranza import numero_cobranza
 from sales.domain.errores import PedidoInvalido
+from sales.domain.facturacion import Cuota
 from sales.infrastructure.contenedor import (
     buscar_clientes,
     caso_de_cliente,
@@ -32,7 +34,7 @@ from sales.infrastructure.contenedor import (
     caso_de_venta_directa,
     metodos_activos,
 )
-from sales.infrastructure.models import Cliente, Pedido
+from sales.infrastructure.models import Cliente, Cobranza, Pedido
 from shared.domain.errores import DomainError
 from shared.interfaces import listados
 from tenancy.infrastructure.contenedor import tenancy_service
@@ -207,7 +209,8 @@ def _datos(post) -> up.DatosPedido:
 
 def disponibilidad(pedidos, hoy) -> dict[int, dict]:
     """RF-VEN-45, 46: por pedido abierto, el disponible y el faltante de cada línea (una sola
-    consulta de stock) y sus indicadores. ponytail: al vuelo, sin resumen guardado."""
+    consulta de stock) y sus indicadores; los facturados, su estado de cobro (RF-VEN-63).
+    ponytail: al vuelo, sin resumen guardado."""
     pedidos = list(pedidos)
     abiertos = [p for p in pedidos if p.estado in (dom.CREADO, dom.APROBADO)]
     lineas = {
@@ -215,6 +218,14 @@ def disponibilidad(pedidos, hoy) -> dict[int, dict]:
     }
     ids = [x.producto_id for filas in lineas.values() for x in filas]
     disponibles = inventario().disponibles(ids, hoy)
+    cobros = {  # RF-VEN-63: una consulta para los facturados de la página
+        c.pedido_id: cobranza_dom.indicadores_cobro(
+            c.estado, tuple(Cuota(q.monto, q.vencimiento) for q in c.cuotas.all()), c.pagado, hoy
+        )
+        for c in Cobranza.objects.filter(
+            pedido_id__in=[p.id for p in pedidos if p.estado in (dom.FACTURADO, dom.ENTREGADO)]
+        ).prefetch_related("cuotas")
+    }
     resultado = {}
     for p in pedidos:
         filas = []
@@ -229,6 +240,7 @@ def disponibilidad(pedidos, hoy) -> dict[int, dict]:
                 }
             )
         marcas = dom.indicadores(p.estado, p.fecha_entrega, [f["faltante"] for f in filas], hoy)
+        marcas += cobros.get(p.id, [])
         resultado[p.id] = {"lineas": filas, "indicadores": marcas}
     return resultado
 

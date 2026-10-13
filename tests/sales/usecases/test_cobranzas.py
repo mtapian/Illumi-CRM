@@ -128,13 +128,21 @@ def test_metodos_de_pago(v):
 
 @pytest.mark.django_db
 def test_permisos(v):
-    """RF-VEN-54 y 59: `ventas.cobranza.gestionar`."""
+    """RF-VEN-54, 61 y 64: registrar, anular y gestionar métodos, con permisos separados."""
     a = v["actor"]
     sin = Actor(a.usuario_id, a.empresa_id, a.permisos - {uc.GESTIONAR})
     with pytest.raises(AccesoDenegado):
         pagar(v, "10.00", actor=sin)
-    with pytest.raises(AccesoDenegado):
-        caso_de_cobranza(uc.GuardarMetodoPago).ejecutar(sin, None, "Otro")
+    vendedor = Actor(a.usuario_id, a.empresa_id, a.permisos - {uc.ANULAR, uc.METODOS})
+    pago = pagar(v, "10.00", actor=vendedor)  # Ventas registra pagos
+    with pytest.raises(AccesoDenegado):  # RF-VEN-61: pero no los anula
+        caso_de_cobranza(uc.AnularPago).ejecutar(vendedor, pago, "Error")
+    for caso, args in (
+        (uc.GuardarMetodoPago, (None, "Otro")),
+        (uc.CambiarEstadoMetodoPago, (v["metodo"]["Plin"], False)),
+    ):  # RF-VEN-64
+        with pytest.raises(AccesoDenegado):
+            caso_de_cobranza(caso).ejecutar(vendedor, *args)
 
 
 @pytest.mark.django_db(transaction=True)

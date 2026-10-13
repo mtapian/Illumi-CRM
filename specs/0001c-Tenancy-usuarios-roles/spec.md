@@ -47,6 +47,8 @@ Se crean como roles **editables** al registrar la empresa (spec 0001a, RF-TEN-01
 | `produccion.op.anular` | ✔ | ✔ | — | — | — |
 | Ventas: clientes, pedidos, registrar venta | ✔ | ✔ | — | — | ✔ |
 | `ventas.venta.anular` | ✔ | ✔ | — | — | — |
+| Cobranzas: ver / registrar pagos (0006b) | ✔ | ✔ | — | — | ✔ |
+| `ventas.cobranza.anular`, `ventas.metodo_pago.gestionar` (0006b, segregación de funciones) | ✔ | ✔ | — | — | — |
 | Facturación: ver / gestionar comprobantes | ✔ | ✔ | — | — | ver |
 | `facturacion.config.gestionar` | ✔ | — | — | — | — |
 | Finanzas: gastos y estado de resultados | ✔ | ✔ | — | — | — |

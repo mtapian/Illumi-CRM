@@ -53,3 +53,13 @@ def proximo_vencimiento(cuotas: tuple[Cuota, ...], pagado: Decimal) -> date | No
 def vencida(estado_actual: str, cuotas: tuple[Cuota, ...], pagado: Decimal, hoy: date) -> bool:
     """RF-VEN-53: indicador, no estado."""
     return estado_actual in ABIERTAS and monto_vencido(cuotas, pagado, hoy) > 0
+
+
+def indicadores_cobro(
+    estado_actual: str, cuotas: tuple[Cuota, ...], pagado: Decimal, hoy: date
+) -> list[str]:
+    """RF-VEN-63: estado de cobro de un pedido facturado, solo si falta cobrar."""
+    marcas = {PENDIENTE: ["Por cobrar"], PARCIAL: ["Cobro parcial"]}.get(estado_actual, [])
+    if vencida(estado_actual, cuotas, pagado, hoy):
+        marcas = [*marcas, "Cobro vencido"]
+    return marcas

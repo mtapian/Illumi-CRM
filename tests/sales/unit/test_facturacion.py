@@ -127,3 +127,13 @@ def test_vencida():
     assert c.vencida(c.PENDIENTE, CUOTAS, D("0.00"), HOY)
     assert not c.vencida(c.PENDIENTE, CUOTAS, D("144.00"), HOY)
     assert not c.vencida(c.PAGADA, CUOTAS, D("288.00"), date(2027, 1, 1))
+
+
+def test_indicadores_de_cobro():
+    """RF-VEN-63: solo si falta cobrar; vencido además."""
+    assert c.indicadores_cobro(c.PENDIENTE, CUOTAS, D("0"), date(2026, 11, 1)) == ["Por cobrar"]
+    assert c.indicadores_cobro(c.PARCIAL, CUOTAS, D("100.00"), HOY) == [
+        "Cobro parcial",
+        "Cobro vencido",
+    ]
+    assert c.indicadores_cobro(c.PAGADA, CUOTAS, D("288.00"), HOY) == []

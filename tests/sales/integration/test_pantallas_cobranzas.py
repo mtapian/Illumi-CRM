@@ -10,6 +10,7 @@ from inventory.infrastructure.models import Almacen
 from sales.infrastructure.contenedor import sembrar_metodos_pago
 from sales.infrastructure.models import Cliente, Cobranza, Cuota, MetodoPago, Pago, Pedido
 from tenancy.infrastructure.models import Usuario
+from tests.conftest import asignar_rol
 from tests.sales.usecases.test_facturacion import aprobado, preparar
 
 pytestmark = pytest.mark.django_db
@@ -63,9 +64,8 @@ def test_registrar_y_anular_pagos(web):
     assert Cobranza.objects.get(pk=v["cobranza"]).pagado == D("0.00")
 
 
-def test_solo_vencidas(web):
-    """RF-VEN-53: cuotas vencidas − pagos > 0."""
-    client, v = web
+def vencida(v):
+    """Una cobranza de "Bar El Lúpulo" con su única cuota vencida ayer."""
     ayer = timezone.localdate() - timedelta(days=1)
     bar = Cliente.objects.get(pk=v["clientes"]["bar"])
     pedido = Pedido.objects.create(
@@ -77,6 +77,12 @@ def test_solo_vencidas(web):
         numero=99, pedido=pedido, cliente=bar, emision=pedido.fecha_emision, total=D("100.00")
     )
     Cuota.objects.create(cobranza=c, numero=1, monto=D("100.00"), vencimiento=ayer)
+
+
+def test_solo_vencidas(web):
+    """RF-VEN-53: cuotas vencidas − pagos > 0."""
+    client, v = web
+    vencida(v)
     listado = client.get("/ventas/cobranzas/", {"vencidas": "1"}).content.decode()
     assert "COB-000099" in listado and "Vencida" in listado and "COB-000001" not in listado
 
@@ -94,3 +100,54 @@ def test_metodos_de_pago(web):
     assert not MetodoPago.objects.get(nombre="Plin").activo
     ficha = client.get(f"/ventas/cobranzas/{v['cobranza']}/").content.decode()
     assert "Plin" not in ficha
+
+
+def test_vendedor_no_ve_anular_ni_metodos(web, client):
+    """RF-VEN-61 y 64: el rol Ventas registra pagos, pero no ve "Anular" ni gestiona métodos."""
+    _, v = web
+    url = f"/ventas/cobranzas/{v['cobranza']}/"
+    hoy = timezone.localdate().isoformat()
+    pago = {"accion": "pagar", "metodo": v["metodo"]["Efectivo"], "fecha": hoy, "monto": "10"}
+    vendedor = Usuario.objects.create_user("v@andina.pe", "x", empresa_id=v["actor"].empresa_id)
+    client.force_login(asignar_rol(vendedor, "Ventas"), BACKEND)
+    assert client.post(url, pago).status_code == 302
+    ficha = client.get(url).content.decode()
+    assert "Registrar pago" in ficha and "anularPago(" not in ficha
+    metodos = client.get("/ventas/metodos-pago/").content.decode()
+    assert "Efectivo" in metodos and "Nuevo método de pago" not in metodos
+    assert "/ventas/metodos-pago/" not in client.get("/dashboard/").content.decode()  # menú
+
+
+def test_aviso_de_cobranzas_vencidas(web, client):
+    """RF-VEN-62: en el inicio, con el filtro "solo vencidas"; solo con `ventas.cobranza.ver`."""
+    navegador, v = web
+    assert "Ninguna cobranza vencida" in navegador.get("/dashboard/").content.decode()
+    vencida(v)
+    inicio = navegador.get("/dashboard/").content.decode()
+    assert "1 cobranza vencida" in inicio and "/ventas/cobranzas/?vencidas=1" in inicio
+    planta = Usuario.objects.create_user("p@andina.pe", "x", empresa_id=v["actor"].empresa_id)
+    client.force_login(asignar_rol(planta, "Producción"), BACKEND)
+    assert "cobranza" not in client.get("/dashboard/").content.decode().lower()
+
+
+def test_estado_de_cobro_en_los_pedidos(web):
+    """RF-VEN-63: Por cobrar, Cobro parcial y Cobro vencido en Lista y Kanban; nada si está
+    pagado."""
+    client, v = web
+
+    def fila(vista, numero):
+        pagina = client.get("/ventas/pedidos/", {"vista": vista}).content.decode()
+        return pagina.split(f'data-pedido="{numero}"', 1)[1].split("</tr>", 1)[0][:800]
+
+    for vista in ("lista", "kanban"):
+        assert "Por cobrar" in fila(vista, "P-000001")
+    hoy = timezone.localdate().isoformat()
+    pago = {"accion": "pagar", "metodo": v["metodo"]["Yape"], "fecha": hoy}
+    client.post(f"/ventas/cobranzas/{v['cobranza']}/", pago | {"monto": "100.00"})
+    assert "Cobro parcial" in fila("lista", "P-000001")
+    client.post(f"/ventas/cobranzas/{v['cobranza']}/", pago | {"monto": "188.00"})
+    texto = fila("lista", "P-000001")
+    assert "Por cobrar" not in texto and "Cobro parcial" not in texto
+    vencida(v)
+    texto = fila("lista", "P-000099")
+    assert "Por cobrar" in texto and "Cobro vencido" in texto

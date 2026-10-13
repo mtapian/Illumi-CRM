@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.db.models import Count, F, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.utils import timezone
 
 from sales.application import cobranzas as uc
@@ -45,6 +46,21 @@ def _preparar(c, hoy):
     return c
 
 
+def _vencidas(filas, hoy):
+    """RF-VEN-53 y 62: abiertas con cuotas vencidas − pagado > 0, en la base."""
+    return (
+        filas.filter(estado__in=dom.ABIERTAS)
+        .annotate(vencido_cuotas=Sum("cuotas__monto", filter=Q(cuotas__vencimiento__lt=hoy)))
+        .filter(vencido_cuotas__gt=F("pagado"))
+    )
+
+
+def aviso_vencidas(request):
+    """RF-VEN-62: aviso del inicio con las cobranzas vencidas."""
+    n = _vencidas(Cobranza.objects.all(), timezone.localdate()).count()
+    return render_to_string("sales/_aviso_vencidas.html", {"n": n})
+
+
 @requiere(uc.VER)
 def cobranzas(request):
     """RF-VEN-53: grilla estándar con el indicador Vencida y sus filtros."""
@@ -64,12 +80,8 @@ def cobranzas(request):
         n = q.removeprefix("COB-").removeprefix("P-")
         numero = Q(numero=int(n)) | Q(pedido__numero=int(n)) if n.isdigit() else Q(pk__in=[])
         filas = filas.filter(numero | Q(cliente__nombre__icontains=filtro["q"]))
-    if filtro["vencidas"]:  # cuotas vencidas − pagado > 0
-        filas = (
-            filas.filter(estado__in=dom.ABIERTAS)
-            .annotate(vencido=Sum("cuotas__monto", filter=Q(cuotas__vencimiento__lt=hoy)))
-            .filter(vencido__gt=F("pagado"))
-        )
+    if filtro["vencidas"]:
+        filas = _vencidas(filas, hoy)
     filas = filas.distinct()
     pagina = listados.paginar(request, filas)
     for c in pagina:
@@ -141,6 +153,7 @@ def cobranza(request, cobranza_id):
         "pagos": c.pagos.select_related("metodo", "registrado_por", "anulado_por").order_by("id"),
         "metodos": metodos_activos(),
         "gestiona": actor.puede(uc.GESTIONAR),
+        "anula": actor.puede(uc.ANULAR),
         "hoy": hoy,
         "accion_fallida": request.POST.get("accion", "pagar") if request.method == "POST" else "",
         "migas": MIGAS[:1] + [("Cobranzas", "/ventas/cobranzas/"), (c.codigo, None)],
@@ -180,7 +193,7 @@ def metodos_pago(request):
         "q": q,
         "editando": get_object_or_404(MetodoPago, pk=editar) if editar.isdigit() else None,
         "nuevo": "nuevo" in request.GET or request.method == "POST",
-        "gestiona": request.actor.puede(uc.GESTIONAR),
+        "gestiona": request.actor.puede(uc.METODOS),
         "migas": MIGAS[:1] + [("Métodos de pago", None)],
     }
     return render(request, "sales/metodos_pago.html", contexto)

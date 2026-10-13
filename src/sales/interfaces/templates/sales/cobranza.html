@@ -24,11 +24,11 @@
 </section>
 <section class="tarjeta">
   <h2>Pagos</h2>
-  <div class="tabla"><table><thead><tr><th>Fecha</th><th>Método</th><th>Referencia</th><th class="num">Monto</th><th>Registrado por</th><th>Estado</th>{% if gestiona %}<th class="acciones">Acciones</th>{% endif %}</tr></thead><tbody>
+  <div class="tabla"><table><thead><tr><th>Fecha</th><th>Método</th><th>Referencia</th><th class="num">Monto</th><th>Registrado por</th><th>Estado</th>{% if anula %}<th class="acciones">Acciones</th>{% endif %}</tr></thead><tbody>
   {% for g in pagos %}<tr>
     <td>{{ g.fecha|date:"Y-m-d" }}</td><td>{{ g.metodo.nombre }}</td><td>{{ g.referencia|default:"—" }}</td><td class="num">S/ {{ g.monto }}</td><td>{{ g.registrado_por.email|default:"—" }}</td>
     <td>{% if g.anulado_en %}<span class="chip error">Anulado</span> <small class="subtitulo">{{ g.anulado_por.email|default:"—" }} el {{ g.anulado_en|date:"Y-m-d H:i" }}: {{ g.motivo_anulacion }}</small>{% else %}<span class="chip ok">Vigente</span>{% endif %}</td>
-    {% if gestiona %}<td class="acciones">{% if not g.anulado_en %}<button type="button" class="secundario chico peligro" onclick="anularPago({{ g.id }}, 'S/ {{ g.monto }} · {{ g.metodo.nombre|escapejs }}')">Anular</button>{% endif %}</td>{% endif %}
+    {% if anula %}<td class="acciones">{% if not g.anulado_en %}<button type="button" class="secundario chico peligro" onclick="anularPago({{ g.id }}, 'S/ {{ g.monto }} · {{ g.metodo.nombre|escapejs }}')">Anular</button>{% endif %}</td>{% endif %}
   </tr>{% empty %}<tr><td colspan="7" class="subtitulo">Aún no hay pagos.</td></tr>{% endfor %}
   </tbody></table></div>
   {% if accion_fallida == "anular" %}{% include "listados/_error.html" with error=request.errores_campo.motivo %}{% endif %}
@@ -49,7 +49,7 @@
   <a class="boton secundario" href="{% url 'pedido' cobranza.pedido_id %}">Ver pedido</a>
   {% if gestiona and cobranza.estado != "PAGADA" %}<button type="submit" form="form-pago">Registrar pago</button>{% endif %}
 </div>
-{% if gestiona %}
+{% if anula %}
 <dialog id="anular-pago" class="tarjeta" aria-labelledby="titulo-anular">
   <form method="post">{% csrf_token %}<input type="hidden" name="accion" value="anular"><input type="hidden" name="pago" id="anular-id" value="{{ request.POST.pago }}">
     <h2 id="titulo-anular">Anular pago</h2>

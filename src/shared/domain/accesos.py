@@ -135,6 +135,8 @@ CATALOGO = {
                 "ventas.venta.anular",
                 "ventas.cobranza.ver",  # 0006b: cobranzas, pagos y métodos de pago
                 "ventas.cobranza.gestionar",
+                "ventas.cobranza.anular",  # segregación de funciones (RF-VEN-61, 64)
+                "ventas.metodo_pago.gestionar",
             ),
             ("ventas.clientes", "inventario.stock"),
         ),

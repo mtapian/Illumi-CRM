@@ -30,6 +30,9 @@ menu.agregar(
     "Ventas", "Cobranzas", "/ventas/cobranzas/", 275, permiso=ucob.VER, icono="suscripcion"
 )
 menu.agregar(
-    "Ventas", "Métodos de pago", "/ventas/metodos-pago/", 280, permiso=ucob.GESTIONAR, icono="token"
+    "Ventas", "Métodos de pago", "/ventas/metodos-pago/", 280, permiso=ucob.METODOS, icono="token"
+)
+avisos.agregar(
+    "cobranzas_vencidas", "Cobranzas vencidas", cobranzas.aviso_vencidas, permiso=ucob.VER, orden=35
 )
 avisos.agregar("quiebre", "Quiebre de stock", views.aviso_quiebre, permiso=up.VER, orden=30)

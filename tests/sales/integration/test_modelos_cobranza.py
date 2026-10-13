@@ -32,10 +32,15 @@ def falla(excepcion, accion):
 
 
 def test_permisos_de_cobranza():
-    """RF-VEN-53 y 54: en la funcionalidad "Ventas" y en las plantillas Ventas y Gerente."""
+    """RF-VEN-53 y 54: en la funcionalidad "Ventas" y en las plantillas Ventas y Gerente.
+    RF-VEN-61 y 64 (segregación de funciones): anular pagos y gestionar métodos de pago, solo
+    Gerente."""
     for p in ("ventas.cobranza.ver", "ventas.cobranza.gestionar"):
         assert PERMISOS[p] == "ventas.ventas"
         assert p in PLANTILLAS["Ventas"] and p in PLANTILLAS["Gerente"]
+    for p in ("ventas.cobranza.anular", "ventas.metodo_pago.gestionar"):
+        assert PERMISOS[p] == "ventas.ventas"
+        assert p not in PLANTILLAS["Ventas"] and p in PLANTILLAS["Gerente"]
 
 
 @pytest.mark.django_db
@@ -186,4 +191,26 @@ def test_empresas_y_roles_existentes(crear_empresa):
     assert {"ventas.cobranza.ver", "ventas.cobranza.gestionar"} <= de(vende)
     assert not de(otro)
     _migrar(ANTES)
+    _migrar()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_roles_que_anulan_ventas_reciben_la_segregacion(crear_empresa):
+    """RF-VEN-61 y 64: los roles con `ventas.venta.anular` reciben los permisos nuevos."""
+    empresa = crear_empresa()
+    apps = _migrar([("sales", "0004_cobranza_parcial")])
+    Rol, RolPermiso = apps.get_model("tenancy", "Rol"), apps.get_model("tenancy", "RolPermiso")
+    gerente = Rol.all_tenants.create(empresa_id=empresa.id, nombre="Jefe")
+    RolPermiso.objects.create(rol=gerente, permiso_id="ventas.venta.anular")
+    vendedor = Rol.all_tenants.create(empresa_id=empresa.id, nombre="Vendedor")
+    RolPermiso.objects.create(rol=vendedor, permiso_id="ventas.venta.registrar")
+    apps = _migrar()
+    RolPermiso = apps.get_model("tenancy", "RolPermiso")
+
+    def de(rol):
+        return set(RolPermiso.objects.filter(rol_id=rol.id).values_list("permiso_id", flat=True))
+
+    assert {"ventas.cobranza.anular", "ventas.metodo_pago.gestionar"} <= de(gerente)
+    assert "ventas.cobranza.anular" not in de(vendedor)
+    _migrar([("sales", "0004_cobranza_parcial")])
     _migrar()
