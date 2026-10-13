@@ -89,6 +89,10 @@ VentaDirecta(actor, datos, pagos, token, hoy):
 - **U3 (RF-VEN-63):** `disponibilidad()` suma a los indicadores de un pedido Facturado o Entregado con saldo su estado de cobro (sin marca si está pagado), con una sola consulta de cobranzas (y sus cuotas) para la página.
 - Correcciones de la revisión (sin RF nuevo): la búsqueda de clientes exige `ventas.cliente.ver` (no `ventas.pedido.gestionar`); un pago no puede ser anterior a la emisión (RF-VEN-54); el kardex enlaza la salida `VENTA` con su pedido.
 
+### Enmienda 2 (RF-VEN-65)
+
+Buscador en el parcial de líneas que comparten el pedido y la venta directa (`_cliente_y_lineas.html` y `_buscar_producto.html`): filtra en el navegador sobre los productos vendibles que la pantalla ya carga (cada opción lleva `data-sku`, `data-barras` y `data-precio`); Enter con coincidencia exacta agrega o suma 1. Alternativa descartada por ahora: búsqueda en el servidor (más lenta para la lectora y un endpoint más). Mejora técnica registrada en `MEMORY.md` (PO, 2026-10-13): pasar al servidor con más de ~500 SKUs vendibles.
+
 ## 6. Decisiones técnicas
 
 - **Sin tabla de venta ni de comprobante** (§2): la venta es el pedido facturado.

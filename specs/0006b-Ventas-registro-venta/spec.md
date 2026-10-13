@@ -99,6 +99,10 @@ Tras la revisión de ventas el PO pidió segregar funciones en la cobranza (C1),
 - RF-VEN-62 (U2): MIENTRAS haya cobranzas vencidas (solo vencidas; sin aviso de próximas a vencer), EL SISTEMA muestra en el inicio, a quien tenga `ventas.cobranza.ver`, el aviso "N cobranzas vencidas", que lleva al listado de cobranzas filtrado por "solo vencidas". Sin cobranzas vencidas, no hay alerta: su tarjeta dice "Ninguna cobranza vencida", como el aviso de quiebre de stock (RF-VEN-47).
 - RF-VEN-63 (U3): EL SISTEMA muestra en la Lista y el Kanban de pedidos, para cada pedido Facturado o Entregado con saldo, su estado de cobro: **Por cobrar** (cobranza Pendiente) o **Cobro parcial** (Parcial), y además **Cobro vencido** si su cobranza está vencida. Un pedido pagado no lleva marca (las ventas directas no agregan ruido). Sin filtro nuevo: para eso está el listado de cobranzas.
 
+### Enmienda 2 (PO, 2026-10-13): búsqueda de productos y lectora de código de barras — aprobada (PO: "ok")
+
+- RF-VEN-65: EL SISTEMA ofrece en el pedido (0006a) y en la venta directa un buscador de productos que, mientras se escribe, sugiere los productos vendibles activos cuyo **nombre, SKU o código de barras** contiene el texto; elegir uno agrega una línea con cantidad 1 y el precio de lista. CUANDO se pulsa Enter (lo que hace una lectora de código de barras) y el texto coincide exactamente con un código de barras o un SKU, EL SISTEMA agrega ese producto sin abrir sugerencias y deja el buscador listo para el siguiente; SI el producto ya está en una línea, ENTONCES suma 1 a su cantidad (un producto, una línea: RF-VEN-06); SI no coincide con ningún producto vendible, ENTONCES indica "No hay un producto que se venda con el código <texto>" y no agrega nada. El selector de cada línea se mantiene para corregirla.
+
 ## Requisitos no funcionales
 
 - RNF-VEN-01: La caída del PSE o de SUNAT nunca impide facturar: el comprobante queda pendiente (constitución art. 5.2).

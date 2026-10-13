@@ -165,6 +165,32 @@ Las 22 specs usan el formato `NNNNx-Modulo-nombre`. Las que no están aprobadas 
 - **Código de tipo de sistema ISC:** el contador dijo `01`; el catálogo 08 de SUNAT indica `02` para monto fijo. Con 0002e (borrador) sale del criterio del impuesto (fijo = 02, porcentaje = 01) → confirmar con el contador.
 - **Cerveza que entra sin producir:** ¿maquila o compra a granel? Hoy solo se cubre la reventa de terceros (`MERCADERIA`) y el saldo inicial. ¿La reventa de cerveza de terceros paga ISC otra vez? (contador).
 
+## Mejoras técnicas para el futuro (deuda técnica conocida)
+
+No cambian lo que hace el sistema; se hacen cuando se cumple su disparador (PO, 2026-10-13: "considera cualquier entidad de crecimiento exponencial posible"). Barrido de todos los módulos el 2026-10-13.
+
+**Patrón de solución común (hacerlo una vez y reutilizarlo):** un *selector con búsqueda en el servidor*, como la búsqueda de clientes de 0006a (RF-VEN-50): endpoint `…/buscar/?q=` que devuelve hasta 10 coincidencias (con un código exacto resuelto por índice) y un campo que guarda el id oculto y muestra el elegido. Reemplaza a los `<select>` que listan todos los registros.
+
+**Entidades que crecen** (hoy cargan todos sus registros en la página):
+
+| Entidad | Dónde se cargan todos | Disparador | Qué hacer |
+|---|---|---|---|
+| **Productos** | Líneas del pedido y la venta directa (0006a/b; también el buscador de RF-VEN-65 filtra en el navegador), de la compra (0004a), del ajuste (0003b), componentes y salidas de la OP (0005a); filtro "Producto" del kardex (0003c) y del listado de OP | Más de ~500 SKUs vendibles o activos (p. ej. ropa con tallas y colores) o pantallas lentas | Selector con búsqueda en el servidor por nombre, SKU o código de barras; en las líneas, el producto elegido con su id oculto. El selector se repite en cada línea, así que el peso crece con productos × líneas |
+| **Clientes** | Filtro "Cliente" del listado de pedidos y del de cobranzas | Más de ~500 clientes | Filtro con búsqueda en el servidor (ya existe `ventas/clientes/buscar/`). La elección del cliente en el pedido y la venta directa ya busca en el servidor |
+| **Proveedores** | Selector de la compra, filtro del listado de compras, pestaña "Compras" del producto; el listado de proveedores no pagina | Más de ~300 proveedores | Selector con búsqueda en el servidor; paginar el listado (grilla estándar) |
+| **Empresas** (plataforma) | Listado de empresas del super admin, sin paginar | Más de ~200 empresas | Paginar en la base (grilla estándar) |
+| **Pedidos** | `views.pedidos` (0006a) carga todos los filtrados y pagina en Python, por "atrasados" y "quiebre de stock"; el aviso de quiebre del inicio calcula todos los abiertos en cada carga | Miles de pedidos o inicio lento | Disponibilidad solo para los abiertos de la página; paginar en la base sin esos filtros; el aviso puede contar con una consulta agregada |
+| **Auditoría de accesos** | Muestra los últimos 200, sin paginar: lo anterior solo se alcanza filtrando | Cuando se necesite revisar más atrás | Paginación por cursor, como el kardex |
+
+**Acotadas (no requieren cambio):** almacenes, métodos de pago, unidades, categorías, marcas, impuestos, tipos de documento, roles y usuarios (estos dos limitados por el plan). Ya resueltas: kardex (cursor y CSV por iterador), stock, compras, OP, clientes y cobranzas (paginan en la base).
+
+**Otras:**
+
+| Mejora | Hoy | Disparador | Qué hacer |
+|---|---|---|---|
+| Ordenar el código de ventas | `sales/interfaces/views.py` (~550 líneas) y `pedido.html` (~230) | Al tocar de nuevo la facturación o el pedido | Separar la facturación en su propio módulo, como `interfaces/cobranzas.py` |
+| Venta directa con el mismo token a la vez (0006b, RF-VEN-29) | El segundo envío simultáneo choca con el índice único y da error (no duplica) | Si aparece en uso real | Capturar el choque y devolver la venta ya registrada |
+
 ## Próximo paso
 
 1. Resolver las dudas `[NECESITA ACLARACIÓN]` (priorizar Q10, que cambia el alcance de S2, y Q6/Q8, que bloquean las specs 0001a y 0001b).

@@ -1,5 +1,5 @@
 <tr>
-  <td><select name="producto" aria-label="Producto" onchange="precargarPrecio(this)"><option value="">—</option>{% for p in productos %}<option value="{{ p.id }}" data-precio="{{ p.precio_venta }}"{% if f.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select></td>
+  <td><select name="producto" aria-label="Producto" onchange="precargarPrecio(this)"><option value="">—</option>{% for p in productos %}<option value="{{ p.id }}" data-precio="{{ p.precio_venta }}" data-sku="{{ p.sku }}" data-barras="{{ p.codigo_barras }}"{% if f.producto == p.id|stringformat:"s" %} selected{% endif %}>{{ p.sku }} · {{ p.nombre }} ({{ p.unidad.abreviatura }})</option>{% endfor %}</select></td>
   <td><input name="cantidad" type="number" min="0" step="0.0001" value="{{ f.cantidad|default:'' }}" aria-label="Cantidad"></td>
   <td><input name="precio" type="number" min="0" step="0.01" value="{{ f.precio|default:'' }}" aria-label="Precio con impuestos"></td>
   <td class="subtotal num"></td>

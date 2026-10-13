@@ -25,6 +25,7 @@ evita registrar dos veces el mismo formulario. El comprobante sale del cliente y
   </section>
   <section class="tarjeta">
     <h2>Productos</h2>
+    {% include "sales/_buscar_producto.html" %}
     <div class="tabla"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio (con impuestos)</th><th class="num">Subtotal</th><th><span class="oculto">Quitar</span></th></tr></thead>
     <tbody id="lineas">{% for f in filas %}{% include "sales/_linea_pedido.html" %}{% endfor %}</tbody></table></div>
     {% include "listados/_error.html" with error=request.errores_campo.lineas %}

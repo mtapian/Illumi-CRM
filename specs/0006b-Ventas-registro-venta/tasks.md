@@ -38,6 +38,9 @@ Una tarea a la vez: test primero (en rojo), código, test en verde, marcar y par
   - Hecho cuando: el test del inicio lo muestra con vencidas, no sin ellas, y solo con permiso.
 - [x] **T13. Estado de cobro en los pedidos (enmienda 1, U3).** — RF-VEN-63
   - Hecho cuando: el test muestra Por cobrar, Cobro parcial y Cobro vencido en Lista y Kanban, y nada en un pedido pagado.
+- [x] **T14. Búsqueda de productos y lectora de código de barras (enmienda 2).** — RF-VEN-65
+  - Buscador en el pedido y la venta directa; Enter con código exacto agrega o suma 1.
+  - Hecho cuando: el test de pantalla ve el buscador y los datos de búsqueda de cada producto en las dos pantallas, y la verificación manual en Docker escanea, suma y avisa si no existe.
 - [ ] **T9. Escenarios de aceptación y cierre.** — todos (después de T11–T13)
   - `tests/acceptance/pasos_ventas.py` y `test_e06b.py`; se quita `@borrador`; spec, plan y tareas a "implementada"; `MEMORY.md`; Docker.
   - Hecho cuando: los escenarios de 0006b y los de 0006a están en verde; suite, lint, formato, contratos y migraciones en verde; cada RF con escenario o test.

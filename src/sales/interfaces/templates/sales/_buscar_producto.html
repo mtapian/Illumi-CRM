@@ -1,0 +1,9 @@
+{% comment %}Buscador de productos por nombre, SKU o código de barras (RF-VEN-65); con lectora: código + Enter.
+Lo maneja el script de `_cliente_y_lineas.html`.{% endcomment %}
+<div class="selector-cliente buscador-producto">
+  <label for="buscar-producto">Buscar producto</label>
+  <input type="search" id="buscar-producto" autocomplete="off" placeholder="Nombre, SKU o código de barras" aria-describedby="producto-ayuda">
+  <ul id="producto-sugerencias" class="sugerencias" hidden></ul>
+  <small id="producto-ayuda" class="subtitulo">Con lectora de código de barras: escanea y se agrega (si ya está, suma 1).</small>
+  <p id="producto-aviso" class="error-campo" role="alert" hidden></p>
+</div>

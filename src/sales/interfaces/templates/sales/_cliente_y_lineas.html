@@ -38,6 +38,61 @@ informativo; lo usan el pedido y la venta directa. `form_id`: el formulario que 
     }
     document.getElementById("total").textContent = "S/ " + total.toFixed(2);
   }
+  // Buscador de productos (RF-VEN-65): nombre, SKU o código de barras; Enter con código exacto
+  // agrega o suma 1. ponytail: filtra en el navegador; con muchos miles de productos, en el servidor.
+  (() => {
+    const buscar = document.getElementById("buscar-producto");
+    if (!buscar) return;
+    const lista = document.getElementById("producto-sugerencias"), aviso = document.getElementById("producto-aviso");
+    const productos = [...document.getElementById("linea-vacia").content.querySelectorAll("option[value]:not([value=''])")]
+      .map((o) => ({ id: o.value, texto: o.textContent, sku: o.dataset.sku || "", barras: o.dataset.barras || "", precio: o.dataset.precio || "" }));
+    const agregar = (p) => {
+      const filas = [...document.getElementById("lineas").rows];
+      let fila = filas.find((f) => f.querySelector("[name=producto]").value === p.id);
+      if (fila) {
+        const q = fila.querySelector("[name=cantidad]");
+        q.value = Number(q.value || 0) + 1;
+      } else {
+        fila = filas.find((f) => !f.querySelector("[name=producto]").value);
+        if (!fila) { agregarLinea(); fila = document.getElementById("lineas").lastElementChild; }
+        fila.querySelector("[name=producto]").value = p.id;
+        fila.querySelector("[name=cantidad]").value = 1;
+        if (!fila.querySelector("[name=precio]").value) fila.querySelector("[name=precio]").value = p.precio;
+      }
+      buscar.value = ""; lista.hidden = true; aviso.hidden = true; buscar.focus();
+      document.getElementById("{{ form_id }}").dispatchEvent(new Event("input"));
+    };
+    const coincidencias = (q) => {
+      q = q.toLowerCase();
+      return productos.filter((p) => p.texto.toLowerCase().includes(q) || p.barras.toLowerCase().includes(q)).slice(0, 8);
+    };
+    buscar.addEventListener("input", () => {
+      aviso.hidden = true;
+      const q = buscar.value.trim();
+      if (!q) { lista.hidden = true; return; }
+      const encontrados = coincidencias(q);
+      lista.replaceChildren(...(encontrados.length ? encontrados.map((p) => {
+        const li = Object.assign(document.createElement("li"), { textContent: p.texto + (p.barras ? ` · ${p.barras}` : "") });
+        li.addEventListener("mousedown", (e) => { e.preventDefault(); agregar(p); });
+        return li;
+      }) : [Object.assign(document.createElement("li"), { className: "vacio", textContent: "Sin coincidencias" })]));
+      lista.hidden = false;
+    });
+    buscar.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();  // no envía el formulario
+      const q = buscar.value.trim();
+      if (!q) return;
+      const exacto = productos.find((p) => p.barras === q || p.sku.toLowerCase() === q.toLowerCase());
+      const unico = coincidencias(q);
+      if (exacto || unico.length === 1) return agregar(exacto || unico[0]);
+      if (unico.length > 1) return;  // varias: que elija de las sugerencias
+      aviso.textContent = `No hay un producto que se venda con el código ${q}`;
+      aviso.hidden = false; lista.hidden = true; buscar.select();
+    });
+    buscar.addEventListener("blur", () => (lista.hidden = true));
+  })();
+
   document.getElementById("{{ form_id }}").addEventListener("input", recalcular);
   document.getElementById("{{ form_id }}").addEventListener("change", recalcular);
   recalcular();
@@ -81,6 +136,7 @@ informativo; lo usan el pedido y la venta directa. `form_id`: el formulario que 
 </script>
 <style>
   .selector-cliente { position: relative; display: flex; flex-direction: column; gap: .25rem; }
+  .buscador-producto { max-width: 32rem; margin-bottom: .75rem; }
   .sugerencias { position: absolute; top: 4.2rem; left: 0; right: 0; z-index: 20; margin: 0; padding: .25rem 0; list-style: none;
     background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 8px; box-shadow: 0 6px 18px rgb(15 27 51 / .12); max-height: 14rem; overflow-y: auto; }
   .sugerencias li { padding: .45rem .75rem; cursor: pointer; }

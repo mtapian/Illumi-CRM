@@ -1,11 +1,12 @@
-"""0006b, T6 y T7: facturar y entregar desde la ficha del pedido; resumen del cliente (RF-VEN-04,
-17, 19, 20, 51)."""
+"""0006b, T6, T7 y T14: facturar y entregar desde la ficha del pedido, venta directa,
+buscador de productos y resumen del cliente (RF-VEN-04, 17 a 20, 29, 51, 52, 65)."""
 
 import re
 
 import pytest
 from django.utils import timezone
 
+from catalog.infrastructure.models import Producto
 from sales.infrastructure.contenedor import sembrar_metodos_pago
 from sales.infrastructure.models import MetodoPago, Pedido
 from tenancy.infrastructure.models import Rol, RolPermiso, Usuario, UsuarioRol
@@ -134,3 +135,14 @@ def test_kardex_enlaza_la_venta_con_su_pedido(web):
     client.post(f"/ventas/pedidos/{id_}/", {"accion": "facturar", "almacen": v["almacen"]})
     kardex = client.get("/inventario/kardex/", {"producto": v["ids"]["TER-IPA-330"]})
     assert f'href="/ventas/pedidos/{id_}/"' in kardex.content.decode()
+
+
+def test_buscador_de_productos_con_codigo_de_barras(web):
+    """RF-VEN-65: el pedido y la venta directa buscan por nombre, SKU o código de barras."""
+    client, v = web
+    Producto.objects.filter(pk=v["ids"]["TER-IPA-330"]).update(codigo_barras="7751234000017")
+    for url in ("/ventas/pedidos/nuevo/", "/ventas/venta-directa/"):
+        pagina = client.get(url).content.decode()
+        assert 'id="buscar-producto"' in pagina, url
+        assert 'data-barras="7751234000017"' in pagina and 'data-sku="TER-IPA-330"' in pagina
+        assert "No hay un producto que se venda con el código" in pagina
