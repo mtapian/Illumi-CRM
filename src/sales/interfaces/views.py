@@ -188,7 +188,9 @@ def disponibilidad(pedidos, hoy) -> dict[int, dict]:
     consulta de stock) y sus indicadores. ponytail: al vuelo, sin resumen guardado."""
     pedidos = list(pedidos)
     abiertos = [p for p in pedidos if p.estado in (dom.CREADO, dom.APROBADO)]
-    lineas = {p.id: list(p.lineas.select_related("producto__unidad")) for p in abiertos}
+    lineas = {
+        p.id: list(p.lineas.select_related("producto__unidad").order_by("id")) for p in abiertos
+    }
     ids = [x.producto_id for filas in lineas.values() for x in filas]
     disponibles = inventario().disponibles(ids, hoy)
     resultado = {}

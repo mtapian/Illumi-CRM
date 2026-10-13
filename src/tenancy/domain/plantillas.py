@@ -21,6 +21,8 @@ _VENTAS = {
     "ventas.pedido.cancelar",
     "ventas.venta.ver",
     "ventas.venta.registrar",
+    "ventas.cobranza.ver",
+    "ventas.cobranza.gestionar",
 }
 _FINANZAS = {
     "finanzas.gasto.ver",

@@ -29,7 +29,7 @@ class DatosPedido:
 
 class PedidosRepo(Protocol):
     def cliente_activo(self, cliente_id: int) -> bool: ...
-    def crear(self, numero: int, datos: DatosPedido, total, usuario_id: int) -> int: ...
+    def crear(self, numero: int, datos: DatosPedido, total, usuario_id: int, token) -> int: ...
     def actualizar(self, pedido_id: int, datos: DatosPedido, total, lineas: bool) -> None: ...
     def bloquear(self, pedido_id: int) -> tuple[str, DatosPedido]: ...  # FOR UPDATE; 404
     def aprobar(self, pedido_id: int, usuario_id: int) -> None: ...
@@ -67,10 +67,14 @@ class CrearPedido(_Base):
     """RF-VEN-06: queda Creado, con número correlativo."""
 
     def ejecutar(self, actor: Actor, datos: DatosPedido) -> int:
-        datos = self._validar(datos)
         with self._atomic():
-            numero = self._secuencia.siguiente("PEDIDO")
-            return self._repo.crear(numero, datos, total(datos.lineas), actor.usuario_id)
+            return self.crear(actor, datos)
+
+    def crear(self, actor: Actor, datos: DatosPedido, token=None) -> int:
+        """Dentro de una transacción abierta (también la usa la venta directa, 0006b)."""
+        datos = self._validar(datos)
+        numero = self._secuencia.siguiente("PEDIDO")
+        return self._repo.crear(numero, datos, total(datos.lineas), actor.usuario_id, token)
 
 
 class EditarPedido(_Base):

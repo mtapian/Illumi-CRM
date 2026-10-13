@@ -129,7 +129,13 @@ CATALOGO = {
             "ventas.ventas",
             "Ventas",
             "VENTAS",
-            ("ventas.venta.ver", "ventas.venta.registrar", "ventas.venta.anular"),
+            (
+                "ventas.venta.ver",
+                "ventas.venta.registrar",
+                "ventas.venta.anular",
+                "ventas.cobranza.ver",  # 0006b: cobranzas, pagos y métodos de pago
+                "ventas.cobranza.gestionar",
+            ),
             ("ventas.clientes", "inventario.stock"),
         ),
         _F(

@@ -352,3 +352,12 @@ def sembrar_tipos_documento() -> None:
     for t in TIPOS_INICIALES:
         datos = {c: getattr(t, c) for c in _REGLAS if c != "abreviatura"}
         TipoDocumento.objects.get_or_create(abreviatura=t.abreviatura, defaults=datos)
+
+
+def sembrar_parametros_plataforma() -> None:
+    """IGV y umbral de boleta de la plataforma, si faltan (las migraciones 0004 y 0011 los
+    siembran; los tests con transacciones reales vacían la tabla)."""
+    for clave, valor in (("igv_pct", 18), ("umbral_boleta_identificada", 700)):
+        ParametroVigencia.objects.get_or_create(
+            empresa=None, clave=clave, vigente_desde=date(2011, 3, 1), defaults={"valor": valor}
+        )

@@ -7,3 +7,7 @@ class ClienteInvalido(DomainError):
 
 class PedidoInvalido(DomainError):
     codigo = "PEDIDO_INVALIDO"
+
+
+class CobranzaInvalida(DomainError):
+    codigo = "COBRANZA_INVALIDA"
